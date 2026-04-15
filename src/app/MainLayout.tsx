@@ -1,6 +1,6 @@
 import { activeElement, ElementNode, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { children, createSignal, type JSX, onCleanup, onMount, Show, Suspense } from "solid-js";
+import { children, createEffect, createSignal, type JSX, onCleanup, onMount, Show, Suspense } from "solid-js";
 import { ExitDialog, Sidebar } from "../components";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
 import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
@@ -55,6 +55,14 @@ const MainLayout = (props: MainLayoutProps) => {
       setShowExitDialog(false);
     }
   }
+  // Route change invalidates any lastFocused reference from the prior page.
+  // Otherwise returning from the sidebar setFocus-es a stale node and the
+  // page scroll snaps to that node's position on remount.
+  createEffect(() => {
+    // Track the route signal so this effect re-runs on navigation.
+    void location.pathname;
+    lastFocused = undefined;
+  });
 
   onMount(() => {
     const unsubscribe = addForegroundResumeListener(() => {
