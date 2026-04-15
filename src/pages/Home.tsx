@@ -126,23 +126,16 @@ const Home = () => {
           width={1700}
           height={460}
           gap={28}
-          scroll="always"
+          scroll="auto"
           forwardFocus={0}
-          onUp={function (this) {
-            // `always` scroll pins selected to 0 visually, so we track the
-            // internal selected ourselves: only bubble Up to the hero when
-            // we're actually on the first rail.
-            if (this.selected === 0) {
-              hero?.setFocus();
-              return true;
-            }
-            return false;
+          onUp={() => {
+            hero?.setFocus();
+            return true;
           }}
         >
           <Show when={recommendedMovies()?.recommendations?.length}>
             <ContentRow
               title="Para você"
-              autofocus
               onSelectedChanged={index => {
                 const movie = recommendedMovies()?.recommendations?.[index];
                 if (movie) api.prefetchMovie(String(movie.id));
