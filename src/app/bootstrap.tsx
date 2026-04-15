@@ -1,16 +1,19 @@
 import { FocusStackProvider, HashRouter } from "@lightningtv/solid/primitives";
 import { config } from "#devices/common";
-import { installDebugCapture } from "../components/DebugOverlay";
+import { isDebugOverlayEnabled } from "@/debug/overlayState";
 import { getAppRenderer } from "./lightning";
 import AppShell from "./AppShell";
 import AppRoutes from "./routes";
-import { createLogger } from "../shared/logging/logger";
-import { focusRuntimeWindow, isTizenRuntime } from "../platform/runtime";
+import { createLogger } from "@/shared/logging/logger";
+import { focusRuntimeWindow, isTizenRuntime } from "@/platform/runtime";
 
 const logger = createLogger("AppBootstrap");
 
 export async function bootstrapApp() {
-  installDebugCapture();
+  if (isDebugOverlayEnabled) {
+    const { installDebugCapture } = await import("../components/DebugOverlay");
+    installDebugCapture();
+  }
 
   try {
     await config.initialize();

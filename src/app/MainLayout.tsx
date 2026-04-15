@@ -1,8 +1,9 @@
 import { activeElement, ElementNode, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
+import { createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { ExitDialog, Sidebar } from "../components";
-import { addForegroundResumeListener, exitCurrentApp } from "../platform/tizen";
+import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
+import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
 
 interface MainLayoutProps {
   children?: JSX.Element;
@@ -67,8 +68,8 @@ const MainLayout = (props: MainLayoutProps) => {
 
   return (
     <View
-      width={1920}
-      height={1080}
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
       color={0x0d0d12ff}
       onLast={handleBack}
       onBack={handleBack}
@@ -84,9 +85,9 @@ const MainLayout = (props: MainLayoutProps) => {
       <View
         id="pageContainer"
         ref={pageContainer}
-        x={220}
-        width={1700}
-        height={1080}
+        x={SIDEBAR_WIDTH}
+        width={CONTENT_WIDTH}
+        height={CONTENT_HEIGHT}
         clipping
         forwardFocus={0}
         children={props.children}

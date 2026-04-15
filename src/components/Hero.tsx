@@ -7,6 +7,7 @@ import {
 } from "@lightningtv/solid";
 import { Show } from "solid-js";
 import type { FeaturedItem } from "../lib/api";
+import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
 import { theme } from "../styles";
 
 // Hero button styles with $focus
@@ -68,34 +69,45 @@ export interface HeroProps extends NodeProps {
 
 const Hero = (props: HeroProps) => {
   return (
-    <View {...props} width={1700} height={600}>
-      {/* Background Image - zIndex 0 (back layer) */}
+    <View {...props} width={CONTENT_WIDTH} height={600}>
       <Show when={props.item?.backdrop_url}>
         <View
           x={0}
           y={0}
           src={props.item!.backdrop_url}
           color={0xffffffff}
-          width={1700}
+          width={CONTENT_WIDTH}
           height={600}
           borderRadius={16}
           zIndex={0}
         />
       </Show>
 
-      {/* Gradient overlay - zIndex 1 */}
       <Show when={props.item?.backdrop_url}>
-        <View x={0} y={0} width={1700} height={600} borderRadius={16} color={0x000000aa} zIndex={1} />
+        <View
+          x={0}
+          y={0}
+          width={CONTENT_WIDTH}
+          height={600}
+          borderRadius={16}
+          color={0x000000aa}
+          zIndex={1}
+        />
       </Show>
 
-      {/* Fallback background */}
       <Show when={!props.item?.backdrop_url}>
-        <View x={0} y={0} width={1700} height={600} borderRadius={16} color={0x1a1a2eff} zIndex={0} />
+        <View
+          x={0}
+          y={0}
+          width={CONTENT_WIDTH}
+          height={600}
+          borderRadius={16}
+          color={0x1a1a2eff}
+          zIndex={0}
+        />
       </Show>
 
-      {/* Content Overlay - zIndex 2 (front layer) */}
-      <View x={60} y={300} width={800} zIndex={2}>
-        {/* Title */}
+      <View x={SAFE_AREA_X + 12} y={300} width={800} zIndex={2}>
         <Text
           fontSize={56}
           fontWeight="bold"
@@ -108,7 +120,6 @@ const Hero = (props: HeroProps) => {
           {props.item?.title || "Bem-vindo ao Streamix"}
         </Text>
 
-        {/* Description */}
         <Show when={props.item?.description}>
           <Text
             y={140}
@@ -124,25 +135,21 @@ const Hero = (props: HeroProps) => {
           </Text>
         </Show>
 
-        {/* Buttons */}
         <View y={260} display="flex" gap={20}>
-          {/* Play Button */}
           <View style={PlayButtonStyle} forwardStates onEnter={props.onPlay}>
             <Text style={PlayButtonTextStyle}>Assistir</Text>
           </View>
 
-          {/* More Info Button */}
           <View x={180} style={InfoButtonStyle} forwardStates onEnter={props.onInfo}>
             <Text style={InfoButtonTextStyle}>Detalhes</Text>
           </View>
         </View>
       </View>
 
-      {/* Type Badge - zIndex 2 */}
       <Show when={props.item?.type}>
         <View
-          x={1540}
-          y={40}
+          x={CONTENT_WIDTH - 160}
+          y={SAFE_AREA_Y}
           width={120}
           height={36}
           color={0xe5091499}

@@ -1,8 +1,12 @@
 import { ElementNode, View } from "@lightningtv/solid";
 import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
-import { preferences } from "../lib/storage";
-import { DebugOverlay, toggleDebug } from "../components";
-import { activeKeyHoldOptions, activeKeys, type AppChildren } from "../platform/keys";
+import { lazy, Show } from "solid-js";
+import { preferences } from "@/lib/storage";
+import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
+import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
+
+const DebugOverlay = lazy(() => import("../components/DebugOverlay"));
 
 declare global {
   interface Window {
@@ -27,20 +31,22 @@ const AppShell = (props: AppShellProps) => {
       ref={element => {
         window.APP = element;
       }}
-      width={1920}
-      height={1080}
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
       color={0x0d0d12ff}
       onAnnouncer={() => {
         announcer.enabled = !announcer.enabled;
         preferences.update({ announcer: announcer.enabled });
       }}
       onKey0={() => {
-        toggleDebug();
+        toggleDebugOverlay();
         return true;
       }}
     >
       {props.children}
-      <DebugOverlay />
+      <Show when={isDebugOverlayEnabled}>
+        <DebugOverlay />
+      </Show>
     </View>
   );
 };

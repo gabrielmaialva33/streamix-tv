@@ -5,12 +5,13 @@ import {
   View,
 } from "@lightningtv/solid";
 import { createSignal } from "solid-js";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../shared/layout";
 import { theme } from "../styles";
 
 // Full-screen dim overlay behind the dialog.
 const OverlayStyle = {
-  width: 1920,
-  height: 1080,
+  width: SCREEN_WIDTH,
+  height: SCREEN_HEIGHT,
   color: 0x000000cc,
   zIndex: 1000,
 } satisfies IntrinsicNodeStyleProps;
@@ -18,8 +19,8 @@ const OverlayStyle = {
 // Center the dialog with fixed dimensions to keep layout stable.
 const DIALOG_W = 560;
 const DIALOG_H = 320;
-const DIALOG_X = (1920 - DIALOG_W) / 2;
-const DIALOG_Y = (1080 - DIALOG_H) / 2;
+const DIALOG_X = (SCREEN_WIDTH - DIALOG_W) / 2;
+const DIALOG_Y = (SCREEN_HEIGHT - DIALOG_H) / 2;
 
 const DialogStyle = {
   width: DIALOG_W,
