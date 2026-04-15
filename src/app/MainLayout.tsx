@@ -102,20 +102,7 @@ const MainLayout = (props: MainLayoutProps) => {
         forwardFocus={0}
       >
         <Suspense fallback={<View width={CONTENT_WIDTH} height={CONTENT_HEIGHT} color={0x0d0d12ff} />}>
-          <Show keyed when={location.pathname}>
-            {path => (
-              <View
-                id={`routeSurface:${path}`}
-                width={CONTENT_WIDTH}
-                height={CONTENT_HEIGHT}
-                color={0x0d0d12ff}
-                clipping
-                forwardFocus={0}
-              >
-                {resolvedChildren()}
-              </View>
-            )}
-          </Show>
+          {resolvedChildren()}
         </Suspense>
       </View>
       <Show when={showExitDialog()}>
