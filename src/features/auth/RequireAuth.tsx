@@ -1,7 +1,7 @@
 import { Text, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { children, createEffect, type JSX, onMount, Show } from "solid-js";
-import { initializeAuth, authState } from "./auth";
+import { authState, initializeAuth } from "./auth";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import api, { ApiError, type AuthResponse, type AuthUser, type FavoriteRecord } from "@/lib/api";
-import { authSession, favorites, type FavoriteItem } from "@/lib/storage";
+import { authSession, type FavoriteItem, favorites } from "@/lib/storage";
 import { createLogger } from "@/shared/logging/logger";
 
 export type AuthStatus = "checking" | "authenticated" | "anonymous";

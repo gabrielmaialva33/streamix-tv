@@ -21,8 +21,6 @@ const INPUT_STYLE = {
   width: 760,
   height: 104,
   borderRadius: 18,
-  color: theme.surface,
-  border: { color: theme.border, width: 2 },
   scale: 1,
   transition: { scale: { duration: 150 }, color: { duration: 150 } },
   $focus: {
@@ -32,17 +30,14 @@ const INPUT_STYLE = {
   },
 } satisfies IntrinsicNodeStyleProps;
 
-const ACTIVE_INPUT_STYLE = {
-  ...INPUT_STYLE,
-  color: theme.surfaceLight,
-  border: { color: theme.primary, width: 3 },
-} satisfies IntrinsicNodeStyleProps;
-
 const PRIMARY_ACTION_STYLE = {
   width: 320,
   height: 68,
   borderRadius: 20,
   color: theme.primary,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
   scale: 1,
   transition: { scale: { duration: 150 }, color: { duration: 150 } },
   $focus: {
@@ -57,6 +52,9 @@ const SECONDARY_ACTION_STYLE = {
   borderRadius: 20,
   color: theme.surfaceLight,
   border: { color: theme.borderLight, width: 2 },
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
   scale: 1,
   transition: { scale: { duration: 150 }, color: { duration: 150 } },
   $focus: {
@@ -239,6 +237,9 @@ const LoginPage = () => {
   }
 
   function switchMode(next: AuthMode) {
+    if (next === mode()) {
+      return;
+    }
     setMode(next);
     setErrorMessage(null);
     closeTvKeyboard();
@@ -400,8 +401,7 @@ const LoginPage = () => {
               }}
             >
               <Text
-                y={19}
-                width={320}
+                width={280}
                 fontSize={22}
                 fontWeight={700}
                 color={0xffffffff}
@@ -418,14 +418,7 @@ const LoginPage = () => {
                 return true;
               }}
             >
-              <Text
-                y={21}
-                width={320}
-                fontSize={20}
-                color={theme.textPrimary}
-                textAlign="center"
-                contain="width"
-              >
+              <Text width={280} fontSize={20} color={theme.textPrimary} textAlign="center" contain="width">
                 {mode() === "login" ? "Quero criar conta" : "Voltar ao login"}
               </Text>
             </View>
@@ -448,10 +441,14 @@ const CHIP_STYLE = {
   width: 180,
   height: 48,
   borderRadius: 24,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
   transition: {
     scale: { duration: 150, easing: "ease-out" },
     color: { duration: 150, easing: "ease-out" },
   },
+  scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
     scale: 1.05,
@@ -459,8 +456,7 @@ const CHIP_STYLE = {
 } satisfies IntrinsicNodeStyleProps;
 
 const CHIP_TEXT_STYLE = {
-  y: 13,
-  width: 172,
+  width: 148,
   fontSize: 18,
   fontWeight: 700,
   textAlign: "center",
@@ -471,6 +467,7 @@ const ModeChip = (props: ModeChipProps) => (
   <View
     style={CHIP_STYLE}
     color={props.active ? 0x2b1015ff : theme.surface}
+    border={{ color: props.active ? theme.primary : theme.border, width: props.active ? 2 : 1 }}
     onEnter={() => {
       props.onSelect();
       return true;
@@ -479,9 +476,6 @@ const ModeChip = (props: ModeChipProps) => (
     <Text style={CHIP_TEXT_STYLE} color={props.active ? 0xffffffff : theme.textSecondary}>
       {props.label}
     </Text>
-    <Show when={props.active}>
-      <View x={48} y={41} width={76} height={3} color={theme.primary} borderRadius={2} skipFocus />
-    </Show>
   </View>
 );
 
@@ -504,7 +498,9 @@ const FieldCard = (props: FieldCardProps) => {
     <View
       ref={props.ref}
       autofocus={props.autofocus}
-      style={props.editing ? ACTIVE_INPUT_STYLE : INPUT_STYLE}
+      style={INPUT_STYLE}
+      color={props.editing ? theme.surfaceLight : theme.surface}
+      border={{ color: props.editing ? theme.primary : theme.border, width: props.editing ? 3 : 2 }}
       forwardStates
       onEnter={props.onEdit}
     >
