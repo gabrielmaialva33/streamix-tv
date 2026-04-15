@@ -12,8 +12,12 @@ import { theme } from "../styles";
 const CardImageStyle = {
   borderRadius: 12,
   border: { color: theme.border, width: 2 },
+  transition: {
+    scale: { duration: 150, easing: "ease-out" },
+  },
   $focus: {
     border: { color: theme.primary, width: 3 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -22,8 +26,12 @@ const PlaceholderStyle = {
   borderRadius: 12,
   color: theme.surface,
   border: { color: theme.border, width: 2 },
+  transition: {
+    scale: { duration: 150, easing: "ease-out" },
+  },
   $focus: {
     border: { color: theme.primary, width: 3 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -65,6 +73,7 @@ export interface CardProps extends NodeProps {
 const Card = (props: CardProps) => {
   const width = props.width || 240;
   const height = props.height || 360;
+  const infoHeight = props.subtitle ? 56 : 44;
 
   // Track image errors only
   const [imageError, _setImageError] = createSignal(false);
@@ -73,10 +82,22 @@ const Card = (props: CardProps) => {
   const showPlaceholder = () => !props.imageUrl || imageError();
 
   return (
-    <View {...props} width={width} height={height + 55} item={props.item} forwardStates>
+    <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
       {/* Card Image with border - show when image URL exists and no error */}
       <Show when={props.imageUrl && !imageError()}>
         <View src={props.imageUrl} width={width} height={height} color={0xffffffff} style={CardImageStyle} />
+        <View
+          y={height - 104}
+          width={width}
+          height={104}
+          borderRadius={12}
+          shader={{
+            type: "linearGradient",
+            colors: [0x00000000, 0x030305aa, 0x030305ff],
+            angle: 180,
+          }}
+          skipFocus
+        />
       </Show>
 
       {/* Placeholder - shown when no image, loading, or error */}
@@ -95,13 +116,13 @@ const Card = (props: CardProps) => {
       </Show>
 
       {/* Card Title - below image */}
-      <Text y={height + 10} width={width} style={CardTitleStyle}>
+      <Text y={height + 8} width={width} style={CardTitleStyle}>
         {props.title}
       </Text>
 
       {/* Subtitle if provided */}
       <Show when={props.subtitle}>
-        <Text y={height + 32} width={width} style={SubtitleStyle}>
+        <Text y={height + 36} width={width} style={SubtitleStyle}>
           {props.subtitle}
         </Text>
       </Show>
