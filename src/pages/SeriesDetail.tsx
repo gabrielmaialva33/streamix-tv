@@ -37,7 +37,7 @@ const SECONDARY_ACTION_STYLE = {
 
 const INFO_PANEL_STYLE = {
   width: 1640,
-  minHeight: 164,
+  minHeight: 204,
   color: 0x111118dd,
   borderRadius: 24,
   border: { color: 0x232330ff, width: 1 },
@@ -113,6 +113,7 @@ const SeriesDetail = () => {
   let actionRow: ElementNode | undefined;
   let seasonsRow: ElementNode | undefined;
   let episodesColumn: ElementNode | undefined;
+  let firstEpisodeCard: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
 
   const [series] = createResource(
@@ -137,12 +138,11 @@ const SeriesDetail = () => {
   );
 
   function currentSeasonIndex() {
-    return selectedSeasonIdx() ?? 0;
+    return selectedSeasonIdx();
   }
 
   function currentSeason() {
-    const currentSeries = series();
-    return currentSeries?.seasons?.[currentSeasonIndex()];
+    return series()?.seasons?.[currentSeasonIndex()];
   }
 
   function currentEpisodes() {
@@ -159,8 +159,7 @@ const SeriesDetail = () => {
   }
 
   function firstEpisode() {
-    const currentSeries = series();
-    return currentSeries?.seasons?.flatMap(season => season.episodes || [])[0];
+    return series()?.seasons?.flatMap(season => season.episodes || [])[0];
   }
 
   function handlePlayEpisode(episode?: Episode) {
@@ -208,6 +207,7 @@ const SeriesDetail = () => {
               src={backdropFor(currentSeries())}
               color={0xffffffff}
               borderRadius={26}
+              textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.35 } }}
             />
             <View
               x={20}
@@ -234,7 +234,7 @@ const SeriesDetail = () => {
               }}
             />
 
-            <View x={SAFE_AREA_X + 40} y={SAFE_AREA_Y + 34} width={960} zIndex={10} skipFocus>
+            <View x={SAFE_AREA_X + 40} y={SAFE_AREA_Y + 34} width={880} zIndex={10} skipFocus>
               <Show when={buildMeta(currentSeries()).length > 0}>
                 <Text fontSize={20} color={0xffd166ff} maxLines={1}>
                   {buildMeta(currentSeries()).join(" • ")}
@@ -242,7 +242,7 @@ const SeriesDetail = () => {
               </Show>
               <Text
                 y={36}
-                width={920}
+                width={860}
                 fontSize={62}
                 fontWeight={700}
                 color={0xffffffff}
@@ -253,7 +253,7 @@ const SeriesDetail = () => {
               </Text>
               <Text
                 y={150}
-                width={780}
+                width={760}
                 fontSize={22}
                 lineHeight={32}
                 color={0xe2e2e8ff}
@@ -264,305 +264,317 @@ const SeriesDetail = () => {
               </Text>
             </View>
 
-            <Show when={currentSeries().poster_url || currentSeries().poster}>
-              <View
-                x={1330}
-                y={86}
-                width={220}
-                height={330}
-                src={currentSeries().poster_url || currentSeries().poster}
-                color={0xffffffff}
-                borderRadius={22}
-                border={{ color: 0x2d2d38ff, width: 2 }}
-                zIndex={10}
-              />
-            </Show>
+            <View x={30} y={470} width={1640} height={610} clipping forwardFocus={0}>
+              <Show when={currentSeries().poster_url || currentSeries().poster}>
+                <View
+                  x={1370}
+                  y={-118}
+                  width={220}
+                  height={330}
+                  src={currentSeries().poster_url || currentSeries().poster}
+                  color={0xffffffff}
+                  borderRadius={22}
+                  border={{ color: 0x2d2d38ff, width: 2 }}
+                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
+                  zIndex={12}
+                />
+              </Show>
 
-            <Column x={30} y={470} width={1640} height={580} gap={22} scroll="auto" clipping forwardFocus={0}>
-              <View style={INFO_PANEL_STYLE}>
-                <Row
-                  ref={actionRow}
-                  x={28}
-                  y={24}
-                  width={1120}
-                  height={58}
-                  gap={18}
-                  scroll="none"
-                  autofocus
-                  onDown={() => {
-                    seasonsRow?.setFocus();
-                    return true;
-                  }}
-                >
-                  <View style={ACTION_BUTTON_STYLE} onEnter={() => handlePlayEpisode(firstEpisode())}>
-                    <Text
-                      y={18}
-                      width={220}
-                      fontSize={22}
-                      fontWeight={700}
-                      color={0xffffffff}
-                      textAlign="center"
-                    >
-                      {firstEpisode() ? "Começar a série" : "Sem episódios"}
-                    </Text>
-                  </View>
-                  <View style={SECONDARY_ACTION_STYLE} onEnter={handleBack}>
-                    <Text y={18} width={180} fontSize={20} color={theme.textPrimary} textAlign="center">
-                      Voltar
-                    </Text>
-                  </View>
-                  <FavoriteButton
-                    item={{
-                      id: currentSeries().id,
-                      type: "series",
-                      title: currentSeries().title || currentSeries().name || "",
-                      posterUrl: currentSeries().poster_url || currentSeries().poster || undefined,
+              <Column width={1640} height={610} gap={22} scroll="auto" clipping forwardFocus={0}>
+                <View y={52} style={INFO_PANEL_STYLE}>
+                  <Row
+                    ref={actionRow}
+                    x={28}
+                    y={24}
+                    width={1160}
+                    height={58}
+                    gap={18}
+                    scroll="none"
+                    autofocus
+                    onDown={() => {
+                      seasonsRow?.setFocus();
+                      return true;
                     }}
-                  />
-                </Row>
-
-                <Column x={28} y={102} width={1560} gap={16} scroll="none" skipFocus>
-                  <Show when={currentSeries().cast}>
-                    <View width={1560} height={52} color={0x00000000}>
-                      <Text fontSize={16} color={theme.textMuted}>
-                        Elenco
-                      </Text>
+                  >
+                    <View style={ACTION_BUTTON_STYLE} onEnter={() => handlePlayEpisode(firstEpisode())}>
                       <Text
-                        y={22}
-                        width={1540}
-                        fontSize={20}
-                        color={theme.textPrimary}
-                        maxLines={1}
-                        contain="width"
+                        y={18}
+                        width={220}
+                        fontSize={22}
+                        fontWeight={700}
+                        color={0xffffffff}
+                        textAlign="center"
                       >
-                        {currentSeries().cast || ""}
+                        {firstEpisode() ? "Começar a série" : "Sem episódios"}
                       </Text>
                     </View>
-                  </Show>
-                  <Row width={1560} height={52} gap={48} scroll="none">
-                    <Show when={currentSeries().director}>
-                      <View width={720} height={52} color={0x00000000}>
+                    <View style={SECONDARY_ACTION_STYLE} onEnter={handleBack}>
+                      <Text y={18} width={180} fontSize={20} color={theme.textPrimary} textAlign="center">
+                        Voltar
+                      </Text>
+                    </View>
+                    <FavoriteButton
+                      item={{
+                        id: currentSeries().id,
+                        type: "series",
+                        title: currentSeries().title || currentSeries().name || "",
+                        posterUrl: currentSeries().poster_url || currentSeries().poster || undefined,
+                      }}
+                    />
+                  </Row>
+
+                  <Column x={28} y={102} width={1120} gap={16} scroll="none" skipFocus>
+                    <Show when={currentSeries().cast}>
+                      <View width={1120} height={52} color={0x00000000}>
                         <Text fontSize={16} color={theme.textMuted}>
-                          Direção
+                          Elenco
                         </Text>
                         <Text
                           y={22}
-                          width={700}
+                          width={1100}
                           fontSize={20}
                           color={theme.textPrimary}
                           maxLines={1}
                           contain="width"
                         >
-                          {currentSeries().director || ""}
+                          {currentSeries().cast || ""}
                         </Text>
                       </View>
                     </Show>
-                    <View width={720} height={52} color={0x00000000}>
-                      <Text fontSize={16} color={theme.textMuted}>
-                        Temporada ativa
-                      </Text>
-                      <Text
-                        y={22}
-                        width={700}
-                        fontSize={20}
-                        color={theme.textPrimary}
-                        maxLines={1}
-                        contain="width"
-                      >
-                        {currentSeason()
-                          ? seasonLabel(currentSeason()!, currentSeasonIndex())
-                          : "Nenhuma temporada"}
-                      </Text>
-                    </View>
-                  </Row>
-                </Column>
-              </View>
-
-              <Show when={currentSeries().seasons?.length}>
-                <View width={1640} height={74}>
-                  <Text fontSize={24} fontWeight={700} color={0xffffffff}>
-                    Temporadas
-                  </Text>
-                  <Row
-                    ref={seasonsRow}
-                    y={34}
-                    width={1640}
-                    height={44}
-                    gap={12}
-                    scroll="auto"
-                    onUp={() => {
-                      actionRow?.setFocus();
-                      return true;
-                    }}
-                    onDown={() => {
-                      episodesColumn?.setFocus();
-                      return true;
-                    }}
-                  >
-                    <For each={currentSeries().seasons}>
-                      {(season: Season, index) => (
-                        <View
-                          width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
-                          style={
-                            currentSeasonIndex() === index()
-                              ? ACTIVE_SEASON_BUTTON_STYLE
-                              : SEASON_BUTTON_STYLE
-                          }
-                          onEnter={() => {
-                            setSelectedSeasonIdx(index());
-                            return true;
-                          }}
-                        >
+                    <Row width={1120} height={52} gap={48} scroll="none">
+                      <Show when={currentSeries().director}>
+                        <View width={536} height={52} color={0x00000000}>
+                          <Text fontSize={16} color={theme.textMuted}>
+                            Direção
+                          </Text>
                           <Text
-                            y={12}
-                            width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
-                            fontSize={18}
-                            color={0xffffffff}
-                            textAlign="center"
+                            y={22}
+                            width={516}
+                            fontSize={20}
+                            color={theme.textPrimary}
                             maxLines={1}
+                            contain="width"
                           >
-                            {seasonLabel(season, index())}
+                            {currentSeries().director || ""}
                           </Text>
                         </View>
-                      )}
-                    </For>
-                  </Row>
+                      </Show>
+                      <View width={536} height={52} color={0x00000000}>
+                        <Text fontSize={16} color={theme.textMuted}>
+                          Temporada ativa
+                        </Text>
+                        <Text
+                          y={22}
+                          width={516}
+                          fontSize={20}
+                          color={theme.textPrimary}
+                          maxLines={1}
+                          contain="width"
+                        >
+                          {currentSeason()
+                            ? seasonLabel(currentSeason()!, currentSeasonIndex())
+                            : "Nenhuma temporada"}
+                        </Text>
+                      </View>
+                    </Row>
+                  </Column>
                 </View>
-              </Show>
 
-              <Column
-                ref={episodesColumn}
-                width={1640}
-                gap={18}
-                scroll="none"
-                onUp={() => {
-                  seasonsRow?.setFocus();
-                  return true;
-                }}
-              >
-                <Text fontSize={24} fontWeight={700} color={0xffffffff} skipFocus>
-                  Episódios
-                </Text>
-
-                <Show when={episodeRows().length === 0}>
-                  <View
-                    width={1640}
-                    height={180}
-                    color={theme.surface}
-                    borderRadius={20}
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    skipFocus
-                  >
-                    <Text fontSize={24} color={theme.textSecondary}>
-                      Nenhum episódio disponível nesta temporada
+                <Show when={currentSeries().seasons?.length}>
+                  <View width={1640} height={74}>
+                    <Text fontSize={24} fontWeight={700} color={0xffffffff}>
+                      Temporadas
                     </Text>
-                  </View>
-                </Show>
-
-                <For each={episodeRows()}>
-                  {row => (
-                    <Row width={1640} height={154} gap={20} scroll="none">
-                      <For each={row}>
-                        {(episode: Episode) => (
-                          <View style={EPISODE_CARD_STYLE} onEnter={() => handlePlayEpisode(episode)}>
-                            <Show when={episode.thumbnail_url}>
-                              <View
-                                x={14}
-                                y={14}
-                                width={184}
-                                height={126}
-                                src={episode.thumbnail_url}
-                                color={0xffffffff}
-                                borderRadius={14}
-                              />
-                            </Show>
-                            <Show when={!episode.thumbnail_url}>
-                              <View
-                                x={14}
-                                y={14}
-                                width={184}
-                                height={126}
-                                color={0x242431ff}
-                                borderRadius={14}
-                              />
-                            </Show>
-
-                            <View x={212} y={16} width={286}>
-                              <Text fontSize={16} color={0xffd166ff}>
-                                {`E${episode.episode_num ?? episode.number ?? "?"}`}
-                              </Text>
-                              <Text
-                                y={24}
-                                width={286}
-                                fontSize={21}
-                                fontWeight={700}
-                                color={0xffffffff}
-                                contain="width"
-                                maxLines={1}
-                              >
-                                {episode.title || "Episódio"}
-                              </Text>
-                              <Text
-                                y={54}
-                                width={286}
-                                fontSize={15}
-                                lineHeight={22}
-                                color={theme.textSecondary}
-                                contain="both"
-                                maxLines={2}
-                              >
-                                {episode.plot || episode.description || "Sem descrição disponível."}
-                              </Text>
-                              <Text y={108} fontSize={13} color={theme.textMuted}>
-                                {episode.duration || "Duração indisponível"}
-                              </Text>
-                            </View>
+                    <Row
+                      ref={seasonsRow}
+                      y={34}
+                      width={1640}
+                      height={44}
+                      gap={12}
+                      scroll="auto"
+                      onUp={() => {
+                        actionRow?.setFocus();
+                        return true;
+                      }}
+                      onDown={() => {
+                        episodesColumn?.setFocus();
+                        return true;
+                      }}
+                    >
+                      <For each={currentSeries().seasons}>
+                        {(season: Season, index) => (
+                          <View
+                            width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
+                            style={
+                              currentSeasonIndex() === index()
+                                ? ACTIVE_SEASON_BUTTON_STYLE
+                                : SEASON_BUTTON_STYLE
+                            }
+                            onEnter={() => {
+                              setSelectedSeasonIdx(index());
+                              return true;
+                            }}
+                          >
+                            <Text
+                              y={12}
+                              width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
+                              fontSize={18}
+                              color={0xffffffff}
+                              textAlign="center"
+                              maxLines={1}
+                            >
+                              {seasonLabel(season, index())}
+                            </Text>
                           </View>
                         )}
                       </For>
                     </Row>
-                  )}
-                </For>
-              </Column>
+                  </View>
+                </Show>
 
-              <Show when={similar()?.length}>
-                <View
-                  ref={relatedRow}
+                <Column
+                  ref={episodesColumn}
                   width={1640}
-                  height={286}
+                  gap={18}
+                  scroll="none"
+                  forwardFocus={() => {
+                    firstEpisodeCard?.setFocus();
+                    return true;
+                  }}
                   onUp={() => {
-                    episodesColumn?.setFocus();
+                    seasonsRow?.setFocus();
                     return true;
                   }}
                 >
-                  <ContentRow
-                    title="Séries parecidas"
-                    onSelectedChanged={index => {
-                      const item = similar()?.[index];
-                      if (item) {
-                        api.prefetchSeries(String(item.id));
-                      }
+                  <Text fontSize={24} fontWeight={700} color={0xffffffff} skipFocus>
+                    Episódios
+                  </Text>
+
+                  <Show when={episodeRows().length === 0}>
+                    <View
+                      width={1640}
+                      height={180}
+                      color={theme.surface}
+                      borderRadius={20}
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
+                      skipFocus
+                    >
+                      <Text fontSize={24} color={theme.textSecondary}>
+                        Nenhum episódio disponível nesta temporada
+                      </Text>
+                    </View>
+                  </Show>
+
+                  <For each={episodeRows()}>
+                    {(row, rowIndex) => (
+                      <Row width={1640} height={154} gap={20} scroll="none">
+                        <For each={row}>
+                          {(episode: Episode, episodeIndex) => (
+                            <View
+                              ref={rowIndex() === 0 && episodeIndex() === 0 ? firstEpisodeCard : undefined}
+                              style={EPISODE_CARD_STYLE}
+                              onEnter={() => handlePlayEpisode(episode)}
+                            >
+                              <Show when={episode.thumbnail_url}>
+                                <View
+                                  x={14}
+                                  y={14}
+                                  width={184}
+                                  height={126}
+                                  src={episode.thumbnail_url}
+                                  color={0xffffffff}
+                                  borderRadius={14}
+                                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.5 } }}
+                                />
+                              </Show>
+                              <Show when={!episode.thumbnail_url}>
+                                <View
+                                  x={14}
+                                  y={14}
+                                  width={184}
+                                  height={126}
+                                  color={0x242431ff}
+                                  borderRadius={14}
+                                />
+                              </Show>
+
+                              <View x={212} y={16} width={286}>
+                                <Text fontSize={16} color={0xffd166ff}>
+                                  {`E${episode.episode_num ?? episode.number ?? "?"}`}
+                                </Text>
+                                <Text
+                                  y={24}
+                                  width={286}
+                                  fontSize={21}
+                                  fontWeight={700}
+                                  color={0xffffffff}
+                                  contain="width"
+                                  maxLines={1}
+                                >
+                                  {episode.title || "Episódio"}
+                                </Text>
+                                <Text
+                                  y={54}
+                                  width={286}
+                                  fontSize={15}
+                                  lineHeight={22}
+                                  color={theme.textSecondary}
+                                  contain="both"
+                                  maxLines={2}
+                                >
+                                  {episode.plot || episode.description || "Sem descrição disponível."}
+                                </Text>
+                                <Text y={108} fontSize={13} color={theme.textMuted}>
+                                  {episode.duration || "Duração indisponível"}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+                        </For>
+                      </Row>
+                    )}
+                  </For>
+                </Column>
+
+                <Show when={similar()?.length}>
+                  <View
+                    ref={relatedRow}
+                    width={1640}
+                    height={286}
+                    onUp={() => {
+                      episodesColumn?.setFocus();
+                      return true;
                     }}
-                    onItemSelected={item => navigate(item.href || "/series")}
                   >
-                    <For each={similar()}>
-                      {item => (
-                        <Card
-                          title={item.title || item.name || ""}
-                          imageUrl={relatedPoster(item)}
-                          subtitle={relatedSubtitle(item)}
-                          width={220}
-                          height={330}
-                          item={{ id: item.id, type: "series", href: `/series/${item.id}` }}
-                        />
-                      )}
-                    </For>
-                  </ContentRow>
-                </View>
-              </Show>
-            </Column>
+                    <ContentRow
+                      title="Séries parecidas"
+                      onSelectedChanged={index => {
+                        const item = similar()?.[index];
+                        if (item) {
+                          api.prefetchSeries(String(item.id));
+                        }
+                      }}
+                      onItemSelected={item => navigate(item.href || "/series")}
+                    >
+                      <For each={similar()}>
+                        {item => (
+                          <Card
+                            title={item.title || item.name || ""}
+                            imageUrl={relatedPoster(item)}
+                            subtitle={relatedSubtitle(item)}
+                            width={220}
+                            height={330}
+                            item={{ id: item.id, type: "series", href: `/series/${item.id}` }}
+                          />
+                        )}
+                      </For>
+                    </ContentRow>
+                  </View>
+                </Show>
+              </Column>
+            </View>
           </>
         )}
       </Show>
