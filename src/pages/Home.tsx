@@ -1,4 +1,4 @@
-import { View } from "@lightningtv/solid";
+import { type ElementNode, View } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -25,6 +25,9 @@ function recommendationPoster(item: RecommendationItem) {
 const Home = () => {
   const navigate = useNavigate();
   const [featuredIndex, setFeaturedIndex] = createSignal(0);
+
+  let hero: ElementNode | undefined;
+  let railsColumn: ElementNode | undefined;
 
   // The backend provides curated trending, recent, and top-rated rails.
   const [featured] = createResource(() => api.getFeatured());
@@ -97,11 +100,39 @@ const Home = () => {
   };
 
   return (
-    <View width={1700} height={1080} forwardFocus={1} color={theme.background}>
-      <Hero item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
+    <View
+      width={1700}
+      height={1080}
+      color={theme.background}
+      forwardFocus={() => {
+        hero?.setFocus();
+        return true;
+      }}
+    >
+      <Hero
+        ref={hero}
+        item={currentFeatured()}
+        onPlay={handlePlayFeatured}
+        onInfo={handleInfoFeatured}
+        onDownRequest={() => {
+          railsColumn?.setFocus();
+          return true;
+        }}
+      />
 
       <View x={0} y={620} width={1700} height={460} clipping forwardFocus={0}>
-        <Column width={1700} height={460} gap={28} scroll="always" forwardFocus={0}>
+        <Column
+          ref={railsColumn}
+          width={1700}
+          height={460}
+          gap={28}
+          scroll="always"
+          forwardFocus={0}
+          onUp={() => {
+            hero?.setFocus();
+            return true;
+          }}
+        >
           <Show when={recommendedMovies()?.recommendations?.length}>
             <ContentRow
               title="Para você"

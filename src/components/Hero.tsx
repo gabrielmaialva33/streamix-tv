@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
+import { Row } from "@lightningtv/solid/primitives";
 import { Show } from "solid-js";
 import type { FeaturedItem } from "../lib/api";
 import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
@@ -76,6 +77,8 @@ export interface HeroProps extends NodeProps {
   item?: FeaturedItem;
   onPlay?: () => void;
   onInfo?: () => void;
+  /** Called when the user presses Down on the hero action row. */
+  onDownRequest?: () => boolean;
 }
 
 function heroBackdrop(item?: FeaturedItem) {
@@ -223,7 +226,14 @@ const Hero = (props: HeroProps) => {
           </Text>
         </Show>
 
-        <View y={heroMeta(props.item).length > 0 ? 286 : 252} display="flex" gap={20}>
+        <Row
+          y={heroMeta(props.item).length > 0 ? 286 : 252}
+          height={64}
+          width={500}
+          gap={20}
+          scroll="none"
+          onDown={props.onDownRequest}
+        >
           <View
             ref={playButton}
             style={PlayButtonStyle}
@@ -238,7 +248,6 @@ const Hero = (props: HeroProps) => {
           </View>
 
           <View
-            x={180}
             style={InfoButtonStyle}
             forwardStates
             onEnter={() => {
@@ -248,7 +257,7 @@ const Hero = (props: HeroProps) => {
           >
             <Text style={InfoButtonTextStyle}>Detalhes</Text>
           </View>
-        </View>
+        </Row>
       </View>
 
       <Show when={props.item?.type}>
