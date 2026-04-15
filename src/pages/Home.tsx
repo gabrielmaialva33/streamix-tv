@@ -128,9 +128,15 @@ const Home = () => {
           gap={28}
           scroll="always"
           forwardFocus={0}
-          onUp={() => {
-            hero?.setFocus();
-            return true;
+          onUp={function (this) {
+            // `always` scroll pins selected to 0 visually, so we track the
+            // internal selected ourselves: only bubble Up to the hero when
+            // we're actually on the first rail.
+            if (this.selected === 0) {
+              hero?.setFocus();
+              return true;
+            }
+            return false;
           }}
         >
           <Show when={recommendedMovies()?.recommendations?.length}>

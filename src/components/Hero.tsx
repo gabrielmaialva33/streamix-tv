@@ -106,6 +106,7 @@ function heroMeta(item?: FeaturedItem) {
 
 const Hero = (props: HeroProps) => {
   let playButton: ElementNode | undefined;
+  let infoButton: ElementNode | undefined;
 
   return (
     <View
@@ -226,14 +227,7 @@ const Hero = (props: HeroProps) => {
           </Text>
         </Show>
 
-        <Row
-          y={heroMeta(props.item).length > 0 ? 286 : 252}
-          height={64}
-          width={500}
-          gap={20}
-          scroll="none"
-          onDown={props.onDownRequest}
-        >
+        <View y={heroMeta(props.item).length > 0 ? 286 : 252} display="flex" gap={20}>
           <View
             ref={playButton}
             style={PlayButtonStyle}
@@ -243,21 +237,32 @@ const Hero = (props: HeroProps) => {
               props.onPlay?.();
               return true;
             }}
+            onRight={() => {
+              infoButton?.setFocus();
+              return true;
+            }}
+            onDown={props.onDownRequest}
           >
             <Text style={PlayButtonTextStyle}>Assistir</Text>
           </View>
 
           <View
+            ref={infoButton}
             style={InfoButtonStyle}
             forwardStates
             onEnter={() => {
               props.onInfo?.();
               return true;
             }}
+            onLeft={() => {
+              playButton?.setFocus();
+              return true;
+            }}
+            onDown={props.onDownRequest}
           >
             <Text style={InfoButtonTextStyle}>Detalhes</Text>
           </View>
-        </Row>
+        </View>
       </View>
 
       <Show when={props.item?.type}>
