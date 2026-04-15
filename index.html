@@ -1,0 +1,83 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, initial-scale=1.0, user-scalable=no" />
+    <title>Streamix</title>
+    <style>
+      html,
+      body,
+      * {
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+      }
+      body {
+        width: 1920px;
+        height: 1080px;
+        background: #0a0a0f;
+      }
+    </style>
+  </head>
+
+  <body tabindex="0">
+    <div id="app"></div>
+    <!-- Debug overlay visivel na TV quando nao tem acesso ao devtools.
+         Captura erros JS e console.error/console.warn e pinta em cima. -->
+    <div
+      id="err-overlay"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        max-height: 1080px;
+        z-index: 99999;
+        background: #7a0000e6;
+        color: #fff;
+        font-family: monospace;
+        font-size: 22px;
+        padding: 24px;
+        overflow-y: auto;
+        display: none;
+        white-space: pre-wrap;
+        line-height: 1.4;
+      "
+    ></div>
+    <script>
+      // Overlay so ativa com #debug no hash ou localStorage.streamix_debug=1
+      (function () {
+        var isDebug =
+          location.hash.indexOf("debug") !== -1 ||
+          (function () {
+            try {
+              return localStorage.getItem("streamix_debug") === "1";
+            } catch (e) {
+              return false;
+            }
+          })();
+        if (!isDebug) return;
+        var box = document.getElementById("err-overlay");
+        var lines = [];
+        function show(msg) {
+          lines.push(msg);
+          if (lines.length > 40) lines.shift();
+          box.textContent = lines.join("\n");
+          box.style.display = "block";
+        }
+        window.addEventListener("error", function (e) {
+          show("[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?"));
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e && e.reason;
+          show("[promise] " + ((r && (r.stack || r.message)) || r));
+        });
+        var oldErr = console.error;
+        console.error = function () {
+          show("[err] " + Array.prototype.join.call(arguments, " "));
+          oldErr.apply(console, arguments);
+        };
+      })();
+    </script>
+    <script type="module" src="src/index.tsx"></script>
+  </body>
+</html>
