@@ -7,6 +7,7 @@ import api, { type Category, type Movie } from "../lib/api";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
+const HEADER_HEIGHT = 196;
 
 // Style constants following demo app patterns
 const CategoryButtonStyle = {
@@ -15,7 +16,6 @@ const CategoryButtonStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  color: 0x222222ff,
   scale: 1,
   transition: {
     color: { duration: 150, easing: "ease-out" },
@@ -25,11 +25,6 @@ const CategoryButtonStyle = {
     color: 0xe50914ff,
     scale: 1.1,
   },
-} satisfies IntrinsicNodeStyleProps;
-
-const SelectedCategoryStyle = {
-  ...CategoryButtonStyle,
-  color: 0x444444ff,
 } satisfies IntrinsicNodeStyleProps;
 
 function movieCaption(movie: Movie) {
@@ -134,22 +129,22 @@ const Movies = () => {
       }}
     >
       {/* Fixed Header - solid background hides content scrolling behind */}
-      <View x={0} y={0} width={1700} height={140} zIndex={10} color={0x0a0a0fff}>
+      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
         {/* Title and Search */}
         <Row
           ref={titleRow}
           width={1660}
-          height={70}
+          height={100}
           x={20}
           gap={20}
           scroll="none"
           onDown={() => categoriesRow?.setFocus()}
         >
           <View width={1400} skipFocus>
-            <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
+            <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
               Filmes
             </Text>
-            <Text y={58} fontSize={18} color={0xa7a7b3ff}>
+            <Text y={64} fontSize={18} color={0xa7a7b3ff}>
               Descubra títulos com mais contexto antes de dar play.
             </Text>
           </View>
@@ -160,7 +155,7 @@ const Movies = () => {
         <Row
           ref={categoriesRow}
           x={20}
-          y={70}
+          y={130}
           width={1660}
           height={50}
           gap={12}
@@ -171,10 +166,16 @@ const Movies = () => {
         >
           <View
             width={100}
-            style={
-              selectedCategory() === undefined && !searchQuery() ? SelectedCategoryStyle : CategoryButtonStyle
-            }
+            style={CategoryButtonStyle}
+            color={selectedCategory() === undefined && !searchQuery() ? 0x3a1118ff : 0x222222ff}
+            border={{
+              color: selectedCategory() === undefined && !searchQuery() ? 0xe50914ff : 0x00000000,
+              width: selectedCategory() === undefined && !searchQuery() ? 2 : 0,
+            }}
             onEnter={() => {
+              if (selectedCategory() === undefined && !searchQuery()) {
+                return true;
+              }
               setAccumulatedMovies([]);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
@@ -182,7 +183,7 @@ const Movies = () => {
               return true;
             }}
           >
-            <Text fontSize={16} color={0xffffffff}>
+            <Text width={84} fontSize={16} color={0xffffffff} textAlign="center" contain="width" maxLines={1}>
               Todos
             </Text>
           </View>
@@ -190,12 +191,16 @@ const Movies = () => {
             {(category: Category) => (
               <View
                 width={Math.max(100, category.name.length * 10 + 24)}
-                style={
-                  selectedCategory() === category.id && !searchQuery()
-                    ? SelectedCategoryStyle
-                    : CategoryButtonStyle
-                }
+                style={CategoryButtonStyle}
+                color={selectedCategory() === category.id && !searchQuery() ? 0x3a1118ff : 0x222222ff}
+                border={{
+                  color: selectedCategory() === category.id && !searchQuery() ? 0xe50914ff : 0x00000000,
+                  width: selectedCategory() === category.id && !searchQuery() ? 2 : 0,
+                }}
                 onEnter={() => {
+                  if (selectedCategory() === category.id && !searchQuery()) {
+                    return true;
+                  }
                   setAccumulatedMovies([]);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
@@ -203,7 +208,14 @@ const Movies = () => {
                   return true;
                 }}
               >
-                <Text fontSize={16} color={0xffffffff}>
+                <Text
+                  width={Math.max(68, category.name.length * 10)}
+                  fontSize={16}
+                  color={0xffffffff}
+                  textAlign="center"
+                  contain="width"
+                  maxLines={1}
+                >
                   {category.name}
                 </Text>
               </View>
@@ -216,9 +228,9 @@ const Movies = () => {
       <Column
         ref={contentGrid}
         x={20}
-        y={140}
+        y={HEADER_HEIGHT}
         width={1640}
-        height={930}
+        height={1080 - HEADER_HEIGHT - 10}
         gap={24}
         scroll="auto"
         plinko
@@ -227,7 +239,7 @@ const Movies = () => {
         onScrolled={(ref, pos, isInitial) => {
           if (!isInitial && ref.children.length > 0) {
             const totalContentHeight = ref.children.length * (420 + 24); // row height + gap
-            const viewportHeight = 930;
+            const viewportHeight = 1080 - HEADER_HEIGHT - 10;
             const maxScroll = Math.max(1, totalContentHeight - viewportHeight);
             setScrollPosition(Math.abs(pos) / maxScroll);
           }
