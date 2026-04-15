@@ -53,6 +53,9 @@ export function prepareDomForHtml5Playback() {
 
   saveDomState();
 
+  // Video sits at z-index 0 behind the Lightning canvas so overlay UI
+  // (title, scrub bar, hints) renders on top. No blend mode — `screen` was
+  // erasing every dark color in the overlay (gradients, pill backgrounds).
   const appElement = document.getElementById("app");
   if (appElement) {
     appElement.style.cssText = `
@@ -61,9 +64,7 @@ export function prepareDomForHtml5Playback() {
       top: 0;
       z-index: 100001 !important;
       pointer-events: none;
-      mix-blend-mode: screen;
     `;
-    setCanvasBlendMode("screen");
   }
 
   const rootElement = document.getElementById("root");
@@ -83,9 +84,29 @@ export function prepareDomForAvplayPlayback() {
 
   saveDomState();
 
+  // AVPlay draws to a native plane behind the WebView. Keep the Lightning
+  // canvas visible (NOT hidden) so overlay UI is drawn on top — only the
+  // page background goes transparent so the native video plane shows through.
   const appElement = document.getElementById("app");
   if (appElement) {
-    appElement.style.cssText = "visibility: hidden !important;";
+    appElement.style.cssText = `
+      position: fixed !important;
+      left: 0;
+      top: 0;
+      z-index: 100001 !important;
+      pointer-events: none;
+      background: transparent !important;
+    `;
+  }
+
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    rootElement.style.cssText = `
+      position: absolute !important;
+      z-index: 0 !important;
+      pointer-events: none !important;
+      background: transparent !important;
+    `;
   }
 
   document.body.style.background = "transparent";

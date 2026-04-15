@@ -45,6 +45,9 @@ export function initHTML5Backend(deps: HTML5BackendDeps) {
 
   videoElement = document.createElement("video");
   videoElement.id = "player-video";
+  // Video sits behind the Lightning canvas so overlay UI (title, scrub bar,
+  // hints) can render on top. The canvas is transparent where the app doesn't
+  // draw, so the video shows through the empty areas.
   videoElement.style.cssText = `
     position: fixed;
     top: 0;
@@ -52,7 +55,7 @@ export function initHTML5Backend(deps: HTML5BackendDeps) {
     width: 100%;
     height: 100%;
     background: #000;
-    z-index: 100000;
+    z-index: 0;
   `;
   videoElement.playsInline = true;
   videoElement.autoplay = true;
