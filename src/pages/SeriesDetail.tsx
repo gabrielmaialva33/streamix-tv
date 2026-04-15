@@ -212,6 +212,7 @@ const SeriesDetail = () => {
       width={CONTENT_WIDTH}
       height={1080}
       color={theme.background}
+      clipping
       onBack={handleBack}
       onLast={handleBack}
     >
@@ -524,13 +525,12 @@ const SeriesDetail = () => {
                   ref={episodesColumn}
                   width={1620}
                   gap={18}
-                  scroll="auto"
+                  scroll="none"
                   forwardFocus={() => {
                     firstEpisodeCard?.setFocus();
                     return true;
                   }}
-                  onUp={function (this: ElementNode) {
-                    if ((this.selected ?? 0) > 0) return false;
+                  onUp={() => {
                     if (currentSeries().seasons?.length) {
                       seasonsRow?.setFocus();
                     } else {

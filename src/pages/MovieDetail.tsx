@@ -140,8 +140,8 @@ const MovieDetail = () => {
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
           <SkeletonLoader width={1392} height={282} x={268} y={320} borderRadius={24} />
-          <SkeletonLoader width={1620} height={132} y={568} borderRadius={24} />
-          <SkeletonLoader width={1620} height={104} y={724} borderRadius={24} />
+          <SkeletonLoader width={1620} height={132} y={624} borderRadius={24} />
+          <SkeletonLoader width={1620} height={104} y={780} borderRadius={24} />
         </View>
       </Show>
 
@@ -318,7 +318,7 @@ const MovieDetail = () => {
                 </Row>
               </View>
 
-              <View x={40} y={568} width={1620} height={132} style={PANEL_STYLE} skipFocus>
+              <View x={40} y={624} width={1620} height={132} style={PANEL_STYLE} skipFocus>
                 <Text x={30} y={22} fontSize={16} color={theme.textMuted}>
                   Sinopse
                 </Text>
@@ -336,7 +336,7 @@ const MovieDetail = () => {
                 </Text>
               </View>
 
-              <View x={40} y={724} width={1620} height={104} style={PANEL_STYLE} skipFocus>
+              <View x={40} y={780} width={1620} height={104} style={PANEL_STYLE} skipFocus>
                 <Column x={30} y={20} width={1560} gap={12} scroll="none">
                   <Show when={currentMovie().cast}>
                     <View width={1560} height={30} color={0x00000000}>
