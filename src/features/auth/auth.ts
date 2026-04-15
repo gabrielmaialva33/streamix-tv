@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import api, { type AuthResponse, type AuthUser, type FavoriteRecord } from "@/lib/api";
+import api, { ApiError, type AuthResponse, type AuthUser, type FavoriteRecord } from "@/lib/api";
 import { authSession, favorites, type FavoriteItem } from "@/lib/storage";
 import { createLogger } from "@/shared/logging/logger";
 
@@ -74,6 +74,13 @@ export async function initializeAuth() {
     return initPromise;
   }
 
+  // Already authenticated in this runtime — skip re-validation. Otherwise
+  // remounts (LoginPage + RequireAuth + MainLayout) stack /auth/me calls
+  // that hit rate limits right after a fresh login.
+  if (status() === "authenticated" && token()) {
+    return;
+  }
+
   initPromise = (async () => {
     const session = authSession.get();
     if (!session?.token) {
@@ -93,8 +100,16 @@ export async function initializeAuth() {
       await syncFavoritesFromRemote();
       setStatus("authenticated");
     } catch (error) {
-      logger.warn("Stored session is no longer valid", error);
-      clearSession();
+      // Only drop the stored session on real auth failures. Rate limits,
+      // network blips and 5xx are transient — keep the optimistic session
+      // so the user stays logged in.
+      if (error instanceof ApiError && error.isUnauthorized()) {
+        logger.warn("Stored session is no longer valid", error);
+        clearSession();
+      } else {
+        logger.warn("Session validation deferred (transient)", error);
+        setStatus("authenticated");
+      }
     }
   })().finally(() => {
     initPromise = null;

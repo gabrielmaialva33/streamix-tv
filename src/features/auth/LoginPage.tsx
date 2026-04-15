@@ -1,8 +1,14 @@
-import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import {
+  type ElementNode,
+  type IntrinsicNodeStyleProps,
+  type IntrinsicTextNodeStyleProps,
+  Text,
+  View,
+} from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { authState, initializeAuth, registerAccount, signIn } from "./auth";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { authState, registerAccount, signIn } from "./auth";
 import { ApiError } from "@/lib/api";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -180,10 +186,6 @@ const LoginPage = () => {
   let chipsRow: ElementNode | undefined;
   let fieldsColumn: ElementNode | undefined;
   let primaryButton: ElementNode | undefined;
-
-  onMount(() => {
-    void initializeAuth();
-  });
 
   onCleanup(() => closeTvKeyboard());
 
@@ -464,41 +466,46 @@ interface ModeChipProps {
   onSelect: () => void;
 }
 
-// Reactive chip — Lightning's style prop doesn't cleanly swap between two
-// static objects when reactivity changes, so we feed individual props instead.
+// Static style is applied once by the Lightning renderer on mount — dynamic
+// values (color/border) must be direct props to stay reactive.
+const CHIP_STYLE = {
+  width: 180,
+  height: 48,
+  borderRadius: 24,
+  transition: {
+    scale: { duration: 150, easing: "ease-out" },
+    color: { duration: 150, easing: "ease-out" },
+  },
+  $focus: {
+    border: { color: theme.primary, width: 3 },
+    scale: 1.05,
+  },
+} satisfies IntrinsicNodeStyleProps;
+
+const CHIP_TEXT_STYLE = {
+  y: 13,
+  width: 180,
+  fontSize: 18,
+  fontWeight: 700,
+  color: 0xffffffff,
+  textAlign: "center",
+  contain: "width",
+} satisfies IntrinsicTextNodeStyleProps;
+
 const ModeChip = (props: ModeChipProps) => (
   <View
-    width={180}
-    height={48}
-    borderRadius={24}
+    style={CHIP_STYLE}
     color={props.active ? 0x2b1015ff : theme.surface}
     border={{
       color: props.active ? theme.primary : theme.border,
       width: props.active ? 2 : 1,
-    }}
-    scale={1}
-    transition={{ scale: { duration: 150 }, color: { duration: 150 } }}
-    $focus={{
-      border: { color: theme.primary, width: 3 },
-      color: props.active ? 0x401820ff : theme.surfaceHover,
-      scale: 1.05,
     }}
     onEnter={() => {
       props.onSelect();
       return true;
     }}
   >
-    <Text
-      y={13}
-      width={180}
-      fontSize={18}
-      fontWeight={700}
-      color={0xffffffff}
-      textAlign="center"
-      contain="width"
-    >
-      {props.label}
-    </Text>
+    <Text style={CHIP_TEXT_STYLE}>{props.label}</Text>
   </View>
 );
 
