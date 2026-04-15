@@ -7,49 +7,52 @@ import {
 import { createSignal } from "solid-js";
 import { theme } from "../styles";
 
+// Full-screen dim overlay behind the dialog.
 const OverlayStyle = {
   width: 1920,
   height: 1080,
   color: 0x000000cc,
   zIndex: 1000,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
 } satisfies IntrinsicNodeStyleProps;
 
+// Center the dialog with fixed dimensions to keep layout stable.
+const DIALOG_W = 560;
+const DIALOG_H = 320;
+const DIALOG_X = (1920 - DIALOG_W) / 2;
+const DIALOG_Y = (1080 - DIALOG_H) / 2;
+
 const DialogStyle = {
-  width: 500,
-  height: 250,
-  x: 710,
-  y: 415,
+  width: DIALOG_W,
+  height: DIALOG_H,
+  x: DIALOG_X,
+  y: DIALOG_Y,
   color: 0x1a1a2eff,
   borderRadius: 16,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
   zIndex: 1001,
+  border: { color: theme.primary, width: 2 },
 } satisfies IntrinsicNodeStyleProps;
 
 const ButtonStyle = {
-  width: 180,
-  height: 50,
-  borderRadius: 8,
+  width: 220,
+  height: 56,
+  borderRadius: 28,
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   color: 0x333333ff,
+  scale: 1,
   transition: {
-    color: { duration: 150 },
-    scale: { duration: 150 },
+    color: { duration: 150, easing: "ease-out" },
+    scale: { duration: 150, easing: "ease-out" },
   },
   $focus: {
     color: theme.primary,
-    scale: 1.05,
+    scale: 1.06,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const ButtonTextStyle = {
-  fontSize: 20,
+  fontSize: 22,
   fontWeight: "bold",
   color: 0xffffffff,
 } satisfies IntrinsicTextNodeStyleProps;
@@ -60,7 +63,7 @@ export interface ExitDialogProps {
 }
 
 const ExitDialog = (props: ExitDialogProps) => {
-  const [selectedButton, setSelectedButton] = createSignal(1); // 0 = exit, 1 = cancel (default cancel)
+  const [selectedButton, setSelectedButton] = createSignal(1);
 
   return (
     <View style={OverlayStyle}>
@@ -68,26 +71,33 @@ const ExitDialog = (props: ExitDialogProps) => {
         style={DialogStyle}
         autofocus
         onBack={props.onCancel}
+        onLast={props.onCancel}
         onLeft={() => {
           setSelectedButton(0);
+          return true;
         }}
         onRight={() => {
           setSelectedButton(1);
+          return true;
         }}
       >
-        {/* Title */}
-        <Text y={40} fontSize={28} fontWeight="bold" color={0xffffffff}>
+        <Text
+          x={0}
+          y={48}
+          width={DIALOG_W}
+          fontSize={28}
+          fontWeight="bold"
+          color={0xffffffff}
+          textAlign="center"
+        >
           Sair do Streamix?
         </Text>
 
-        {/* Message */}
-        <Text y={90} fontSize={18} color={0xaaaaaaff}>
+        <Text x={0} y={100} width={DIALOG_W} fontSize={18} color={0xaaaaaaff} textAlign="center">
           Deseja realmente sair do aplicativo?
         </Text>
 
-        {/* Buttons */}
-        <View y={150} display="flex" gap={30}>
-          {/* Exit Button */}
+        <View x={48} y={200} width={464} height={56} display="flex" flexDirection="row" gap={24}>
           <View
             style={ButtonStyle}
             forwardStates
@@ -98,9 +108,7 @@ const ExitDialog = (props: ExitDialogProps) => {
             <Text style={ButtonTextStyle}>Sair</Text>
           </View>
 
-          {/* Cancel Button */}
           <View
-            x={210}
             style={ButtonStyle}
             forwardStates
             autofocus={selectedButton() === 1}
