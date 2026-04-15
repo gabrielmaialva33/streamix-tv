@@ -9,6 +9,7 @@ environments/.env.local
 environments/.env.production
 *.wgt
 .claude
+.codex
 .idea
 *storybook.log
 streamix.log
