@@ -8,12 +8,15 @@
  */
 
 import { createLogger } from "../shared/logging/logger";
+import { authSession } from "./storage";
 
 const logger = createLogger("API");
 
 const CATALOG_URL = import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog";
 const EPG_URL = import.meta.env.VITE_EPG_URL || "https://streamix.mahina.cloud/api/v1/epg";
 const HISTORY_URL = import.meta.env.VITE_HISTORY_URL || "https://streamix.mahina.cloud/api/v1/history";
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "https://streamix.mahina.cloud/api/v1/auth";
+const FAVORITES_URL = import.meta.env.VITE_FAVORITES_URL || "https://streamix.mahina.cloud/api/v1/favorites";
 const API_KEY = import.meta.env.VITE_API_KEY || "";
 
 // ============ Cache + dedup ============
@@ -43,11 +46,12 @@ interface RequestOpts {
   method?: "GET" | "POST" | "DELETE";
   body?: unknown;
   noCache?: boolean;
-  bearer?: string;
+  bearer?: string | null;
+  auth?: boolean;
 }
 
 async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
-  const { ttl = DEFAULT_TTL, method = "GET", body, noCache = false, bearer } = opts;
+  const { ttl = DEFAULT_TTL, method = "GET", body, noCache = false, bearer, auth = true } = opts;
   const cacheKey = `${method} ${url}`;
 
   if (!noCache && method === "GET") {
@@ -60,14 +64,31 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (API_KEY) headers["X-API-Key"] = API_KEY;
-  if (bearer) headers["Authorization"] = `Bearer ${bearer}`;
+  const sessionToken = auth ? (bearer === undefined ? authSession.getToken() : bearer) : null;
+  if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
 
   const init: RequestInit = { method, headers };
   if (body !== undefined) init.body = JSON.stringify(body);
 
   const promise = fetch(url, init)
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+    .then(async r => {
+      const contentType = r.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+
+      if (!r.ok) {
+        if (isJson) {
+          const payload = await r.json().catch(() => null);
+          const errorMessage = payload?.error?.message;
+          throw new Error(errorMessage || `HTTP ${r.status}: ${r.statusText}`);
+        }
+
+        throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+      }
+
+      if (r.status === 204 || !isJson) {
+        return undefined as T;
+      }
+
       return r.json() as Promise<T>;
     })
     .then(data => {
@@ -222,17 +243,32 @@ export interface EpgProgram {
 // History (backend /history)
 export interface HistoryRecord {
   id: string | number;
-  type: ContentType;
+  content_type: "movie" | "episode" | "live_channel";
   content_id: number;
-  episode_id?: number;
-  position_seconds: number;
+  progress_seconds: number;
   duration_seconds: number;
-  updated_at: string;
-  title?: string;
-  poster?: string;
-  episode_title?: string;
-  season_number?: number;
-  episode_number?: number;
+  completed: boolean;
+  watched_at?: string;
+}
+
+export interface FavoriteRecord {
+  content_type: "movie" | "series" | "live_channel";
+  content_id: number;
+  content_name?: string;
+  content_icon?: string;
+  created_at?: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string | null;
+  role: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
 }
 
 // ============ Normalization helpers ============
@@ -358,7 +394,6 @@ export const api = {
       const r = await request<SeriesListResponse>(
         `${CATALOG_URL}/series${buildQuery(params as Record<string, unknown>)}`,
       );
-      console.log(`[api.getSeries] total=${r.total} items=${(r.series || []).length}`);
       return {
         data: (r.series || []).map(normSeries),
         total: r.total ?? 0,
@@ -367,7 +402,7 @@ export const api = {
         has_more: r.has_more ?? false,
       };
     } catch (e) {
-      console.error("[api.getSeries] FAILED", params, e);
+      logger.error("getSeries failed", { params, error: e });
       return { data: [], total: 0, offset: params.offset ?? 0, limit: params.limit ?? 20, has_more: false };
     }
   },
@@ -505,9 +540,18 @@ export const api = {
 
   // ----- History (Bearer auth) -----
   getHistory: (bearer?: string) =>
-    request<{ history: HistoryRecord[] }>(`${HISTORY_URL}`, { ttl: SHORT_TTL, bearer }),
+    request<{ items: HistoryRecord[] }>(`${HISTORY_URL}`, { ttl: SHORT_TTL, bearer }),
 
-  upsertHistory: (record: Partial<HistoryRecord>, bearer?: string) =>
+  upsertHistory: (
+    record: {
+      type: "movie" | "episode" | "live_channel";
+      content_id: string | number;
+      progress_seconds: number;
+      duration_seconds?: number;
+      completed?: boolean;
+    },
+    bearer?: string,
+  ) =>
     request<HistoryRecord>(HISTORY_URL, {
       method: "POST",
       body: record,
@@ -517,6 +561,83 @@ export const api = {
 
   deleteHistory: (id: string | number, bearer?: string) =>
     request<{ ok: boolean }>(`${HISTORY_URL}/${id}`, { method: "DELETE", noCache: true, bearer }),
+
+  // ----- Favorites (Bearer auth) -----
+  getFavorites: (type?: "movie" | "series" | "live_channel", bearer?: string) =>
+    request<{ favorites: FavoriteRecord[] }>(`${FAVORITES_URL}${buildQuery({ type })}`, {
+      ttl: SHORT_TTL,
+      bearer,
+    }),
+
+  addFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
+    request<FavoriteRecord>(FAVORITES_URL, {
+      method: "POST",
+      body: { type, content_id: contentId },
+      noCache: true,
+      bearer,
+    }),
+
+  removeFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
+    request<void>(`${FAVORITES_URL}/${type}/${contentId}`, {
+      method: "DELETE",
+      noCache: true,
+      bearer,
+    }),
+
+  toggleFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
+    request<{ status: "added" | "removed" }>(`${FAVORITES_URL}/toggle`, {
+      method: "POST",
+      body: { type, content_id: contentId },
+      noCache: true,
+      bearer,
+    }),
+
+  syncFavorites: (
+    operations: Array<{
+      type: "movie" | "series" | "live_channel";
+      content_id: string | number;
+      action: "add" | "remove";
+      at?: string;
+    }>,
+    bearer?: string,
+  ) =>
+    request<{ added: number; removed: number; skipped: number }>(`${FAVORITES_URL}/sync`, {
+      method: "POST",
+      body: { operations },
+      noCache: true,
+      bearer,
+    }),
+
+  // ----- Auth -----
+  register: (payload: { email: string; password: string; name?: string }) =>
+    request<AuthResponse>(`${AUTH_URL}/register`, {
+      method: "POST",
+      body: payload,
+      noCache: true,
+      auth: false,
+    }),
+
+  login: (payload: { email: string; password: string }) =>
+    request<AuthResponse>(`${AUTH_URL}/login`, {
+      method: "POST",
+      body: payload,
+      noCache: true,
+      auth: false,
+    }),
+
+  me: (bearer?: string) =>
+    request<{ user: AuthUser }>(`${AUTH_URL}/me`, {
+      ttl: SHORT_TTL,
+      bearer,
+      auth: bearer !== null,
+    }),
+
+  logout: (bearer?: string) =>
+    request<void>(`${AUTH_URL}/logout`, {
+      method: "POST",
+      noCache: true,
+      bearer,
+    }),
 
   // ----- Prefetch -----
   prefetch: (path: string) => {
