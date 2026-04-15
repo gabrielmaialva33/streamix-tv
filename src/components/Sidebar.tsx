@@ -88,8 +88,7 @@ interface NavButtonProps extends NodeProps {
   route: string;
 }
 
-// NavButton guarda o `route` como prop do ElementNode pra sidebar.onFocus()
-// conseguir localizar pelo path atual (resolvendo o problema do divider).
+// Store the route on the node so sidebar focus can resolve the active item.
 function NavButton(props: NavButtonProps) {
   return (
     <View {...props} forwardStates style={props.isActive ? NavButtonActiveStyle : NavButtonStyle}>
@@ -101,7 +100,6 @@ function NavButton(props: NavButtonProps) {
 
 export interface SidebarProps extends NodeProps {
   ref?: any;
-  // Callback pra MainLayout saber quando o usuario saiu da sidebar com Right
   onExit?: () => boolean;
 }
 
@@ -115,8 +113,7 @@ const Sidebar = (props: SidebarProps) => {
     return currentPath.startsWith(path);
   };
 
-  // Quando a sidebar recebe foco, delega pro NavButton da pagina atual.
-  // Acha pelo prop `route` porque children inclui divider skipFocus entre eles.
+  // When the sidebar gains focus, forward it to the active route button.
   function onFocus(this: ElementNode) {
     const path = location.pathname;
     const idx = this.children.findIndex(c => {
@@ -133,30 +130,26 @@ const Sidebar = (props: SidebarProps) => {
     }
   }
 
-  // Right na sidebar -> sai pro conteudo (MainLayout faz o resto via onRight).
   function onRight() {
     return props.onExit?.() ?? false;
   }
 
   function go(page: string) {
-    // Se ja esta na rota, nao renavega (evita remount desnecessario) mas
-    // mesmo assim sai pro content — senao o user clica e fica preso.
     if (!isActive(page)) navigate(page);
-    // 2 microtasks = espera Solid Router montar a nova arvore ANTES de
-    // pedir foco no content. Sem isso, pageContainer foca num elemento
-    // da pagina antiga que ja foi desmontado.
+    // Wait for the router tree to settle before returning focus to content.
     queueMicrotask(() => queueMicrotask(() => props.onExit?.()));
   }
 
   return (
     <>
-      {/* Background + borda da sidebar */}
+      {/* Sidebar background and divider. */}
       <View skipFocus zIndex={100} width={220} height={1080} color={theme.background} />
       <View skipFocus zIndex={101} x={218} width={2} height={1080} color={theme.border} />
 
-      {/* Logo */}
-      <View skipFocus y={40} x={20} width={180} height={60} zIndex={105}>
-        <Text fontSize={28} fontWeight="bold" color={theme.primary}>
+      {/* The logo image already ships with the final colors, so avoid tinting it. */}
+      <View skipFocus y={40} x={20} width={180} height={48} zIndex={105}>
+        <View src="assets/streamix-logo.png" x={0} y={0} width={44} height={44} />
+        <Text x={56} y={8} fontSize={24} fontWeight="bold" color={theme.primary}>
           STREAMIX
         </Text>
       </View>
