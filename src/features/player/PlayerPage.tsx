@@ -494,9 +494,10 @@ const PlayerPage = () => {
           y={0}
           width={SCREEN_WIDTH}
           height={120}
-          color={0x333333ee}
+          color={0x000000cc}
+          zIndex={120}
           alpha={controlsVisible() ? 1 : 0}
-          transition={{ alpha: { duration: 300, easing: "ease-out" } }}
+          transition={{ alpha: { duration: 250, easing: "ease-out" } }}
           skipFocus={!controlsVisible()}
         >
           <Text
@@ -518,9 +519,10 @@ const PlayerPage = () => {
           y={880}
           width={SCREEN_WIDTH}
           height={200}
-          color={0x333333ee}
+          color={0x000000cc}
+          zIndex={120}
           alpha={controlsVisible() ? 1 : 0}
-          transition={{ alpha: { duration: 300, easing: "ease-out" } }}
+          transition={{ alpha: { duration: 250, easing: "ease-out" } }}
           skipFocus={!controlsVisible()}
         >
           <View x={60} y={40} width={1800} height={8} color={0x444444ff} borderRadius={4}>
