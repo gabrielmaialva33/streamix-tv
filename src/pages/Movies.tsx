@@ -32,6 +32,12 @@ const SelectedCategoryStyle = {
   color: 0x444444ff,
 } satisfies IntrinsicNodeStyleProps;
 
+function movieCaption(movie: Movie) {
+  return [movie.year ? String(movie.year) : null, movie.rating ? `${movie.rating.toFixed(1)} IMDb` : null]
+    .filter(Boolean)
+    .join(" • ");
+}
+
 const Movies = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
@@ -114,7 +120,7 @@ const Movies = () => {
 
   // Navigate to movie on Enter
   const handleMovieSelect = (movie: Movie) => {
-    navigate(`/player/movie/${movie.id}`);
+    navigate(`/movie/${movie.id}`);
   };
 
   return (
@@ -143,6 +149,9 @@ const Movies = () => {
             <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
               Filmes
             </Text>
+            <Text y={58} fontSize={18} color={0xa7a7b3ff}>
+              Descubra títulos com mais contexto antes de dar play.
+            </Text>
           </View>
           <SearchBox onSearch={handleSearch} placeholder="Buscar filmes..." />
         </Row>
@@ -170,6 +179,7 @@ const Movies = () => {
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
+              return true;
             }}
           >
             <Text fontSize={16} color={0xffffffff}>
@@ -190,6 +200,7 @@ const Movies = () => {
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
+                  return true;
                 }}
               >
                 <Text fontSize={16} color={0xffffffff}>
@@ -259,10 +270,13 @@ const Movies = () => {
                   <Card
                     title={movie.title || movie.name || ""}
                     imageUrl={movie.poster_url || movie.poster || undefined}
-                    subtitle={movie.year?.toString()}
+                    subtitle={movieCaption(movie)}
                     onFocus={() => api.prefetchMovie(String(movie.id))}
-                    onEnter={() => handleMovieSelect(movie)}
-                    item={{ id: movie.id, type: "movie", href: `/player/movie/${movie.id}` }}
+                    onEnter={() => {
+                      handleMovieSelect(movie);
+                      return true;
+                    }}
+                    item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                   />
                 )}
               </For>
@@ -286,7 +300,10 @@ const Movies = () => {
                 transition: { scale: { duration: 150 } },
                 $focus: { scale: 1.1, color: 0xe50914ff },
               }}
-              onEnter={loadMore}
+              onEnter={() => {
+                loadMore();
+                return true;
+              }}
             >
               <Text fontSize={18} color={0xffffffff}>
                 {moviesResource.loading ? "Carregando..." : "Carregar Mais"}

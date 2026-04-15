@@ -3,8 +3,9 @@ import { Column, Row } from "@lightningtv/solid/primitives";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
-import { type FavoriteItem, favorites } from "../lib/storage";
-import { theme } from "../styles";
+import { type FavoriteItem, favorites } from "@/lib/storage";
+import { theme } from "@/styles";
+import { authState } from "@/features/auth/auth";
 
 const ITEMS_PER_ROW = 6;
 
@@ -69,7 +70,7 @@ const Favorites = () => {
   const handleSelect = (item: FavoriteItem) => {
     switch (item.type) {
       case "movie":
-        navigate(`/player/movie/${item.id}`);
+        navigate(`/movie/${item.id}`);
         break;
       case "series":
         navigate(`/series/${item.id}`);
@@ -89,11 +90,27 @@ const Favorites = () => {
   return (
     <Column width={1700} height={1080} scroll="none">
       {/* Header */}
-      <View width={1660} height={70} x={20} skipFocus>
-        <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
+      <View width={1660} height={108} x={20} skipFocus>
+        <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
           Meus Favoritos
         </Text>
-        <Text x={1400} y={25} fontSize={20} color={0x888888ff}>
+        <Text y={62} fontSize={18} color={theme.textSecondary}>
+          {`Sua coleção sincronizada${authState.user()?.name ? ` • ${authState.user()?.name}` : ""}`}
+        </Text>
+        <View
+          x={1210}
+          y={18}
+          width={210}
+          height={34}
+          color={theme.surface}
+          borderRadius={17}
+          border={{ color: theme.border, width: 1 }}
+        >
+          <Text y={8} width={210} fontSize={15} color={theme.textPrimary} textAlign="center">
+            Favoritos da sua conta
+          </Text>
+        </View>
+        <Text x={1450} y={25} fontSize={20} color={0x888888ff}>
           {`${filteredItems().length} itens`}
         </Text>
       </View>
@@ -113,6 +130,7 @@ const Favorites = () => {
           style={filter() === "all" ? ActiveTabStyle : TabStyle}
           onEnter={() => {
             setFilter("all");
+            return true;
           }}
         >
           <Text fontSize={16} color={0xffffffff}>
@@ -124,6 +142,7 @@ const Favorites = () => {
           style={filter() === "movie" ? ActiveTabStyle : TabStyle}
           onEnter={() => {
             setFilter("movie");
+            return true;
           }}
         >
           <Text fontSize={16} color={0xffffffff}>
@@ -135,6 +154,7 @@ const Favorites = () => {
           style={filter() === "series" ? ActiveTabStyle : TabStyle}
           onEnter={() => {
             setFilter("series");
+            return true;
           }}
         >
           <Text fontSize={16} color={0xffffffff}>
@@ -146,6 +166,7 @@ const Favorites = () => {
           style={filter() === "channel" ? ActiveTabStyle : TabStyle}
           onEnter={() => {
             setFilter("channel");
+            return true;
           }}
         >
           <Text fontSize={16} color={0xffffffff}>
@@ -184,7 +205,7 @@ const Favorites = () => {
               Nenhum favorito ainda
             </Text>
             <Text fontSize={18} color={0x666666ff}>
-              Adicione filmes, séries ou canais aos favoritos
+              {`Adicione filmes, séries ou canais para montar a sua seleção${authState.user()?.name ? `, ${authState.user()?.name}` : ""}`}
             </Text>
           </View>
         </Show>
@@ -198,7 +219,10 @@ const Favorites = () => {
                     title={item.title}
                     imageUrl={item.posterUrl}
                     subtitle={item.type === "movie" ? "Filme" : item.type === "series" ? "Série" : "Canal"}
-                    onEnter={() => handleSelect(item)}
+                    onEnter={() => {
+                      handleSelect(item);
+                      return true;
+                    }}
                     item={{ id: item.id, type: item.type, href: "" }}
                   />
                 )}
@@ -211,7 +235,7 @@ const Favorites = () => {
       {/* Help text */}
       <View x={20} y={1000} skipFocus>
         <Text fontSize={14} color={0x666666ff}>
-          OK Assistir • Segure OK para remover
+          OK Abrir detalhes ou reprodução • Seus favoritos acompanham a conta
         </Text>
       </View>
     </Column>

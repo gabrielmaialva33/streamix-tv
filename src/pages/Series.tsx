@@ -4,6 +4,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { Card, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Series as SeriesType } from "../lib/api";
+import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
@@ -31,6 +32,16 @@ const SelectedCategoryStyle = {
   ...CategoryButtonStyle,
   color: 0x444444ff,
 } satisfies IntrinsicNodeStyleProps;
+
+function seriesCaption(show: SeriesType) {
+  return [
+    show.year ? String(show.year) : null,
+    show.rating ? `${show.rating.toFixed(1)} IMDb` : null,
+    show.season_count ? `${show.season_count} temp.` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+}
 
 const Series = () => {
   const navigate = useNavigate();
@@ -139,6 +150,9 @@ const Series = () => {
             <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
               Séries
             </Text>
+            <Text y={58} fontSize={18} color={theme.textSecondary}>
+              Entre no universo da série antes de escolher temporada e episódio.
+            </Text>
           </View>
           <SearchBox onSearch={handleSearch} placeholder="Buscar séries..." />
         </Row>
@@ -166,6 +180,7 @@ const Series = () => {
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
+              return true;
             }}
           >
             <Text fontSize={16} color={0xffffffff}>
@@ -186,6 +201,7 @@ const Series = () => {
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
+                  return true;
                 }}
               >
                 <Text fontSize={16} color={0xffffffff}>
@@ -255,9 +271,12 @@ const Series = () => {
                   <Card
                     title={show.title || show.name || ""}
                     imageUrl={show.poster_url || show.poster || undefined}
-                    subtitle={show.year?.toString()}
+                    subtitle={seriesCaption(show)}
                     onFocus={() => api.prefetchSeries(String(show.id))}
-                    onEnter={() => handleSeriesSelect(show)}
+                    onEnter={() => {
+                      handleSeriesSelect(show);
+                      return true;
+                    }}
                     item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
                   />
                 )}
@@ -282,7 +301,10 @@ const Series = () => {
                 transition: { scale: { duration: 150 } },
                 $focus: { scale: 1.1, color: 0xe50914ff },
               }}
-              onEnter={loadMore}
+              onEnter={() => {
+                loadMore();
+                return true;
+              }}
             >
               <Text fontSize={18} color={0xffffffff}>
                 {seriesResource.loading ? "Carregando..." : "Carregar Mais"}

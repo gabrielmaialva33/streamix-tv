@@ -3,7 +3,7 @@ import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "../lib/api";
-import { theme } from "../styles";
+import { theme } from "@/styles";
 
 // Time slot width (30 min = 200px)
 const TIME_SLOT_WIDTH = 200;
@@ -46,7 +46,7 @@ const toProgram = (p: EpgProgram): Program => ({
   title: p.title,
   start: new Date(p.start),
   end: new Date(p.end),
-  description: p.description,
+  description: p.description ?? undefined,
 });
 
 const Guide = () => {
