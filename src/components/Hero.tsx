@@ -6,7 +6,6 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
-import { Row } from "@lightningtv/solid/primitives";
 import { Show } from "solid-js";
 import type { FeaturedItem } from "../lib/api";
 import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
