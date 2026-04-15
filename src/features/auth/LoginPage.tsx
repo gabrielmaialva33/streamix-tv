@@ -1,4 +1,4 @@
-import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { useNavigate } from "@solidjs/router";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
@@ -176,6 +176,11 @@ const LoginPage = () => {
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
 
+  // Refs drive remote-control navigation between the tab row, fields and actions.
+  let chipsRow: ElementNode | undefined;
+  let fieldsColumn: ElementNode | undefined;
+  let primaryButton: ElementNode | undefined;
+
   onMount(() => {
     void initializeAuth();
   });
@@ -269,13 +274,32 @@ const LoginPage = () => {
   }
 
   return (
-    <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={theme.background} forwardFocus={1}>
+    <View
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
+      color={theme.background}
+      forwardFocus={() => {
+        fieldsColumn?.setFocus();
+        return true;
+      }}
+    >
       <View x={550} y={88} width={820} height={904}>
         <Text fontSize={28} fontWeight={700} color={theme.primary}>
           STREAMIX
         </Text>
 
-        <Row y={58} width={380} height={48} gap={16} scroll="none">
+        <Row
+          ref={chipsRow}
+          y={64}
+          width={380}
+          height={48}
+          gap={16}
+          scroll="none"
+          onDown={() => {
+            fieldsColumn?.setFocus();
+            return true;
+          }}
+        >
           <View
             style={mode() === "login" ? ACTIVE_MODE_CHIP_STYLE : MODE_CHIP_STYLE}
             onEnter={() => (switchMode("login"), true)}
@@ -310,14 +334,14 @@ const LoginPage = () => {
           </View>
         </Row>
 
-        <Text y={126} fontSize={58} fontWeight={700} color={0xffffffff}>
+        <Text y={142} fontSize={56} fontWeight={700} color={0xffffffff}>
           {titleCopy()}
         </Text>
-        <Text y={206} width={780} fontSize={22} color={theme.textSecondary} maxLines={2} contain="width">
+        <Text y={224} width={780} fontSize={22} color={theme.textSecondary} maxLines={2} contain="width">
           {descriptionCopy()}
         </Text>
 
-        <Row y={274} width={820} height={58} gap={14} scroll="none" skipFocus>
+        <Row y={304} width={820} height={60} gap={14} scroll="none" skipFocus>
           <For each={highlights()}>
             {item => (
               <View style={INFO_CARD_STYLE}>
@@ -338,7 +362,22 @@ const LoginPage = () => {
         </Row>
 
         <View y={354} style={mode() === "register" ? FORM_PANEL_REGISTER : FORM_PANEL_LOGIN}>
-          <Column x={30} y={24} width={760} gap={18} scroll="none">
+          <Column
+            ref={fieldsColumn}
+            x={30}
+            y={24}
+            width={760}
+            gap={18}
+            scroll="none"
+            onUp={() => {
+              chipsRow?.setFocus();
+              return true;
+            }}
+            onDown={() => {
+              primaryButton?.setFocus();
+              return true;
+            }}
+          >
             <FieldCard
               field="email"
               value={form().email}
@@ -389,8 +428,19 @@ const LoginPage = () => {
             </View>
           </Show>
 
-          <Row x={30} y={mode() === "register" ? 500 : 380} width={760} gap={24} scroll="none">
+          <Row
+            x={30}
+            y={mode() === "register" ? 500 : 380}
+            width={760}
+            gap={24}
+            scroll="none"
+            onUp={() => {
+              fieldsColumn?.setFocus();
+              return true;
+            }}
+          >
             <View
+              ref={primaryButton}
               style={PRIMARY_ACTION_STYLE}
               onEnter={() => {
                 void submit();
