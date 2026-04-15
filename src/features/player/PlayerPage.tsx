@@ -490,20 +490,25 @@ const PlayerPage = () => {
       </Show>
 
       <Show when={!state().error}>
+        {/* Top gradient + title */}
         <View
           y={0}
           width={SCREEN_WIDTH}
-          height={120}
-          color={0x000000cc}
+          height={200}
           zIndex={120}
           alpha={controlsVisible() ? 1 : 0}
           transition={{ alpha: { duration: 250, easing: "ease-out" } }}
-          skipFocus={!controlsVisible()}
+          skipFocus
+          shader={{
+            type: "linearGradient",
+            colors: [0x000000d9, 0x00000080, 0x00000000],
+            angle: 180,
+          }}
         >
           <Text
             x={60}
-            y={40}
-            fontSize={36}
+            y={52}
+            fontSize={38}
             fontWeight={700}
             color={0xffffffff}
             contain="width"
@@ -513,59 +518,82 @@ const PlayerPage = () => {
           >
             {title()}
           </Text>
+          <Text x={60} y={104} fontSize={18} color={0xbbbbccff}>
+            {state().playing ? "Reproduzindo" : state().buffering ? "Carregando..." : "Pausado"}
+          </Text>
         </View>
 
+        {/* Bottom gradient + controls */}
         <View
-          y={880}
+          y={760}
           width={SCREEN_WIDTH}
-          height={200}
-          color={0x000000cc}
+          height={320}
           zIndex={120}
           alpha={controlsVisible() ? 1 : 0}
           transition={{ alpha: { duration: 250, easing: "ease-out" } }}
-          skipFocus={!controlsVisible()}
+          skipFocus
+          shader={{
+            type: "linearGradient",
+            colors: [0x00000000, 0x00000080, 0x000000e6],
+            angle: 180,
+          }}
         >
-          <View x={60} y={40} width={1800} height={8} color={0x444444ff} borderRadius={4}>
+          {/* Scrub bar — tall, with hover track + filled portion */}
+          <View x={60} y={130} width={1800} height={6} color={0x3a3a44cc} borderRadius={3}>
             <View
               width={Math.max(0, (1800 * progress()) / 100)}
-              height={8}
+              height={6}
               color={0xe50914ff}
-              borderRadius={4}
+              borderRadius={3}
+            />
+            {/* Scrub head */}
+            <View
+              x={Math.max(0, (1800 * progress()) / 100) - 10}
+              y={-7}
+              width={20}
+              height={20}
+              color={0xe50914ff}
+              borderRadius={10}
             />
           </View>
 
-          <View x={60} y={60}>
-            <Text fontSize={24} color={0xffffffff}>
-              {formatTime(state().currentTime)} / {formatTime(state().duration)}
+          {/* Time readout */}
+          <Text x={60} y={158} fontSize={22} fontWeight={700} color={0xffffffff}>
+            {formatTime(state().currentTime)}
+          </Text>
+          <Text
+            x={1760}
+            y={158}
+            fontSize={22}
+            color={0xbbbbccff}
+            textAlign="right"
+            contain="width"
+            width={100}
+          >
+            {formatTime(state().duration)}
+          </Text>
+
+          {/* Playback status pill */}
+          <View
+            x={60}
+            y={208}
+            width={200}
+            height={48}
+            color={0x1a1a24ee}
+            borderRadius={24}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Text fontSize={18} fontWeight={700} color={0xffffffff}>
+              {state().playing ? "OK para pausar" : "OK para tocar"}
             </Text>
           </View>
 
-          <View x={1760} y={60}>
-            <Text fontSize={24} color={0xccccccff}>
-              {state().playing ? "II Pause" : "> Play"}
-            </Text>
-          </View>
-
-          <View x={60} y={110} display="flex" gap={50}>
-            <Text fontSize={18} color={0x888888ff}>
-              {"<"} -10s
-            </Text>
-            <Text fontSize={18} color={0x888888ff}>
-              {">"} +10s
-            </Text>
-            <Text fontSize={18} color={0x888888ff}>
-              ^ +1min
-            </Text>
-            <Text fontSize={18} color={0x888888ff}>
-              v -1min
-            </Text>
-            <Text fontSize={18} color={0x888888ff}>
-              OK Play/Pause
-            </Text>
-            <Text fontSize={18} color={0x888888ff}>
-              Voltar Sair
-            </Text>
-          </View>
+          {/* Remote hints */}
+          <Text x={280} y={218} fontSize={16} color={0x9999aaff}>
+            {"← -10s   → +10s   ↑ +1min   ↓ -1min   Voltar: sair"}
+          </Text>
         </View>
       </Show>
     </View>
