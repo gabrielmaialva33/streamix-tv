@@ -1,40 +1,70 @@
-// Lightning 3 loads font atlases via XHR at runtime, including on Tizen file:// builds.
-// Paths stay relative to index.html.
+// SDF + Canvas font registration for Lightning 3.
 //
-// NotoSans MSDF atlases cover accented latin characters. The runtime family name
-// remains "Roboto" to avoid touching the existing component tree.
-const basePath = "./";
+// Family name MUST match `Config.fontSettings.fontFamily` in
+// `devices/common/index.ts` (currently "NotoSans"). Otherwise Lightning's
+// TrFontManager.resolveFontFace returns undefined and Text nodes render empty.
+//
+// descriptors MUST include weight AND style/stretch — resolveFontToUse
+// compares all three for exact match. Missing style/stretch on a face with
+// style:"normal" from props → no match, glyph missing on screen (this is
+// what caused bold texts to disappear before).
 
-const sdf = (weight: number | "bold" | "normal", file: string) =>
-  ({
+const NOTO_METRICS = {
+  ascender: 1069,
+  descender: -293,
+  lineGap: 0,
+  unitsPerEm: 1000,
+} as const;
+
+const baseDescriptors = { style: "normal", stretch: "normal" } as const;
+
+const fonts = [
+  // SDF atlases.
+  {
     type: "msdf",
-    fontFamily: "Roboto",
-    descriptors: { weight },
-    atlasDataUrl: `${basePath}fonts/${file}.msdf.json`,
-    atlasUrl: `${basePath}fonts/${file}.msdf.png`,
-  }) as const;
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 300 },
+    atlasDataUrl: "fonts/NotoSans-Regular.msdf.json",
+    atlasUrl: "fonts/NotoSans-Regular.msdf.png",
+    metrics: NOTO_METRICS,
+  },
+  {
+    type: "msdf",
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 400 },
+    atlasDataUrl: "fonts/NotoSans-Regular.msdf.json",
+    atlasUrl: "fonts/NotoSans-Regular.msdf.png",
+    metrics: NOTO_METRICS,
+  },
+  {
+    type: "msdf",
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 500 },
+    atlasDataUrl: "fonts/NotoSans-Regular.msdf.json",
+    atlasUrl: "fonts/NotoSans-Regular.msdf.png",
+    metrics: NOTO_METRICS,
+  },
+  {
+    type: "msdf",
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 700 },
+    atlasDataUrl: "fonts/NotoSans-Bold.msdf.json",
+    atlasUrl: "fonts/NotoSans-Bold.msdf.png",
+    metrics: NOTO_METRICS,
+  },
+  // Canvas fallback (native browser shaping — full Unicode).
+  {
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 400 },
+    fontUrl: "fonts/NotoSans-Regular.ttf",
+    metrics: NOTO_METRICS,
+  },
+  {
+    fontFamily: "NotoSans",
+    descriptors: { ...baseDescriptors, weight: 700 },
+    fontUrl: "fonts/NotoSans-Bold.ttf",
+    metrics: NOTO_METRICS,
+  },
+] as const;
 
-// Canvas fallback uses native TTF files.
-const web = (weight: number | "bold" | "normal", file: string) =>
-  ({
-    fontFamily: "Roboto",
-    descriptors: { weight },
-    fontUrl: `${basePath}fonts/${file}.ttf`,
-  }) as const;
-
-export default [
-  // SDF atlases with full latin coverage.
-  sdf(300, "NotoSans-Regular"),
-  sdf(400, "NotoSans-Regular"),
-  sdf(500, "NotoSans-Regular"),
-  sdf(700, "NotoSans-Bold"),
-  sdf("normal", "NotoSans-Regular"),
-  sdf("bold", "NotoSans-Bold"),
-  // Canvas fallback via the existing Roboto TTF files.
-  web(300, "Roboto-Light"),
-  web(400, "Roboto-Regular"),
-  web(500, "Roboto-Medium"),
-  web(700, "Roboto-Bold"),
-  web("normal", "Roboto-Regular"),
-  web("bold", "Roboto-Bold"),
-];
+export default fonts;

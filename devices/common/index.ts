@@ -17,7 +17,7 @@ export const config = {
   lightning: {
     debug: false,
     focusDebug: false,
-    fontSettings: { fontFamily: "Roboto", color: 0xffffffff, fontSize: 40 },
+    fontSettings: { fontFamily: "NotoSans", color: 0xffffffff, fontSize: 40 },
     animationSettings: { easing: "ease-in-out", duration: 250 },
     rendererOptions: {
       appHeight: 1080,
