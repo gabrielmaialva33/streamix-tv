@@ -2,6 +2,7 @@ import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@light
 import { createEffect, createSignal } from "solid-js";
 import { type FavoriteItem, favorites } from "../lib/storage";
 import { theme } from "../styles";
+import { authState, persistFavoriteChange } from "@/features/auth/auth";
 
 const ButtonStyle = {
   width: 50,
@@ -35,9 +36,22 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
   });
 
   const handleToggle = () => {
+    const previousState = isFavorite();
     const newState = favorites.toggle(props.item);
     setIsFavorite(newState);
     props.onToggle?.(newState);
+
+    if (!authState.isAuthenticated()) {
+      return true;
+    }
+
+    void persistFavoriteChange(props.item, newState).catch(() => {
+      favorites.toggle(props.item);
+      setIsFavorite(previousState);
+      props.onToggle?.(previousState);
+    });
+
+    return true;
   };
 
   return (
