@@ -65,22 +65,6 @@ const SECONDARY_ACTION_STYLE = {
     scale: 1.06,
   },
 } satisfies IntrinsicNodeStyleProps;
-
-const MODE_CHIP_STYLE = {
-  width: 172,
-  height: 48,
-  borderRadius: 24,
-  color: theme.surface,
-  border: { color: theme.border, width: 2 },
-  scale: 1,
-  transition: { scale: { duration: 150 } },
-  $focus: {
-    border: { color: theme.primary, width: 2 },
-    color: theme.surfaceHover,
-    scale: 1.03,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
 const FORM_PANEL_BASE = {
   width: 820,
   color: theme.backgroundLight,
@@ -170,6 +154,7 @@ const LoginPage = () => {
   // Refs drive remote-control navigation between the tab row, fields and actions.
   let chipsRow: ElementNode | undefined;
   let fieldsColumn: ElementNode | undefined;
+  let firstField: ElementNode | undefined;
   let primaryButton: ElementNode | undefined;
 
   onCleanup(() => closeTvKeyboard());
@@ -266,7 +251,7 @@ const LoginPage = () => {
       height={SCREEN_HEIGHT}
       color={theme.background}
       forwardFocus={() => {
-        fieldsColumn?.setFocus();
+        firstField?.setFocus();
         return true;
       }}
     >
@@ -330,6 +315,10 @@ const LoginPage = () => {
             width={760}
             gap={18}
             scroll="none"
+            forwardFocus={() => {
+              firstField?.setFocus();
+              return true;
+            }}
             onUp={() => {
               chipsRow?.setFocus();
               return true;
@@ -340,10 +329,12 @@ const LoginPage = () => {
             }}
           >
             <FieldCard
+              ref={firstField}
               field="email"
               value={form().email}
               editing={editingField() === "email"}
               onEdit={() => editField("email")}
+              autofocus
             />
             <FieldCard
               field="password"
@@ -495,6 +486,8 @@ const ModeChip = (props: ModeChipProps) => (
 );
 
 interface FieldCardProps {
+  ref?: ElementNode;
+  autofocus?: boolean;
   field: FieldName;
   value: string;
   editing: boolean;
@@ -508,7 +501,13 @@ const FieldCard = (props: FieldCardProps) => {
   };
 
   return (
-    <View style={props.editing ? ACTIVE_INPUT_STYLE : INPUT_STYLE} forwardStates onEnter={props.onEdit}>
+    <View
+      ref={props.ref}
+      autofocus={props.autofocus}
+      style={props.editing ? ACTIVE_INPUT_STYLE : INPUT_STYLE}
+      forwardStates
+      onEnter={props.onEdit}
+    >
       <Text x={24} y={20} fontSize={14} fontWeight={700} color={theme.textMuted}>
         {FIELD_LABEL[props.field]}
       </Text>
