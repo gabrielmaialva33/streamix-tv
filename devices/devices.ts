@@ -1,7 +1,7 @@
 import type { Config as LightningConfig, KeyMap } from "@lightningtv/solid";
 
-// KeyHoldOptions não é re-exportado pelo root de @lightningtv/solid 3.2.5.
-// Definido localmente conforme ./src/core/focusKeyTypes.ts do pacote.
+// KeyHoldOptions is not re-exported from the @lightningtv/solid root package.
+// Keep a local copy based on the package focus key types.
 type KeyNameOrKeyCode = string | number;
 interface KeyHoldMap {
   [key: string]: KeyNameOrKeyCode | KeyNameOrKeyCode[];

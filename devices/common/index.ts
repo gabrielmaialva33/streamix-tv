@@ -24,8 +24,7 @@ export const config = {
       appWidth: 1920,
       // Disable image workers to avoid CORS issues with cross-origin images
       numImageWorkers: 0,
-      // Canvas renderer como fallback: se o SDF falhar pra alguma weight,
-      // ele renderiza via Canvas usando TTF (mais lento mas funciona).
+      // Use the Canvas renderer as a fallback when a font weight is missing in SDF.
       fontEngines: [SdfTextRenderer, CanvasTextRenderer],
       renderEngine: WebGlCoreRenderer,
       inspector: import.meta.env.DEV ? Inspector : undefined,

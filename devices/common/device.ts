@@ -1,9 +1,10 @@
 import { EDevicePlatform, EDeviceType } from "#devices/devices";
 import { createUniqueId } from "solid-js";
-import { CommonPlayer } from "./player";
+import { createLogger } from "../../src/shared/logging/logger";
+
+const logger = createLogger("DeviceCommon");
 
 export class DeviceCommon {
-  _player?: CommonPlayer;
   type: EDeviceType;
   platform: string;
   macAddress: string;
@@ -37,20 +38,11 @@ export class DeviceCommon {
   }
 
   async closeApp(): Promise<void> {
-    console.log("should close the app");
+    logger.debug("Closing the app via browser window");
     window.close();
   }
 
   async updateApp(): Promise<void> {
-    console.log("should update the app");
-  }
-
-  getPlayer() {
-    if (!this._player) this._player = this._getPlayer();
-    return this._player;
-  }
-
-  protected _getPlayer() {
-    return new CommonPlayer();
+    logger.debug("Update flow is not implemented for the common device profile");
   }
 }
