@@ -1,6 +1,7 @@
 import { activeElement, ElementNode, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { children, createEffect, createSignal, type JSX, onCleanup, onMount, Show, Suspense } from "solid-js";
+import { children, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { Suspense } from "@lightningtv/solid/primitives";
 import { ExitDialog, Sidebar } from "../components";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
 import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";

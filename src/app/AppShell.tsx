@@ -1,6 +1,7 @@
 import { ElementNode, View } from "@lightningtv/solid";
 import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
-import { lazy, Show, Suspense } from "solid-js";
+import { lazy, Show } from "solid-js";
+import { Suspense } from "@lightningtv/solid/primitives";
 import { preferences } from "@/lib/storage";
 import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
 import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";

@@ -219,7 +219,7 @@ const SeriesDetail = () => {
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
-          <SkeletonLoader width={1392} height={224} x={268} y={320} borderRadius={24} />
+          <SkeletonLoader width={1392} height={282} x={268} y={320} borderRadius={24} />
           <SkeletonLoader width={1620} height={132} y={568} borderRadius={24} />
           <SkeletonLoader width={1620} height={340} y={724} borderRadius={24} />
         </View>
@@ -299,7 +299,7 @@ const SeriesDetail = () => {
                 />
               </Show>
 
-              <View x={268} y={320} width={1392} height={224} style={PANEL_STYLE}>
+              <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
                 <Column x={30} y={26} width={1332} gap={14} scroll="none" skipFocus>
                   <Show when={currentSeries().tagline}>
                     <Text fontSize={20} color={0xffd166ff} maxLines={1}>
@@ -332,10 +332,10 @@ const SeriesDetail = () => {
                 <Row
                   ref={actionRow}
                   x={30}
-                  y={150}
-                  width={800}
+                  y={194}
+                  width={1332}
                   height={58}
-                  gap={18}
+                  gap={20}
                   scroll="none"
                   autofocus
                   onDown={() => {
