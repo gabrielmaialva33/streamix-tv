@@ -4,7 +4,7 @@ import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
 import api, { type Movie, type RecommendationItem, type SimilarContentItem } from "@/lib/api";
-import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "@/shared/layout";
+import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
 const ACTION_BUTTON_STYLE = {
@@ -36,10 +36,14 @@ const META_CHIP_STYLE = {
   border: { color: 0x2c2d38ff, width: 1 },
 } satisfies IntrinsicNodeStyleProps;
 
-const INFO_PANEL_STYLE = {
+const HERO_STYLE = {
   width: 1640,
-  height: 280,
-  color: 0x111118dd,
+  height: 320,
+  borderRadius: 28,
+} satisfies IntrinsicNodeStyleProps;
+
+const DETAIL_SURFACE_STYLE = {
+  color: 0x111118f4,
   borderRadius: 24,
   border: { color: 0x232330ff, width: 1 },
 } satisfies IntrinsicNodeStyleProps;
@@ -58,8 +62,12 @@ function buildMeta(movie?: Movie) {
   ].filter(Boolean) as string[];
 }
 
-function backdropFor(movie?: Movie) {
-  return movie?.backdrop?.[0] || movie?.backdrop_url || movie?.poster_url || movie?.poster || undefined;
+function heroBackdropFor(movie?: Movie) {
+  return movie?.backdrop?.[0] || movie?.backdrop_url || undefined;
+}
+
+function posterFor(movie?: Movie) {
+  return movie?.poster_url || movie?.poster || movie?.backdrop?.[0] || movie?.backdrop_url || undefined;
 }
 
 type RelatedMovie = SimilarContentItem | RecommendationItem;
@@ -94,7 +102,7 @@ const MovieDetail = () => {
           return personalized.similar;
         }
       } catch {
-        // Fall back to public similarity below.
+        return api.getSimilarContent("movies", id, 12).catch(() => [] as SimilarContentItem[]);
       }
 
       return api.getSimilarContent("movies", id, 12).catch(() => [] as SimilarContentItem[]);
@@ -120,248 +128,273 @@ const MovieDetail = () => {
     >
       <Show when={movie.loading}>
         <View x={20} y={20} width={1640} height={980} skipFocus>
-          <SkeletonLoader width={1640} height={440} borderRadius={24} />
-          <SkeletonLoader width={1640} height={260} y={470} borderRadius={24} />
-          <SkeletonLoader width={1640} height={200} y={760} borderRadius={24} />
+          <SkeletonLoader width={1640} height={320} borderRadius={28} />
+          <SkeletonLoader width={240} height={360} x={20} y={248} borderRadius={22} />
+          <SkeletonLoader width={1328} height={208} x={292} y={248} borderRadius={24} />
+          <SkeletonLoader width={1328} height={164} x={292} y={472} borderRadius={24} />
+          <SkeletonLoader width={1620} height={300} x={20} y={680} borderRadius={24} />
         </View>
       </Show>
 
       <Show when={movie()}>
-        {currentMovie => (
-          <>
-            <View
-              x={20}
-              y={20}
-              width={1640}
-              height={430}
-              src={backdropFor(currentMovie())}
-              color={0xffffffff}
-              borderRadius={26}
-              textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.35 } }}
-            />
-            <View
-              x={20}
-              y={20}
-              width={1640}
-              height={430}
-              borderRadius={26}
-              shader={{
-                type: "linearGradient",
-                colors: [0x09090dff, 0x09090dbb, 0x09090d22],
-                angle: 0,
-              }}
-            />
-            <View
-              x={20}
-              y={20}
-              width={1640}
-              height={430}
-              borderRadius={26}
-              shader={{
-                type: "linearGradient",
-                colors: [0x09090d00, 0x09090d55, 0x09090dff],
-                angle: 180,
-              }}
-            />
+        {currentMovie => {
+          const metaItems = buildMeta(currentMovie());
+          const posterUrl = posterFor(currentMovie());
+          const panelX = posterUrl ? 272 : 0;
+          const panelWidth = posterUrl ? 1328 : 1620;
 
-            <View x={SAFE_AREA_X + 40} y={SAFE_AREA_Y + 40} width={920} zIndex={10} skipFocus>
-              <Show when={currentMovie().tagline}>
-                <Text fontSize={20} color={0xffd166ff} maxLines={1}>
-                  {currentMovie().tagline || ""}
-                </Text>
-              </Show>
-              <Text
-                y={currentMovie().tagline ? 34 : 0}
-                width={900}
-                fontSize={62}
-                fontWeight={700}
-                color={0xffffffff}
-                maxLines={2}
-                contain="width"
-              >
-                {currentMovie().title || currentMovie().name}
-              </Text>
-
-              <Row y={currentMovie().tagline ? 176 : 142} width={900} height={36} gap={12} scroll="none">
-                <For each={buildMeta(currentMovie())}>
-                  {item => (
-                    <View
-                      width={Math.max(120, item.length * 12 + 32)}
-                      style={META_CHIP_STYLE}
-                      display="flex"
-                      justifyContent="center"
-                      alignItems="center"
-                    >
-                      <Text fontSize={16} color={0xffffffff}>
-                        {item}
-                      </Text>
-                    </View>
-                  )}
-                </For>
-              </Row>
-
-              <Text
-                y={currentMovie().tagline ? 236 : 202}
-                width={760}
-                fontSize={22}
-                lineHeight={32}
-                color={0xe2e2e8ff}
-                maxLines={4}
-                contain="width"
-              >
-                {currentMovie().plot || "Sem sinopse disponível para este filme."}
-              </Text>
-            </View>
-
-            <View x={30} y={472} width={1640} height={608} clipping forwardFocus={0}>
-              <Show when={currentMovie().poster_url || currentMovie().poster}>
+          return (
+            <>
+              <Show when={heroBackdropFor(currentMovie())}>
                 <View
-                  x={1370}
-                  y={-118}
-                  width={220}
-                  height={330}
-                  src={currentMovie().poster_url || currentMovie().poster}
-                  color={0xffffffff}
-                  borderRadius={22}
-                  border={{ color: 0x2d2d38ff, width: 2 }}
-                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
-                  zIndex={12}
+                  x={20}
+                  y={20}
+                  src={heroBackdropFor(currentMovie())}
+                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.3 } }}
+                  style={HERO_STYLE}
                 />
               </Show>
+              <View
+                x={20}
+                y={20}
+                style={HERO_STYLE}
+                shader={{
+                  type: "linearGradient",
+                  colors: [0x09090dcc, 0x09090daa, 0x09090d22],
+                  angle: 0,
+                }}
+              />
+              <View
+                x={20}
+                y={20}
+                style={HERO_STYLE}
+                shader={{
+                  type: "linearGradient",
+                  colors: [0x09090d00, 0x09090d66, 0x09090dff],
+                  angle: 180,
+                }}
+              />
 
-              <View y={52} style={INFO_PANEL_STYLE}>
-                <Row
-                  ref={actionRow}
-                  x={28}
-                  y={28}
-                  width={1120}
-                  height={58}
-                  gap={18}
-                  scroll="none"
-                  autofocus
-                  onDown={() => {
-                    relatedRow?.setFocus();
-                    return true;
-                  }}
-                >
+              <View x={40} y={248} width={1620} height={832} clipping>
+                <Show when={posterUrl}>
                   <View
-                    style={ACTION_BUTTON_STYLE}
-                    onEnter={() => {
-                      navigate(`/player/movie/${currentMovie().id}`);
+                    x={0}
+                    y={0}
+                    width={240}
+                    height={360}
+                    src={posterUrl}
+                    color={0xffffffff}
+                    borderRadius={22}
+                    border={{ color: 0x2d2d38ff, width: 2 }}
+                    textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
+                  />
+                </Show>
+
+                <View x={panelX} y={0} width={panelWidth} height={208} style={DETAIL_SURFACE_STYLE}>
+                  <Column x={30} y={26} width={panelWidth - 60} gap={14} scroll="none" skipFocus>
+                    <Show when={currentMovie().tagline}>
+                      <Text fontSize={20} color={0xffd166ff} maxLines={1}>
+                        {currentMovie().tagline || ""}
+                      </Text>
+                    </Show>
+                    <Text
+                      width={panelWidth - 60}
+                      fontSize={58}
+                      fontWeight={700}
+                      color={0xffffffff}
+                      maxLines={2}
+                    >
+                      {currentMovie().title || currentMovie().name}
+                    </Text>
+                    <Row width={panelWidth - 60} height={36} gap={12} scroll="none">
+                      <For each={metaItems}>
+                        {item => (
+                          <View
+                            width={Math.max(120, item.length * 12 + 32)}
+                            style={META_CHIP_STYLE}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <Text fontSize={16} color={0xffffffff}>
+                              {item}
+                            </Text>
+                          </View>
+                        )}
+                      </For>
+                    </Row>
+                  </Column>
+
+                  <Row
+                    ref={actionRow}
+                    x={30}
+                    y={132}
+                    width={Math.min(panelWidth - 60, 820)}
+                    height={58}
+                    gap={18}
+                    scroll="none"
+                    autofocus
+                    onDown={() => {
+                      relatedRow?.setFocus();
                       return true;
                     }}
                   >
-                    <Text
-                      y={18}
-                      width={180}
-                      fontSize={22}
-                      fontWeight={700}
-                      color={0xffffffff}
-                      textAlign="center"
+                    <View
+                      style={ACTION_BUTTON_STYLE}
+                      onEnter={() => {
+                        navigate(`/player/movie/${currentMovie().id}`);
+                        return true;
+                      }}
                     >
-                      Assistir
-                    </Text>
-                  </View>
-                  <View style={SECONDARY_ACTION_STYLE} onEnter={handleBack}>
-                    <Text y={18} width={180} fontSize={20} color={theme.textPrimary} textAlign="center">
-                      Voltar
-                    </Text>
-                  </View>
-                  <FavoriteButton
-                    item={{
-                      id: currentMovie().id,
-                      type: "movie",
-                      title: currentMovie().title || currentMovie().name || "",
-                      posterUrl: currentMovie().poster_url || currentMovie().poster || undefined,
-                    }}
-                  />
-                </Row>
-
-                <Column x={28} y={116} width={1120} gap={18} scroll="none" skipFocus>
-                  <Show when={currentMovie().cast}>
-                    <View width={1120} height={56} color={0x00000000}>
-                      <Text fontSize={16} color={theme.textMuted}>
-                        Elenco
-                      </Text>
                       <Text
-                        y={24}
-                        width={1100}
-                        fontSize={20}
-                        color={theme.textPrimary}
-                        maxLines={1}
-                        contain="width"
+                        y={18}
+                        width={180}
+                        fontSize={22}
+                        fontWeight={700}
+                        color={0xffffffff}
+                        textAlign="center"
                       >
-                        {currentMovie().cast || ""}
+                        Assistir
                       </Text>
                     </View>
-                  </Show>
-                  <Row width={1120} height={56} gap={48} scroll="none">
-                    <Show when={currentMovie().director}>
-                      <View width={536} height={56} color={0x00000000}>
-                        <Text fontSize={16} color={theme.textMuted}>
-                          Direção
-                        </Text>
-                        <Text
-                          y={24}
-                          width={516}
-                          fontSize={20}
-                          color={theme.textPrimary}
-                          maxLines={1}
-                          contain="width"
-                        >
-                          {currentMovie().director || ""}
-                        </Text>
-                      </View>
-                    </Show>
-                    <Show when={currentMovie().youtube_trailer}>
-                      <View width={536} height={56} color={0x00000000}>
-                        <Text fontSize={16} color={theme.textMuted}>
-                          Extra
-                        </Text>
-                        <Text
-                          y={24}
-                          width={516}
-                          fontSize={20}
-                          color={theme.textPrimary}
-                          maxLines={1}
-                          contain="width"
-                        >
-                          Trailer disponível para este título
-                        </Text>
-                      </View>
-                    </Show>
+                    <View style={SECONDARY_ACTION_STYLE} onEnter={handleBack}>
+                      <Text y={18} width={180} fontSize={20} color={theme.textPrimary} textAlign="center">
+                        Voltar
+                      </Text>
+                    </View>
+                    <FavoriteButton
+                      item={{
+                        id: currentMovie().id,
+                        type: "movie",
+                        title: currentMovie().title || currentMovie().name || "",
+                        posterUrl,
+                      }}
+                    />
                   </Row>
-                </Column>
-              </View>
-
-              <Show when={similar()?.length}>
-                <View
-                  ref={relatedRow}
-                  x={0}
-                  y={360}
-                  width={1700}
-                  height={286}
-                  onUp={() => actionRow?.setFocus()}
-                >
-                  <ContentRow title="Títulos parecidos" onItemSelected={item => navigate(item.href || "/")}>
-                    <For each={similar()}>
-                      {item => (
-                        <Card
-                          title={item.title || item.name || ""}
-                          imageUrl={relatedPoster(item)}
-                          subtitle={relatedSubtitle(item)}
-                          width={220}
-                          height={330}
-                          item={{ id: item.id, type: "movie", href: `/movie/${item.id}` }}
-                        />
-                      )}
-                    </For>
-                  </ContentRow>
                 </View>
-              </Show>
-            </View>
-          </>
-        )}
+
+                <View
+                  x={panelX}
+                  y={224}
+                  width={panelWidth}
+                  height={172}
+                  style={DETAIL_SURFACE_STYLE}
+                  skipFocus
+                >
+                  <Text x={30} y={24} fontSize={16} color={theme.textMuted}>
+                    Sinopse
+                  </Text>
+                  <Text
+                    x={30}
+                    y={54}
+                    width={panelWidth - 60}
+                    fontSize={22}
+                    lineHeight={32}
+                    color={theme.textPrimary}
+                    maxLines={3}
+                    contain="width"
+                  >
+                    {currentMovie().plot || "Sem sinopse disponível para este filme."}
+                  </Text>
+                </View>
+
+                <View
+                  x={panelX}
+                  y={412}
+                  width={panelWidth}
+                  height={124}
+                  style={DETAIL_SURFACE_STYLE}
+                  skipFocus
+                >
+                  <Column x={30} y={22} width={panelWidth - 60} gap={14} scroll="none">
+                    <Show when={currentMovie().cast}>
+                      <View width={panelWidth - 60} height={34} color={0x00000000}>
+                        <Text fontSize={16} color={theme.textMuted}>
+                          Elenco
+                        </Text>
+                        <Text
+                          y={18}
+                          width={panelWidth - 60}
+                          fontSize={20}
+                          color={theme.textPrimary}
+                          maxLines={1}
+                          contain="width"
+                        >
+                          {currentMovie().cast || ""}
+                        </Text>
+                      </View>
+                    </Show>
+                    <Row width={panelWidth - 60} height={40} gap={36} scroll="none">
+                      <Show when={currentMovie().director}>
+                        <View width={Math.floor((panelWidth - 96) / 2)} height={40} color={0x00000000}>
+                          <Text fontSize={16} color={theme.textMuted}>
+                            Direção
+                          </Text>
+                          <Text
+                            y={18}
+                            width={Math.floor((panelWidth - 96) / 2)}
+                            fontSize={20}
+                            color={theme.textPrimary}
+                            maxLines={1}
+                            contain="width"
+                          >
+                            {currentMovie().director || ""}
+                          </Text>
+                        </View>
+                      </Show>
+                      <Show when={currentMovie().youtube_trailer}>
+                        <View width={Math.floor((panelWidth - 96) / 2)} height={40} color={0x00000000}>
+                          <Text fontSize={16} color={theme.textMuted}>
+                            Extra
+                          </Text>
+                          <Text
+                            y={18}
+                            width={Math.floor((panelWidth - 96) / 2)}
+                            fontSize={20}
+                            color={theme.textPrimary}
+                            maxLines={1}
+                            contain="width"
+                          >
+                            Trailer disponível para este título
+                          </Text>
+                        </View>
+                      </Show>
+                    </Row>
+                  </Column>
+                </View>
+
+                <Show when={similar()?.length}>
+                  <View
+                    ref={relatedRow}
+                    x={0}
+                    y={552}
+                    width={1620}
+                    height={280}
+                    onUp={() => {
+                      actionRow?.setFocus();
+                      return true;
+                    }}
+                  >
+                    <ContentRow title="Títulos parecidos" onItemSelected={item => navigate(item.href || "/")}>
+                      <For each={similar()}>
+                        {item => (
+                          <Card
+                            title={item.title || item.name || ""}
+                            imageUrl={relatedPoster(item)}
+                            subtitle={relatedSubtitle(item)}
+                            width={220}
+                            height={330}
+                            item={{ id: item.id, type: "movie", href: `/movie/${item.id}` }}
+                          />
+                        )}
+                      </For>
+                    </ContentRow>
+                  </View>
+                </Show>
+              </View>
+            </>
+          );
+        }}
       </Show>
     </View>
   );

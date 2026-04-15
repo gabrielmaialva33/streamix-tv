@@ -109,12 +109,18 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
   };
 
   return (
-    <View {...props} width={220} height={108} color={0x00000000} skipFocus>
-      <View x={0} y={0} style={ButtonStyle} onEnter={handleToggle} forwardStates>
-        <Text fontSize={20} fontWeight={700} color={isFavorite() ? theme.primary : theme.textPrimary}>
-          {isFavorite() ? "Na minha lista" : "Adicionar a lista"}
-        </Text>
-      </View>
+    <View {...props} width={220} height={58} style={ButtonStyle} onEnter={handleToggle} forwardStates>
+      <Text
+        width={188}
+        fontSize={20}
+        fontWeight={700}
+        color={isFavorite() ? theme.primary : theme.textPrimary}
+        textAlign="center"
+        contain="width"
+        maxLines={1}
+      >
+        {isFavorite() ? "Na minha lista" : "Adicionar a lista"}
+      </Text>
 
       {feedbackMessage() ? (
         <View
