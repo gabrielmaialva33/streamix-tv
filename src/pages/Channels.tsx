@@ -4,6 +4,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
+import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
@@ -52,31 +53,48 @@ const Channels = () => {
   let titleRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
+  let loadMoreButton: ElementNode | undefined;
+
+  const PAGE_SIZE = 100;
+  const [offset, setOffset] = createSignal(0);
+  const [hasMore, setHasMore] = createSignal(false);
 
   // Fetch categories
   const [categories] = createResource(() => api.getCategories("live"));
 
-  // Fetch channels
+  // Fetch channels (paged)
   const [channels] = createResource(
-    () => ({ category_id: selectedCategory(), limit: 100, search: searchQuery() }),
+    () => ({
+      category_id: selectedCategory(),
+      offset: offset(),
+      limit: PAGE_SIZE,
+      search: searchQuery(),
+    }),
     params => api.getChannels(params),
   );
 
-  // Separate accumulator signal — mirrors the Movies/Series pattern. Keeping
-  // the rendered list in a signal (replaced on completed fetch) keeps the
-  // Column's child count stable during refetches, so scroll="auto" + plinko
-  // don't desync and wipe the grid off-screen.
+  // Accumulator keeps Column children stable across refetches; appends on
+  // pagination, replaces on filter change.
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
 
   createEffect(() => {
     const result = channels();
-    if (result) setChannelsData(result.data);
+    if (!result) return;
+    if (offset() === 0) {
+      setChannelsData(result.data);
+    } else {
+      setChannelsData(prev => [...prev, ...result.data]);
+      queueMicrotask(() => loadMoreButton?.setFocus());
+    }
+    // Backend may return has_more=true with empty page when offset >= total — trust both signals.
+    setHasMore(result.has_more && result.data.length > 0);
   });
 
   // Handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setSelectedCategory(undefined);
+    setOffset(0);
   };
 
   // Chunk channels into rows
@@ -241,6 +259,33 @@ const Channels = () => {
             </Row>
           )}
         </For>
+
+        <Show when={hasMore()}>
+          <Row width={1640} height={60} justifyContent="center">
+            <View
+              ref={loadMoreButton}
+              width={200}
+              height={50}
+              borderRadius={8}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              style={{
+                color: 0x333333ff,
+                transition: { scale: { duration: 150 } },
+                $focus: { scale: 1.1, color: 0xe50914ff },
+              }}
+              onEnter={() => {
+                setOffset(prev => prev + PAGE_SIZE);
+                return true;
+              }}
+            >
+              <Text fontSize={18} color={0xffffffff}>
+                {channels.loading ? "Carregando..." : "Carregar Mais"}
+              </Text>
+            </View>
+          </Row>
+        </Show>
       </Column>
     </View>
   );
