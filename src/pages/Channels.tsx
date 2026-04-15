@@ -1,11 +1,12 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
 
 const ITEMS_PER_ROW = 8;
+const HEADER_HEIGHT = 156;
 
 // Style constants
 const CategoryButtonStyle = {
@@ -14,7 +15,6 @@ const CategoryButtonStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  color: 0x222222ff,
   scale: 1,
   transition: {
     color: { duration: 150, easing: "ease-out" },
@@ -24,11 +24,6 @@ const CategoryButtonStyle = {
     color: 0xe50914ff,
     scale: 1.1,
   },
-} satisfies IntrinsicNodeStyleProps;
-
-const SelectedCategoryStyle = {
-  ...CategoryButtonStyle,
-  color: 0x444444ff,
 } satisfies IntrinsicNodeStyleProps;
 
 const ChannelCardStyle = {
@@ -84,6 +79,17 @@ const Channels = () => {
     params => api.getChannels(params),
   );
 
+  // Separate accumulator signal — mirrors the Movies/Series pattern. Keeping
+  // the rendered list in a signal (replaced on completed fetch) keeps the
+  // Column's child count stable during refetches, so scroll="auto" + plinko
+  // don't desync and wipe the grid off-screen.
+  const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
+
+  createEffect(() => {
+    const result = channels();
+    if (result) setChannelsData(result.data);
+  });
+
   // Handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -92,7 +98,7 @@ const Channels = () => {
 
   // Chunk channels into rows
   const channelRows = () => {
-    const data = channels()?.data || [];
+    const data = channelsData();
     const rows: Channel[][] = [];
     for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
       rows.push(data.slice(i, i + ITEMS_PER_ROW));
@@ -114,18 +120,18 @@ const Channels = () => {
         return true;
       }}
     >
-      <View x={0} y={0} width={1700} height={140} zIndex={10} color={0x0a0a0fff}>
+      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
         <Row
           ref={titleRow}
           width={1660}
-          height={70}
+          height={76}
           x={20}
           gap={20}
           scroll="none"
           onDown={() => categoriesRow?.setFocus()}
         >
           <View width={1350} skipFocus>
-            <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
+            <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
               Canais ao Vivo
             </Text>
           </View>
@@ -135,7 +141,7 @@ const Channels = () => {
         <Row
           ref={categoriesRow}
           x={20}
-          y={70}
+          y={98}
           width={1660}
           height={50}
           gap={12}
@@ -146,15 +152,22 @@ const Channels = () => {
         >
           <View
             width={100}
-            style={
-              selectedCategory() === undefined && !searchQuery() ? SelectedCategoryStyle : CategoryButtonStyle
-            }
+            style={CategoryButtonStyle}
+            color={selectedCategory() === undefined && !searchQuery() ? 0x3a1118ff : 0x222222ff}
+            border={{
+              color: selectedCategory() === undefined && !searchQuery() ? 0xe50914ff : 0x00000000,
+              width: selectedCategory() === undefined && !searchQuery() ? 2 : 0,
+            }}
             onEnter={() => {
+              if (selectedCategory() === undefined && !searchQuery()) {
+                return true;
+              }
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
+              return true;
             }}
           >
-            <Text fontSize={16} color={0xffffffff}>
+            <Text width={84} fontSize={16} color={0xffffffff} textAlign="center" contain="width" maxLines={1}>
               Todos
             </Text>
           </View>
@@ -162,17 +175,29 @@ const Channels = () => {
             {(category: Category) => (
               <View
                 width={Math.max(100, category.name.length * 10 + 24)}
-                style={
-                  selectedCategory() === category.id && !searchQuery()
-                    ? SelectedCategoryStyle
-                    : CategoryButtonStyle
-                }
+                style={CategoryButtonStyle}
+                color={selectedCategory() === category.id && !searchQuery() ? 0x3a1118ff : 0x222222ff}
+                border={{
+                  color: selectedCategory() === category.id && !searchQuery() ? 0xe50914ff : 0x00000000,
+                  width: selectedCategory() === category.id && !searchQuery() ? 2 : 0,
+                }}
                 onEnter={() => {
+                  if (selectedCategory() === category.id && !searchQuery()) {
+                    return true;
+                  }
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
+                  return true;
                 }}
               >
-                <Text fontSize={16} color={0xffffffff}>
+                <Text
+                  width={Math.max(68, category.name.length * 10)}
+                  fontSize={16}
+                  color={0xffffffff}
+                  textAlign="center"
+                  contain="width"
+                  maxLines={1}
+                >
                   {category.name}
                 </Text>
               </View>
@@ -184,16 +209,16 @@ const Channels = () => {
       <Column
         ref={contentGrid}
         x={20}
-        y={140}
+        y={HEADER_HEIGHT}
         width={1660}
-        height={930}
+        height={1080 - HEADER_HEIGHT}
         gap={16}
         scroll="auto"
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
       >
-        <Show when={channels.loading}>
+        <Show when={channels.loading && channelsData().length === 0}>
           <Row width={1640} height={150} gap={12} scroll="none" skipFocus>
             <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>{() => <SkeletonLoader width={180} height={130} />}</For>
           </Row>
