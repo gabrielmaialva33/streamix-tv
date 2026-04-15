@@ -67,32 +67,17 @@ const SECONDARY_ACTION_STYLE = {
 } satisfies IntrinsicNodeStyleProps;
 
 const MODE_CHIP_STYLE = {
-  width: 180,
+  width: 172,
   height: 48,
   borderRadius: 24,
   color: theme.surface,
-  border: { color: theme.border, width: 1 },
+  border: { color: theme.border, width: 2 },
   scale: 1,
   transition: { scale: { duration: 150 } },
   $focus: {
-    border: { color: theme.primary, width: 3 },
+    border: { color: theme.primary, width: 2 },
     color: theme.surfaceHover,
-    scale: 1.05,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const ACTIVE_MODE_CHIP_STYLE = {
-  width: 180,
-  height: 48,
-  borderRadius: 24,
-  color: 0x2b1015ff,
-  border: { color: theme.primary, width: 2 },
-  scale: 1,
-  transition: { scale: { duration: 150 } },
-  $focus: {
-    color: 0x401820ff,
-    border: { color: theme.primary, width: 3 },
-    scale: 1.05,
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -293,7 +278,7 @@ const LoginPage = () => {
         <Row
           ref={chipsRow}
           y={64}
-          width={380}
+          width={420}
           height={48}
           gap={16}
           scroll="none"
@@ -484,10 +469,9 @@ const CHIP_STYLE = {
 
 const CHIP_TEXT_STYLE = {
   y: 13,
-  width: 180,
+  width: 172,
   fontSize: 18,
   fontWeight: 700,
-  color: 0xffffffff,
   textAlign: "center",
   contain: "width",
 } satisfies IntrinsicTextNodeStyleProps;
@@ -496,16 +480,17 @@ const ModeChip = (props: ModeChipProps) => (
   <View
     style={CHIP_STYLE}
     color={props.active ? 0x2b1015ff : theme.surface}
-    border={{
-      color: props.active ? theme.primary : theme.border,
-      width: props.active ? 2 : 1,
-    }}
     onEnter={() => {
       props.onSelect();
       return true;
     }}
   >
-    <Text style={CHIP_TEXT_STYLE}>{props.label}</Text>
+    <Text style={CHIP_TEXT_STYLE} color={props.active ? 0xffffffff : theme.textSecondary}>
+      {props.label}
+    </Text>
+    <Show when={props.active}>
+      <View x={48} y={41} width={76} height={3} color={theme.primary} borderRadius={2} skipFocus />
+    </Show>
   </View>
 );
 
