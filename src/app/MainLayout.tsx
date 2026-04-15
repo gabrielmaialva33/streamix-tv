@@ -88,10 +88,12 @@ const MainLayout = (props: MainLayoutProps) => {
         x={SIDEBAR_WIDTH}
         width={CONTENT_WIDTH}
         height={CONTENT_HEIGHT}
+        color={0x0d0d12ff}
         clipping
         forwardFocus={0}
-        children={props.children}
-      />
+      >
+        {props.children}
+      </View>
       <Show when={showExitDialog()}>
         <ExitDialog onConfirm={handleExit} onCancel={() => setShowExitDialog(false)} />
       </Show>
