@@ -3,13 +3,7 @@ import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
-import api, {
-  type Episode,
-  type RecommendationItem,
-  type Season,
-  type Series,
-  type SimilarContentItem,
-} from "@/lib/api";
+import api, { type RecommendationItem, type Season, type Series, type SimilarContentItem } from "@/lib/api";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -106,7 +100,6 @@ const SeriesDetail = () => {
   const params = useParams<{ id: string }>();
 
   let actionRow: ElementNode | undefined;
-  let seasonsCta: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
 
   const [series] = createResource(
@@ -136,19 +129,6 @@ const SeriesDetail = () => {
 
   function currentSeason() {
     return series()?.seasons?.[currentSeasonIndex()];
-  }
-
-  function firstEpisode() {
-    return series()?.seasons?.flatMap(season => season.episodes || [])[0];
-  }
-
-  function handlePlayEpisode(episode?: Episode) {
-    if (!episode) {
-      return false;
-    }
-
-    navigate(`/player/series/${episode.id}`);
-    return true;
   }
 
   function handleBack() {
@@ -283,21 +263,14 @@ const SeriesDetail = () => {
                   </Row>
                 </Column>
 
-                <Row
-                  ref={actionRow}
-                  x={30}
-                  y={194}
-                  width={1332}
-                  height={58}
-                  gap={20}
-                  scroll="none"
-                  autofocus
-                  onDown={() => {
-                    seasonsCta?.setFocus();
-                    return true;
-                  }}
-                >
-                  <View style={PRIMARY_BUTTON_STYLE} onEnter={() => handlePlayEpisode(firstEpisode())}>
+                <Row ref={actionRow} x={30} y={194} width={1332} height={58} gap={20} scroll="none" autofocus>
+                  <View
+                    style={PRIMARY_BUTTON_STYLE}
+                    onEnter={() => {
+                      navigate(`/series/${params.id}/episodes`);
+                      return true;
+                    }}
+                  >
                     <Text
                       width={188}
                       fontSize={22}
@@ -306,7 +279,7 @@ const SeriesDetail = () => {
                       textAlign="center"
                       contain="width"
                     >
-                      {firstEpisode() ? "Começar a série" : "Sem episódios"}
+                      Ver episódios
                     </Text>
                   </View>
                   <View style={SECONDARY_BUTTON_STYLE} onEnter={handleBack}>
@@ -417,39 +390,13 @@ const SeriesDetail = () => {
                   </Column>
                 </View>
 
-                <Show when={currentSeries().seasons?.length}>
-                  <View
-                    ref={seasonsCta}
-                    width={1620}
-                    height={120}
-                    style={PANEL_STYLE}
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    scale={1}
-                    transition={{ scale: { duration: 150 } }}
-                    $focus={{
-                      border: { color: theme.primary, width: 2 },
-                      scale: 1.01,
-                    }}
-                    onEnter={() => {
-                      navigate(`/series/${params.id}/episodes`);
-                      return true;
-                    }}
-                  >
-                    <Text fontSize={22} fontWeight={700} color={theme.textPrimary}>
-                      {`Ver episódios · ${currentSeries().seasons?.length ?? 0} temporadas · ${currentSeries().episode_count ?? 0} episódios`}
-                    </Text>
-                  </View>
-                </Show>
-
                 <Show when={similar()?.length}>
                   <View
                     ref={relatedRow}
                     width={1620}
                     height={286}
                     onUp={() => {
-                      seasonsCta?.setFocus();
+                      actionRow?.setFocus();
                       return true;
                     }}
                   >
