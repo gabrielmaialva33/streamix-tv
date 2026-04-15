@@ -1,9 +1,9 @@
-import { View, Text, ElementNode, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, createEffect, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, SearchBox, SkeletonLoader, ScrollIndicator } from "../components";
-import api, { type Movie, type Category } from "../lib/api";
+import { Card, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
+import api, { type Category, type Movie } from "../lib/api";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;

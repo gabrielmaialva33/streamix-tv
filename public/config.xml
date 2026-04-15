@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://streamix.app/tv" version="2.0.0" viewmodes="maximized">
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://streamix.app/tv"
+        version="2.0.0" viewmodes="maximized">
     <tizen:application id="EI8qhrd7xh.streamix" package="EI8qhrd7xh" required_version="6.0"/>
     <content src="index.html"/>
 
@@ -29,7 +30,8 @@
     <tizen:profile name="tv"/>
 
     <!-- Settings -->
-    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="enable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="enable" encryption="disable"
+                   install-location="auto" hwkey-event="enable"/>
 
     <!-- Background category for media playback -->
     <tizen:background-category value="media"/>

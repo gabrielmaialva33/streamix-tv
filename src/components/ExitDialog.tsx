@@ -1,8 +1,8 @@
 import {
-  View,
-  Text,
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
+  Text,
+  View,
 } from "@lightningtv/solid";
 import { createSignal } from "solid-js";
 import { theme } from "../styles";

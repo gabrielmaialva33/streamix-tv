@@ -1,5 +1,5 @@
-import { View, type NodeProps } from "@lightningtv/solid";
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { type NodeProps, View } from "@lightningtv/solid";
+import { createSignal, onCleanup, onMount } from "solid-js";
 
 export interface SkeletonLoaderProps extends NodeProps {
   width?: number;

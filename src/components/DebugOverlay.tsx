@@ -1,5 +1,5 @@
-import { View, Text } from "@lightningtv/solid";
-import { createSignal, For, onMount, onCleanup } from "solid-js";
+import { Text, View } from "@lightningtv/solid";
+import { createSignal, For, onCleanup, onMount } from "solid-js";
 
 // Overlay de logs visivel na TV. Toggle com a tecla "0" do controle remoto
 // (ou "0" no teclado no dev). Mostra as ultimas N linhas de console.*

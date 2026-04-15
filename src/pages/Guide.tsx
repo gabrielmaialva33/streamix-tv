@@ -1,6 +1,6 @@
-import { View, Text, ElementNode, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, For, Show, onMount } from "solid-js";
+import { createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "../lib/api";
 import { theme } from "../styles";

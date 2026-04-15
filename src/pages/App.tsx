@@ -1,5 +1,5 @@
-import { View, ElementNode } from "@lightningtv/solid";
-import { useAnnouncer, useMouse, useFocusManager } from "@lightningtv/solid/primitives";
+import { ElementNode, View } from "@lightningtv/solid";
+import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
 import { preferences } from "../lib/storage";
 import { config } from "#devices/common";
 import { DebugOverlay, toggleDebug } from "../components";

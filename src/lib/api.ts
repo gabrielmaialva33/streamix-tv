@@ -479,10 +479,10 @@ export const api = {
     channelIds: Array<number | string>,
   ): Promise<Record<string, (EpgProgram & { progress?: number }) | null>> => {
     if (channelIds.length === 0) return {};
-    const r = await request<{ now: Record<string, (EpgProgram & { progress?: number }) | null> }>(
-      `${EPG_URL}/now${buildQuery({ channel_ids: channelIds.join(",") })}`,
-      { ttl: SHORT_TTL },
-    );
+    type NowResp = { now: Record<string, (EpgProgram & { progress?: number }) | null> };
+    const r = await request<NowResp>(`${EPG_URL}/now${buildQuery({ channel_ids: channelIds.join(",") })}`, {
+      ttl: SHORT_TTL,
+    });
     return r.now || {};
   },
 

@@ -1,6 +1,6 @@
-import { View, Text, ElementNode, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { SkeletonLoader } from "../components";
 import api, { type Episode, type Season } from "../lib/api";

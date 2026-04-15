@@ -1,20 +1,18 @@
 // Instala captura de console/fetch ANTES de qualquer import pra pegar tudo.
 import { installDebugCapture } from "./components/DebugOverlay";
-installDebugCapture();
-
-import { createRenderer, Config as LightningConfig, loadFonts } from "@lightningtv/solid";
+import { Config as LightningConfig, createRenderer, loadFonts } from "@lightningtv/solid";
 import {
-  Rounded,
-  RoundedWithBorder,
-  RoundedWithShadow,
-  RoundedWithBorderAndShadow,
-  Shadow,
   HolePunch,
   LinearGradient,
   RadialGradient,
+  Rounded,
+  RoundedWithBorder,
+  RoundedWithBorderAndShadow,
+  RoundedWithShadow,
+  Shadow,
 } from "@lightningjs/renderer/webgl/shaders";
 import { Route } from "@solidjs/router";
-import { HashRouter, FocusStackProvider } from "@lightningtv/solid/primitives";
+import { FocusStackProvider, HashRouter } from "@lightningtv/solid/primitives";
 import { merge } from "lodash-es";
 import { config } from "#devices/common";
 import fonts from "./fonts";
@@ -32,6 +30,8 @@ import Guide from "./pages/Guide";
 import Favorites from "./pages/Favorites";
 import SeriesDetail from "./pages/SeriesDetail";
 import NotFound from "./pages/NotFound";
+
+installDebugCapture();
 
 // Detect if running on Tizen
 const isTizen = typeof (window as any).tizen !== "undefined" || navigator.userAgent.includes("Tizen");

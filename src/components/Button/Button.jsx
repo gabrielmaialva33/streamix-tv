@@ -1,4 +1,4 @@
-import { View, Text } from "@lightningtv/solid";
+import { Text, View } from "@lightningtv/solid";
 
 /**
  * Primary UI component for user interaction

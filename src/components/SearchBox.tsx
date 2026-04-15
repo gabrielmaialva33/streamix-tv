@@ -1,5 +1,5 @@
-import { View, Text, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
-import { createSignal, onMount, onCleanup, Show } from "solid-js";
+import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { theme } from "../styles";
 
 const SearchBoxStyle = {

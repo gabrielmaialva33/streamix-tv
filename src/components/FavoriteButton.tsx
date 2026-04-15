@@ -1,6 +1,6 @@
-import { View, Text, type NodeProps, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
-import { createSignal, createEffect } from "solid-js";
-import { favorites, type FavoriteItem } from "../lib/storage";
+import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
+import { createEffect, createSignal } from "solid-js";
+import { type FavoriteItem, favorites } from "../lib/storage";
 import { theme } from "../styles";
 
 const ButtonStyle = {

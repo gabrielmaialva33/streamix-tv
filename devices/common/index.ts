@@ -1,4 +1,4 @@
-import { WebGlCoreRenderer, SdfTextRenderer } from "@lightningjs/renderer/webgl";
+import { SdfTextRenderer, WebGlCoreRenderer } from "@lightningjs/renderer/webgl";
 import { CanvasTextRenderer } from "@lightningjs/renderer/canvas";
 import { Inspector } from "@lightningjs/renderer/inspector";
 import { DeviceCommon } from "./device";

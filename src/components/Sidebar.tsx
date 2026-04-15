@@ -1,13 +1,13 @@
 import {
-  View,
-  Text,
-  type NodeProps,
   ElementNode,
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
+  type NodeProps,
+  Text,
+  View,
 } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
-import { useNavigate, useLocation } from "@solidjs/router";
+import { useLocation, useNavigate } from "@solidjs/router";
 import { theme } from "../styles";
 
 // Menu column positioning

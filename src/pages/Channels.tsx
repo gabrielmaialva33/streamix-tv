@@ -1,9 +1,9 @@
-import { View, Text, ElementNode, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { SearchBox, SkeletonLoader } from "../components";
-import api, { type Channel, type Category } from "../lib/api";
+import api, { type Category, type Channel } from "../lib/api";
 
 const ITEMS_PER_ROW = 8;
 

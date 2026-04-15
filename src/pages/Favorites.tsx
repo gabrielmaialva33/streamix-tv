@@ -1,9 +1,9 @@
-import { View, Text, ElementNode, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, For, Show, onMount } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
-import { favorites, type FavoriteItem } from "../lib/storage";
+import { type FavoriteItem, favorites } from "../lib/storage";
 import { theme } from "../styles";
 
 const ITEMS_PER_ROW = 6;

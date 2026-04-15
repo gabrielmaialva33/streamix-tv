@@ -1,7 +1,7 @@
-import { View, ElementNode, activeElement } from "@lightningtv/solid";
+import { activeElement, ElementNode, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
-import { Sidebar, ExitDialog } from "../components";
+import { ExitDialog, Sidebar } from "../components";
 
 // Wrapper com sidebar + pageContainer.
 //

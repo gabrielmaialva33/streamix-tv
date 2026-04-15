@@ -1,9 +1,9 @@
-import { View, Text } from "@lightningtv/solid";
+import { Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
-import api, { type Movie, type Series, type Channel } from "../lib/api";
+import api, { type Channel, type Movie, type Series } from "../lib/api";
 
 const KEYBOARD_ROWS = [
   ["A", "B", "C", "D", "E", "F", "G"],

@@ -1,11 +1,11 @@
 import {
-  View,
-  Text,
-  type NodeProps,
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
+  type NodeProps,
+  Text,
+  View,
 } from "@lightningtv/solid";
-import { Show, createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { theme } from "../styles";
 
 // Card image container - subtle border that highlights on focus

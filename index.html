@@ -1,7 +1,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, initial-scale=1.0, user-scalable=no" />
+    <meta content="width=1920, initial-scale=1.0, user-scalable=no" name="viewport" />
     <title>Streamix</title>
     <style>
       html,
@@ -11,6 +11,7 @@
         margin: 0;
         overflow: hidden;
       }
+
       body {
         width: 1920px;
         height: 1080px;
@@ -22,7 +23,7 @@
   <body tabindex="0">
     <div id="app"></div>
     <!-- Debug overlay visivel na TV quando nao tem acesso ao devtools.
-         Captura erros JS e console.error/console.warn e pinta em cima. -->
+     Captura erros JS e console.error/console.warn e pinta em cima. -->
     <div
       id="err-overlay"
       style="
@@ -58,12 +59,14 @@
         if (!isDebug) return;
         var box = document.getElementById("err-overlay");
         var lines = [];
+
         function show(msg) {
           lines.push(msg);
           if (lines.length > 40) lines.shift();
           box.textContent = lines.join("\n");
           box.style.display = "block";
         }
+
         window.addEventListener("error", function (e) {
           show("[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?"));
         });
@@ -78,6 +81,6 @@
         };
       })();
     </script>
-    <script type="module" src="src/index.tsx"></script>
+    <script src="src/index.tsx" type="module"></script>
   </body>
 </html>

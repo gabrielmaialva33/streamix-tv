@@ -1,9 +1,9 @@
 import {
-  View,
-  Text,
-  type NodeProps,
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
+  type NodeProps,
+  Text,
+  View,
 } from "@lightningtv/solid";
 import { Show } from "solid-js";
 import type { FeaturedItem } from "../lib/api";

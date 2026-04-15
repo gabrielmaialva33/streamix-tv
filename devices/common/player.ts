@@ -19,22 +19,6 @@ export class CommonPlayer implements Player {
     this.createPlayer();
   }
 
-  private createVideoElement(): HTMLVideoElement {
-    const video = document.createElement("video");
-    video.style.position = "absolute";
-    video.style.top = "0";
-    video.style.left = "0";
-    video.style.width = "100%";
-    video.style.height = "100%";
-    document.body.appendChild(video);
-    return video;
-  }
-
-  private createPlayer() {
-    this._player = new shaka.Player(this._videoElement);
-    this._player.addEventListener("error", event => console.error("Shaka Player error:", event));
-  }
-
   async load(streamUrl: string, autoPlay = false, startTime?: number): Promise<void> {
     if (!this._player) throw new Error("Player is not initialized.");
 
@@ -80,5 +64,21 @@ export class CommonPlayer implements Player {
 
   seek(time: number): void {
     this._videoElement.currentTime += time;
+  }
+
+  private createVideoElement(): HTMLVideoElement {
+    const video = document.createElement("video");
+    video.style.position = "absolute";
+    video.style.top = "0";
+    video.style.left = "0";
+    video.style.width = "100%";
+    video.style.height = "100%";
+    document.body.appendChild(video);
+    return video;
+  }
+
+  private createPlayer() {
+    this._player = new shaka.Player(this._videoElement);
+    this._player.addEventListener("error", event => console.error("Shaka Player error:", event));
   }
 }

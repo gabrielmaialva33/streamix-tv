@@ -1,5 +1,5 @@
-import { View, type NodeProps, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
-import { createSignal, createEffect, onCleanup } from "solid-js";
+import { type IntrinsicNodeStyleProps, type NodeProps, View } from "@lightningtv/solid";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { theme } from "../styles";
 
 // Scroll indicator track (background)

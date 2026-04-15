@@ -1,7 +1,7 @@
 import { Column } from "@lightningtv/solid/primitives";
-import { createSignal, createResource, For, Show, onCleanup, onMount } from "solid-js";
+import { createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, ContentRow, Hero, ContinueWatchingRow } from "../components";
+import { Card, ContentRow, ContinueWatchingRow, Hero } from "../components";
 import api, { type FeaturedItem, type Movie, type Series } from "../lib/api";
 
 const Home = () => {

@@ -1,6 +1,6 @@
-import { View, Text } from "@lightningtv/solid";
-import { createSignal, createResource, onMount, onCleanup, Show, createEffect } from "solid-js";
-import { useParams, useNavigate } from "@solidjs/router";
+import { Text, View } from "@lightningtv/solid";
+import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { useNavigate, useParams } from "@solidjs/router";
 import api from "../lib/api";
 import { history } from "../lib/storage";
 import PlayerManager, { type PlayerState } from "../managers/PlayerManager";

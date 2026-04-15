@@ -1,5 +1,5 @@
-import { createRenderer, Config, loadFonts } from "@lightningtv/solid";
-import { WebGlCoreRenderer, SdfTextRenderer } from "@lightningjs/renderer/webgl";
+import { Config, createRenderer, loadFonts } from "@lightningtv/solid";
+import { SdfTextRenderer, WebGlCoreRenderer } from "@lightningjs/renderer/webgl";
 import { Inspector } from "@lightningjs/renderer/inspector";
 import fonts from "../src/fonts";
 import { useFocusManager } from "@lightningtv/solid/primitives";

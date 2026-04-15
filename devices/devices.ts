@@ -1,4 +1,4 @@
-import type { KeyMap, Config as LightningConfig } from "@lightningtv/solid";
+import type { Config as LightningConfig, KeyMap } from "@lightningtv/solid";
 
 // KeyHoldOptions não é re-exportado pelo root de @lightningtv/solid 3.2.5.
 // Definido localmente conforme ./src/core/focusKeyTypes.ts do pacote.

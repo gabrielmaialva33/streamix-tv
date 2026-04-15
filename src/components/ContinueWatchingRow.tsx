@@ -1,6 +1,6 @@
-import { View, Text, type NodeProps, type IntrinsicNodeStyleProps } from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
 import { Row } from "@lightningtv/solid/primitives";
-import { createSignal, createEffect, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { history, type HistoryItem } from "../lib/storage";
 import { theme } from "../styles";
