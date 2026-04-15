@@ -149,7 +149,12 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
     })
     .catch(err => {
       inFlight.delete(cacheKey);
-      logger.error(`${method} ${url}`, err);
+      // Expected auth/rate-limit/not-found failures are demoted to warn so
+      // pages that handle them gracefully don't pollute the console.
+      const expected =
+        err instanceof ApiError && (err.isUnauthorized() || err.status === 429 || err.status === 404);
+      if (expected) logger.warn(`${method} ${url}`, err.message);
+      else logger.error(`${method} ${url}`, err);
       throw err;
     });
 
@@ -217,6 +222,7 @@ export interface Series {
   title: string | null;
   year: number | null;
   plot: string | null;
+  tagline?: string | null;
   genre: string | null;
   director: string | null;
   cast?: string | null;
