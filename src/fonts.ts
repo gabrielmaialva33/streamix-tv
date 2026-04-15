@@ -52,6 +52,11 @@ const fonts = [
     metrics: NOTO_METRICS,
   },
   {
+    fontFamily: "NotoSans500",
+    fontUrl: "fonts/NotoSans-Regular.ttf",
+    metrics: NOTO_METRICS,
+  },
+  {
     fontFamily: "NotoSans700",
     fontUrl: "fonts/NotoSans-Bold.ttf",
     metrics: NOTO_METRICS,

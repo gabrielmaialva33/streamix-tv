@@ -1,6 +1,6 @@
 import { ElementNode, View } from "@lightningtv/solid";
 import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
-import { lazy, Show } from "solid-js";
+import { lazy, Show, Suspense } from "solid-js";
 import { preferences } from "@/lib/storage";
 import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
 import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";
@@ -43,7 +43,9 @@ const AppShell = (props: AppShellProps) => {
         return true;
       }}
     >
-      {props.children}
+      <Suspense fallback={<View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x0d0d12ff} />}>
+        {props.children}
+      </Suspense>
       <Show when={isDebugOverlayEnabled}>
         <DebugOverlay />
       </Show>

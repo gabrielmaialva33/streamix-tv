@@ -1,6 +1,6 @@
 import { activeElement, ElementNode, View } from "@lightningtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { children, createSignal, type JSX, onCleanup, onMount, Show, Suspense } from "solid-js";
 import { ExitDialog, Sidebar } from "../components";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
 import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
@@ -13,6 +13,7 @@ const MainLayout = (props: MainLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showExitDialog, setShowExitDialog] = createSignal(false);
+  const resolvedChildren = children(() => props.children);
 
   let sidebar: ElementNode | undefined;
   let pageContainer: ElementNode | undefined;
@@ -92,7 +93,21 @@ const MainLayout = (props: MainLayoutProps) => {
         clipping
         forwardFocus={0}
       >
-        {props.children}
+        <Suspense fallback={<View width={CONTENT_WIDTH} height={CONTENT_HEIGHT} color={0x0d0d12ff} />}>
+          <Show keyed when={location.pathname}>
+            {path => (
+              <View
+                id={`routeSurface:${path}`}
+                width={CONTENT_WIDTH}
+                height={CONTENT_HEIGHT}
+                color={0x0d0d12ff}
+                clipping
+              >
+                {resolvedChildren()}
+              </View>
+            )}
+          </Show>
+        </Suspense>
       </View>
       <Show when={showExitDialog()}>
         <ExitDialog onConfirm={handleExit} onCancel={() => setShowExitDialog(false)} />

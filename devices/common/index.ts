@@ -18,6 +18,12 @@ export const config = {
     debug: false,
     focusDebug: false,
     fontSettings: { fontFamily: "NotoSans", color: 0xffffffff, fontSize: 40 },
+    fontWeightAlias: {
+      300: "300",
+      400: "",
+      500: "500",
+      700: "700",
+    },
     animationSettings: { easing: "ease-in-out", duration: 250 },
     rendererOptions: {
       appHeight: 1080,
