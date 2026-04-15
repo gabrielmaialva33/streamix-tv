@@ -133,7 +133,10 @@ const Sidebar = (props: SidebarProps) => {
   }
 
   function onRight() {
-    return props.onExit?.() ?? false;
+    // Always swallow the key so the parent's onRight (focusContent) doesn't
+    // fire a second time. The provided onExit either moved focus or no-op'd.
+    props.onExit?.();
+    return true;
   }
 
   function go(page: string) {
