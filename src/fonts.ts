@@ -1,10 +1,8 @@
-// Lightning 3 carrega os atlases via XHR em runtime (file:// funciona em Tizen).
-// Path relativo ao index.html — "./".
+// Lightning 3 loads font atlases via XHR at runtime, including on Tizen file:// builds.
+// Paths stay relative to index.html.
 //
-// Usamos NotoSans em vez de Roboto porque os atlases MSDF do Roboto foram
-// gerados com charset ASCII puro (sem acentos). NotoSans-Bold/Regular tem
-// o charset latin completo (190 chars), incluindo áéíóúâêôãõç.
-// O fontFamily continua "Roboto" pra nao ter que mudar o JSX inteiro.
+// NotoSans MSDF atlases cover accented latin characters. The runtime family name
+// remains "Roboto" to avoid touching the existing component tree.
 const basePath = "./";
 
 const sdf = (weight: number | "bold" | "normal", file: string) =>
@@ -16,7 +14,7 @@ const sdf = (weight: number | "bold" | "normal", file: string) =>
     atlasUrl: `${basePath}fonts/${file}.msdf.png`,
   }) as const;
 
-// Web/Canvas fallback — usa TTF nativo via Canvas renderer.
+// Canvas fallback uses native TTF files.
 const web = (weight: number | "bold" | "normal", file: string) =>
   ({
     fontFamily: "Roboto",
@@ -25,14 +23,14 @@ const web = (weight: number | "bold" | "normal", file: string) =>
   }) as const;
 
 export default [
-  // SDF atlases (NotoSans tem todos acentos latin)
+  // SDF atlases with full latin coverage.
   sdf(300, "NotoSans-Regular"),
   sdf(400, "NotoSans-Regular"),
   sdf(500, "NotoSans-Regular"),
   sdf(700, "NotoSans-Bold"),
   sdf("normal", "NotoSans-Regular"),
   sdf("bold", "NotoSans-Bold"),
-  // TTF fallback via Canvas (Roboto TTFs, que ja existem em public/fonts)
+  // Canvas fallback via the existing Roboto TTF files.
   web(300, "Roboto-Light"),
   web(400, "Roboto-Regular"),
   web(500, "Roboto-Medium"),

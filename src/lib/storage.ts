@@ -3,6 +3,10 @@
  * Handles favorites, watch history, and user preferences
  */
 
+import { createLogger } from "../shared/logging/logger";
+
+const logger = createLogger("Storage");
+
 const STORAGE_KEYS = {
   FAVORITES: "streamix_favorites",
   HISTORY: "streamix_history",
@@ -55,7 +59,7 @@ function safeSetItem(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (e) {
-    console.error("[Storage] Failed to save:", e);
+    logger.error("Failed to persist value", e);
   }
 }
 

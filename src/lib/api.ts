@@ -1,11 +1,15 @@
 /**
  * Streamix API Client — TypeScript / SolidJS
  *
- * Fonte: https://streamix.mahina.cloud/api/v1
- *   /catalog  -> filmes, séries, canais, busca, categorias
- *   /epg      -> guia eletrônico de programação
- *   /history  -> histórico de visualização (Bearer no controller)
+ * Source: https://streamix.mahina.cloud/api/v1
+ *   /catalog  -> movies, series, channels, search, categories
+ *   /epg      -> electronic program guide
+ *   /history  -> watch history (Bearer handled by the controller)
  */
+
+import { createLogger } from "../shared/logging/logger";
+
+const logger = createLogger("API");
 
 const CATALOG_URL = import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog";
 const EPG_URL = import.meta.env.VITE_EPG_URL || "https://streamix.mahina.cloud/api/v1/epg";
@@ -22,7 +26,7 @@ interface CacheEntry<T> {
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 min
-const SHORT_TTL = 30 * 1000; // 30s — pra coisas voláteis (EPG now, stream urls)
+const SHORT_TTL = 30 * 1000; // 30s for volatile data such as EPG now and stream URLs.
 
 function buildQuery(params: Record<string, unknown>): string {
   const parts: string[] = [];
@@ -73,7 +77,7 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
     })
     .catch(err => {
       inFlight.delete(cacheKey);
-      console.error(`[API] ${method} ${url}:`, err);
+      logger.error(`${method} ${url}`, err);
       throw err;
     });
 
@@ -81,7 +85,7 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
   return promise;
 }
 
-// ============ Tipos (batendo com a API real) ============
+// ============ Types matching the current API ============
 
 export type ContentType = "movie" | "series" | "channel";
 
@@ -112,12 +116,12 @@ export interface Movie {
   name: string;
   title: string | null;
   year: number | null;
-  duration: string | null; // ex: "1h 44min"
+  duration: string | null; // Example: "1h 44min"
   genre: string | null;
   rating: number | null;
   poster: string | null;
-  poster_url?: string; // alias normalizado pra UI
-  // detalhe completo:
+  poster_url?: string; // normalized alias for the UI
+  // Full detail payload.
   cast?: string | null;
   plot?: string | null;
   director?: string | null;
@@ -165,7 +169,7 @@ export interface Episode {
   air_date: string | null;
   episode_num: number;
   still: string | null;
-  // alias normalizado pra UI:
+  // normalized alias for the UI
   thumbnail_url?: string;
   description?: string;
   number?: number;
@@ -231,7 +235,7 @@ export interface HistoryRecord {
   episode_number?: number;
 }
 
-// ============ Helpers de normalização ============
+// ============ Normalization helpers ============
 
 const normMovie = (m: Movie): Movie => ({
   ...m,
@@ -258,7 +262,7 @@ const normEpisode = (e: Episode, seasonNumber?: number): Episode => ({
   season_number: seasonNumber ?? e.season_number,
 });
 
-/** Converte "1h 44min" / "44min" / "59min" pra segundos. Retorna 0 se não der. */
+/** Convert "1h 44min" / "44min" / "59min" to seconds. Returns 0 on failure. */
 export function parseDuration(s: string | null | undefined): number {
   if (!s) return 0;
   const h = /(\d+)\s*h/.exec(s);
@@ -322,11 +326,11 @@ export const api = {
     return r.stats;
   },
 
-  // ----- Categorias -----
+  // ----- Categories -----
   getCategories: (type?: "movie" | "series" | "live") =>
     request<Category[]>(`${CATALOG_URL}/categories${buildQuery({ type })}`),
 
-  // ----- Filmes -----
+  // ----- Movies -----
   getMovies: async (params: MovieListParams = {}): Promise<PaginatedResponse<Movie>> => {
     const r = await request<MoviesListResponse>(
       `${CATALOG_URL}/movies${buildQuery(params as Record<string, unknown>)}`,
@@ -348,7 +352,7 @@ export const api = {
   getMovieStream: (id: string | number) =>
     request<StreamUrl>(`${CATALOG_URL}/movies/${id}/stream`, { ttl: SHORT_TTL }),
 
-  // ----- Séries -----
+  // ----- Series -----
   getSeries: async (params: MovieListParams = {}): Promise<PaginatedResponse<Series>> => {
     try {
       const r = await request<SeriesListResponse>(
@@ -385,7 +389,7 @@ export const api = {
   getEpisodeStream: (id: string | number) =>
     request<StreamUrl>(`${CATALOG_URL}/episodes/${id}/stream`, { ttl: SHORT_TTL }),
 
-  // ----- Canais -----
+  // ----- Channels -----
   getChannels: async (params: MovieListParams = {}): Promise<PaginatedResponse<Channel>> => {
     const r = await request<ChannelsListResponse>(
       `${CATALOG_URL}/channels${buildQuery(params as Record<string, unknown>)}`,
@@ -407,7 +411,7 @@ export const api = {
   getChannelStream: (id: string | number) =>
     request<StreamUrl>(`${CATALOG_URL}/channels/${id}/stream`, { ttl: SHORT_TTL }),
 
-  // ----- Busca -----
+  // ----- Search -----
   search: async (query: string): Promise<SearchResults> => {
     const r = await request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query })}`, {
       ttl: SHORT_TTL,
@@ -419,10 +423,8 @@ export const api = {
     };
   },
 
-  // ----- Rails da Home (backend gera top-rated/recente/trending) -----
-  // Fallback em cascata: endpoint novo -> listagem com sort -> listagem sem sort.
-  // Backend atual da 500 em /series quando passa sort, entao precisa do segundo
-  // fallback pra /series nao ficar vazio.
+  // ----- Home rails -----
+  // Cascading fallback: dedicated endpoint -> sorted listing -> unsorted listing.
   getTrending: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
     try {
       const r = await request<{ type: string; items: Movie[] | Series[] }>(
@@ -473,7 +475,7 @@ export const api = {
 
   // ----- EPG -----
   /**
-   * EPG agora — valor por canal pode ser null se nao tem programa.
+   * Current EPG data. A channel value can be null if no program is available.
    */
   getEpgNow: async (
     channelIds: Array<number | string>,
@@ -487,7 +489,7 @@ export const api = {
   },
 
   /**
-   * Grade EPG — janela em horas a frente de agora (default 6, max 12).
+   * EPG grid for the next N hours, default 6 and max 12.
    */
   getEpgPrograms: async (
     channelIds: Array<number | string>,
@@ -501,7 +503,7 @@ export const api = {
     return r.programs || {};
   },
 
-  // ----- Histórico (Bearer auth) -----
+  // ----- History (Bearer auth) -----
   getHistory: (bearer?: string) =>
     request<{ history: HistoryRecord[] }>(`${HISTORY_URL}`, { ttl: SHORT_TTL, bearer }),
 
