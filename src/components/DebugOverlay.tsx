@@ -1,5 +1,7 @@
 import { Text, View } from "@lightningtv/solid";
 import { createSignal, For, onCleanup, onMount } from "solid-js";
+import { isDebugOverlayVisible, toggleDebugOverlay } from "../debug/overlayState";
+import { SCREEN_WIDTH } from "../shared/layout";
 
 // In-TV debug overlay toggled with the remote "0" key.
 // It mirrors console output and intercepted fetch calls for environments without DevTools.
@@ -12,7 +14,6 @@ export interface LogEntry {
 
 const MAX_LINES = 200;
 const [entries, setEntries] = createSignal<LogEntry[]>([]);
-const [visible, setVisible] = createSignal(false);
 
 function push(level: LogEntry["level"], args: unknown[]) {
   const msg = args
@@ -149,10 +150,6 @@ export function installDebugCapture() {
   };
 }
 
-export function toggleDebug() {
-  setVisible(v => !v);
-}
-
 export function clearDebug() {
   setEntries([]);
 }
@@ -169,7 +166,7 @@ const DebugOverlay = () => {
     // Tizen: 48 = "0" on the numeric pad; browser dev uses the same keycode.
     const h = (e: KeyboardEvent) => {
       if (e.key === "0" || e.keyCode === 48 || e.keyCode === 96) {
-        toggleDebug();
+        toggleDebugOverlay();
       }
     };
     document.addEventListener("keydown", h);
@@ -182,10 +179,10 @@ const DebugOverlay = () => {
       zIndex={99999}
       x={0}
       y={0}
-      width={1920}
+      width={SCREEN_WIDTH}
       height={800}
       color={0x000000dd}
-      alpha={visible() ? 1 : 0}
+      alpha={isDebugOverlayVisible() ? 1 : 0}
       transition={{ alpha: { duration: 200, easing: "ease-out" } }}
       display="flex"
       flexDirection="column"

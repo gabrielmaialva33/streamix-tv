@@ -8,4 +8,3 @@ export { default as SkeletonLoader } from "./SkeletonLoader";
 export { default as FavoriteButton } from "./FavoriteButton";
 export { default as ContinueWatchingRow } from "./ContinueWatchingRow";
 export { default as ScrollIndicator } from "./ScrollIndicator";
-export { default as DebugOverlay, installDebugCapture, toggleDebug } from "./DebugOverlay";
