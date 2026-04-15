@@ -4,7 +4,6 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
-import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
