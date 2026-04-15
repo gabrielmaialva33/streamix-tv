@@ -590,9 +590,9 @@ const PlayerPage = () => {
             </Text>
           </View>
 
-          {/* Remote hints */}
+          {/* Remote hints — arrows use ASCII so the MSDF font can render them */}
           <Text x={280} y={218} fontSize={16} color={0x9999aaff}>
-            {"← -10s   → +10s   ↑ +1min   ↓ -1min   Voltar: sair"}
+            {"<<  -10s     >>  +10s     ^  +1min     v  -1min     Voltar: sair"}
           </Text>
         </View>
       </Show>
