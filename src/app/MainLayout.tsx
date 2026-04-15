@@ -110,6 +110,7 @@ const MainLayout = (props: MainLayoutProps) => {
                 height={CONTENT_HEIGHT}
                 color={0x0d0d12ff}
                 clipping
+                forwardFocus={0}
               >
                 {resolvedChildren()}
               </View>
