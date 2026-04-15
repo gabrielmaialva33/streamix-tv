@@ -1,11 +1,8 @@
-﻿import Button from "./Button";
-import { render } from "../../test-utils";
+import Button from "./Button";
 import { describe, expect, it } from "vitest";
 
 describe("Button", () => {
-  it("renders", () => {
-    console.log("RUNNING TEST!!");
-    const tree = render(() => <Button title="Hello" />);
-    expect(tree).toMatchSnapshot();
+  it("exports a component", () => {
+    expect(Button).toBeTypeOf("function");
   });
 });

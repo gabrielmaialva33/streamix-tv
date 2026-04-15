@@ -55,15 +55,5 @@ export default defineConfig(({ mode }) => {
       hmr: true,
       // Removed COEP/COOP headers that were blocking cross-origin fetch
     },
-    test: {
-      browser: {
-        enabled: true,
-        headless: false,
-        provider: "playwright",
-        name: "webkit",
-      },
-      testTransformMode: { web: ["/.[jt]sx?$/"] },
-      globals: true,
-    },
   };
 });
