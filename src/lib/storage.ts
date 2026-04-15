@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   FAVORITES: "streamix_favorites",
   HISTORY: "streamix_history",
   PREFERENCES: "streamix_preferences",
+  AUTH_SESSION: "streamix_auth_session",
 } as const;
 
 // Types
@@ -43,6 +44,18 @@ export interface UserPreferences {
   highContrast: boolean;
   parentalPin?: string;
   blockedCategories: string[];
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string | null;
+  role: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
 }
 
 // Helper functions
@@ -96,6 +109,10 @@ export const favorites = {
       return true;
     }
   },
+
+  replaceAll(items: FavoriteItem[]): void {
+    safeSetItem(STORAGE_KEYS.FAVORITES, items);
+  },
 };
 
 // Watch History
@@ -145,6 +162,10 @@ export const history = {
   clear(): void {
     safeSetItem(STORAGE_KEYS.HISTORY, []);
   },
+
+  replaceAll(items: HistoryItem[]): void {
+    safeSetItem(STORAGE_KEYS.HISTORY, items);
+  },
 };
 
 // User Preferences
@@ -185,4 +206,30 @@ export const preferences = {
   },
 };
 
-export default { favorites, history, preferences };
+export const authSession = {
+  get(): AuthSession | null {
+    return safeGetItem<AuthSession | null>(STORAGE_KEYS.AUTH_SESSION, null);
+  },
+
+  getToken(): string | null {
+    return this.get()?.token ?? null;
+  },
+
+  getUser(): AuthUser | null {
+    return this.get()?.user ?? null;
+  },
+
+  save(session: AuthSession): void {
+    safeSetItem(STORAGE_KEYS.AUTH_SESSION, session);
+  },
+
+  clear(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+    } catch (e) {
+      logger.error("Failed to clear auth session", e);
+    }
+  },
+};
+
+export default { favorites, history, preferences, authSession };
