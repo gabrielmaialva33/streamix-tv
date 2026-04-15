@@ -8,7 +8,9 @@ import {
 } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
+import { Show } from "solid-js";
 import { theme } from "../styles";
+import { authState, signOut } from "@/features/auth/auth";
 
 // Menu column positioning
 const ColumnStyle = {
@@ -177,8 +179,44 @@ const Sidebar = (props: SidebarProps) => {
         </NavButton>
       </Column>
 
+      <Show when={authState.user()}>
+        <View skipFocus y={904} x={20} width={180} zIndex={105}>
+          <Text fontSize={14} color={theme.textMuted}>
+            Signed in as
+          </Text>
+          <Text
+            y={22}
+            width={180}
+            fontSize={16}
+            fontWeight={700}
+            color={theme.textPrimary}
+            contain="width"
+            maxLines={1}
+          >
+            {authState.user()?.name || authState.user()?.email || ""}
+          </Text>
+        </View>
+
+        <View
+          x={20}
+          y={952}
+          width={180}
+          height={44}
+          borderRadius={10}
+          color={theme.surface}
+          zIndex={105}
+          onEnter={() => {
+            void signOut().then(() => navigate("/login"));
+          }}
+        >
+          <Text x={18} y={12} fontSize={18} color={theme.textPrimary}>
+            Sign out
+          </Text>
+        </View>
+      </Show>
+
       {/* Version */}
-      <View skipFocus y={1000} x={20} zIndex={105}>
+      <View skipFocus y={1020} x={20} zIndex={105}>
         <Text fontSize={12} color={theme.textDisabled}>
           v1.0.0
         </Text>
