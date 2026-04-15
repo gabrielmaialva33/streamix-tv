@@ -12,6 +12,7 @@ const FavoritesPage = lazy(() => import("../pages/Favorites"));
 const SearchPage = lazy(() => import("../pages/Search"));
 const MovieDetailPage = lazy(() => import("../pages/MovieDetail"));
 const SeriesDetailPage = lazy(() => import("../pages/SeriesDetail"));
+const SeriesEpisodesPage = lazy(() => import("../pages/SeriesEpisodes"));
 const NotFoundPage = lazy(() => import("../pages/NotFound"));
 const PlayerPage = lazy(() => import("../features/player/PlayerPage"));
 const LoginPage = lazy(() => import("../features/auth/LoginPage"));
@@ -32,6 +33,7 @@ export default function AppRoutes() {
           <Route path="/search" component={SearchPage} />
           <Route path="/movie/:id" component={MovieDetailPage} />
           <Route path="/series/:id" component={SeriesDetailPage} />
+          <Route path="/series/:id/episodes" component={SeriesEpisodesPage} />
         </Route>
 
         <Route path="/player/:type/:id" component={PlayerPage} />
