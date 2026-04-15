@@ -7,27 +7,19 @@ import api, { type Episode, type Season } from "@/lib/api";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
+// Lightning applies `style` once on mount, so dynamic visuals (color/border)
+// must live as JSX props to stay reactive.
 const SEASON_BUTTON_STYLE = {
   height: 48,
   borderRadius: 24,
-  color: theme.surface,
-  border: { color: theme.border, width: 1 },
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   scale: 1,
   transition: { scale: { duration: 150 }, color: { duration: 150 } },
   $focus: {
-    color: theme.surfaceHover,
-    border: { color: theme.primary, width: 2 },
     scale: 1.05,
   },
-} satisfies IntrinsicNodeStyleProps;
-
-const ACTIVE_SEASON_BUTTON_STYLE = {
-  ...SEASON_BUTTON_STYLE,
-  color: 0x2b1015ff,
-  border: { color: theme.primary, width: 2 },
 } satisfies IntrinsicNodeStyleProps;
 
 const EPISODE_CARD_STYLE = {
@@ -148,9 +140,12 @@ const SeriesEpisodes = () => {
                   {(season: Season, index) => (
                     <View
                       width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
-                      style={
-                        selectedSeasonIdx() === index() ? ACTIVE_SEASON_BUTTON_STYLE : SEASON_BUTTON_STYLE
-                      }
+                      style={SEASON_BUTTON_STYLE}
+                      color={selectedSeasonIdx() === index() ? 0x2b1015ff : theme.surface}
+                      border={{
+                        color: selectedSeasonIdx() === index() ? theme.primary : theme.border,
+                        width: selectedSeasonIdx() === index() ? 2 : 1,
+                      }}
                       onEnter={() => {
                         setSelectedSeasonIdx(index());
                         episodesGrid?.setFocus();
