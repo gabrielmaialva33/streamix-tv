@@ -54,7 +54,7 @@ const ButtonStyle = {
 
 const ButtonTextStyle = {
   fontSize: 22,
-  fontWeight: "bold",
+  fontWeight: 700,
   color: 0xffffffff,
 } satisfies IntrinsicTextNodeStyleProps;
 
@@ -87,14 +87,23 @@ const ExitDialog = (props: ExitDialogProps) => {
           y={48}
           width={DIALOG_W}
           fontSize={28}
-          fontWeight="bold"
+          fontWeight={700}
           color={0xffffffff}
           textAlign="center"
+          contain="width"
         >
           Sair do Streamix?
         </Text>
 
-        <Text x={0} y={100} width={DIALOG_W} fontSize={18} color={0xaaaaaaff} textAlign="center">
+        <Text
+          x={0}
+          y={100}
+          width={DIALOG_W}
+          fontSize={18}
+          color={0xaaaaaaff}
+          textAlign="center"
+          contain="width"
+        >
           Deseja realmente sair do aplicativo?
         </Text>
 
