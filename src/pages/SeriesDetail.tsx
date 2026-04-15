@@ -401,9 +401,9 @@ const SeriesDetail = () => {
 
               <Column
                 x={40}
-                y={724}
+                y={624}
                 width={1620}
-                height={356}
+                height={456}
                 gap={22}
                 scroll="auto"
                 clipping
@@ -479,6 +479,7 @@ const SeriesDetail = () => {
                       height={44}
                       gap={12}
                       scroll="auto"
+                      wrap
                       onUp={() => {
                         actionRow?.setFocus();
                         return true;
@@ -523,12 +524,13 @@ const SeriesDetail = () => {
                   ref={episodesColumn}
                   width={1620}
                   gap={18}
-                  scroll="none"
+                  scroll="auto"
                   forwardFocus={() => {
                     firstEpisodeCard?.setFocus();
                     return true;
                   }}
-                  onUp={() => {
+                  onUp={function (this: ElementNode) {
+                    if ((this.selected ?? 0) > 0) return false;
                     if (currentSeries().seasons?.length) {
                       seasonsRow?.setFocus();
                     } else {
