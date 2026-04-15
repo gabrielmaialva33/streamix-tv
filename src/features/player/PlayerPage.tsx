@@ -5,7 +5,7 @@ import { history } from "../../lib/storage";
 import { theme } from "../../styles";
 import { createLogger } from "../../shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../shared/layout";
-import api from "@/lib/api";
+import api, { ApiError, type PlaybackTelemetryEvent } from "@/lib/api";
 import { authState } from "@/features/auth/auth";
 import PlayerManager, { type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
@@ -23,12 +23,17 @@ const PlayerPage = () => {
   const [posterUrl, setPosterUrl] = createSignal<string | undefined>();
   const [seekFeedback, setSeekFeedback] = createSignal<string | null>(null);
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
+  const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
 
   let controlsTimeout: number | null = null;
   let seekFeedbackTimeout: number | null = null;
   let historyInterval: number | null = null;
+  let syncMessageTimeout: number | null = null;
   let destroyed = false;
   let loadedUrl: string | null = null;
+  let telemetryStarted = false;
+  let lastTelemetryPosition = -1;
+  let historySyncWarningShown = false;
 
   const [streamData] = createResource(
     () => ({ type: params.type, id: params.id }),
@@ -52,6 +57,10 @@ const PlayerPage = () => {
     if (historyInterval) {
       clearInterval(historyInterval);
       historyInterval = null;
+    }
+    if (syncMessageTimeout) {
+      clearTimeout(syncMessageTimeout);
+      syncMessageTimeout = null;
     }
   }
 
@@ -95,13 +104,74 @@ const PlayerPage = () => {
 
     const remoteType =
       params.type === "channel" ? "live_channel" : params.type === "series" ? "episode" : "movie";
-    void api.upsertHistory({
-      type: remoteType,
-      content_id: params.id,
-      progress_seconds: Math.floor(currentTime),
-      duration_seconds: Math.floor(duration),
-      completed: currentTime / duration >= 0.95,
-    });
+    void api
+      .upsertHistory({
+        type: remoteType,
+        content_id: params.id,
+        progress_seconds: Math.floor(currentTime),
+        duration_seconds: Math.floor(duration),
+        completed: currentTime / duration >= 0.95,
+      })
+      .then(() => {
+        historySyncWarningShown = false;
+      })
+      .catch(error => {
+        if (historySyncWarningShown) {
+          return;
+        }
+
+        historySyncWarningShown = true;
+
+        if (error instanceof ApiError && error.isUnauthorized()) {
+          showSyncMessage("Sessão expirada. Progresso salvo só nesta TV.");
+          return;
+        }
+
+        showSyncMessage("Não foi possível sincronizar seu progresso agora.");
+      });
+  }
+
+  function sendTelemetry(
+    event: PlaybackTelemetryEvent["event"],
+    overrides: Partial<PlaybackTelemetryEvent> = {},
+  ) {
+    if (!authState.isAuthenticated()) {
+      return;
+    }
+
+    const current = state();
+    void api
+      .sendPlaybackTelemetry({
+        content_type:
+          params.type === "channel" ? "live_channel" : params.type === "series" ? "episode" : "movie",
+        content_id: params.id,
+        event,
+        position_seconds: Math.floor(current.currentTime),
+        duration_seconds: current.duration > 0 ? Math.floor(current.duration) : undefined,
+        ...overrides,
+      })
+      .catch(error => {
+        logger.warn("Failed to send playback telemetry", error);
+      });
+  }
+
+  function toErrorMessage(error: unknown) {
+    return typeof error === "object" && error && "message" in error
+      ? String((error as { message?: unknown }).message ?? "Unknown error")
+      : String(error);
+  }
+
+  function showSyncMessage(message: string) {
+    setSyncMessage(message);
+
+    if (syncMessageTimeout) {
+      clearTimeout(syncMessageTimeout);
+    }
+
+    syncMessageTimeout = window.setTimeout(() => {
+      setSyncMessage(null);
+      syncMessageTimeout = null;
+    }, 3200);
   }
 
   function cleanupPlayer() {
@@ -144,18 +214,21 @@ const PlayerPage = () => {
   function handlePlayPause() {
     resetControlsTimeout();
     PlayerManager.togglePlayPause();
+    sendTelemetry(state().playing ? "pause" : "resume");
     return true;
   }
 
   function handlePlay() {
     resetControlsTimeout();
     PlayerManager.play();
+    sendTelemetry("resume");
     return true;
   }
 
   function handlePause() {
     resetControlsTimeout();
     PlayerManager.pause();
+    sendTelemetry("pause");
     return true;
   }
 
@@ -207,22 +280,52 @@ const PlayerPage = () => {
       },
       onComplete: () => {
         logger.debug("Playback completed");
+        sendTelemetry("complete");
         if (!destroyed) {
           handleClose();
         }
       },
       onError: error => {
         logger.error("Playback callback error", error);
+        sendTelemetry("error", {
+          error_message: toErrorMessage(error),
+        });
       },
     })
       .then(() => {
         if (!destroyed) {
-          return PlayerManager.load(source.streamUrl);
+          return PlayerManager.load(source.streamUrl).then(() => {
+            telemetryStarted = true;
+            sendTelemetry("start");
+          });
         }
       })
       .catch(error => {
         logger.error("Failed to initialize player", error);
+        sendTelemetry("error", {
+          error_message: toErrorMessage(error),
+        });
       });
+  });
+
+  createEffect(() => {
+    const current = state();
+    const position = Math.floor(current.currentTime);
+
+    if (
+      !telemetryStarted ||
+      !authState.isAuthenticated() ||
+      !current.playing ||
+      current.duration <= 0 ||
+      position <= 0
+    ) {
+      return;
+    }
+
+    if (lastTelemetryPosition < 0 || position - lastTelemetryPosition >= 30) {
+      lastTelemetryPosition = position;
+      sendTelemetry("progress");
+    }
   });
 
   onMount(() => {
@@ -363,6 +466,24 @@ const PlayerPage = () => {
           >
             <Text fontSize={42} fontWeight={700} color={theme.primary}>
               {seekFeedback() ?? ""}
+            </Text>
+          </View>
+        </View>
+      </Show>
+
+      <Show when={syncMessage()}>
+        <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} zIndex={90} skipFocus>
+          <View
+            x={SCREEN_WIDTH - 560}
+            y={32}
+            width={500}
+            height={48}
+            color={0x1d1e28ee}
+            borderRadius={24}
+            border={{ color: 0x38394aff, width: 1 }}
+          >
+            <Text y={15} width={500} fontSize={16} color={0xffd7d7ff} textAlign="center" maxLines={1}>
+              {syncMessage() || ""}
             </Text>
           </View>
         </View>
