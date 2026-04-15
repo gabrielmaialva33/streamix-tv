@@ -58,11 +58,21 @@ export function openTvKeyboard(opts: TvKeyboardOptions): void {
   el.onkeydown = null;
   el.onblur = null;
 
+  // Blur + clear before re-focusing. Tizen's native IME holds its own input
+  // buffer; reusing the same <input> without a full blur cycle causes the
+  // next session to append to the previous field's text (e.g. typing in the
+  // password field still lands in email).
+  if (document.activeElement === el) {
+    el.blur();
+  }
+  el.value = "";
+
+  // Attach new handlers AFTER clearing so the empty assignment doesn't fire
+  // a stray "input" event into the new field.
   el.type = opts.type ?? "text";
   el.value = opts.value ?? "";
 
   el.oninput = () => opts.onInput(el.value);
-
   el.onkeydown = event => {
     if (event.key === "Enter") {
       event.preventDefault();
