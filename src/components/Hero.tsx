@@ -192,7 +192,7 @@ const Hero = (props: HeroProps) => {
           <View y={0} width={748} height={36} skipFocus>
             <Show when={heroMeta(props.item)[0]}>
               <Text fontSize={18} color={0xffd166ff} maxLines={1}>
-                {heroMeta(props.item).join(" • ")}
+                {heroMeta(props.item).join("  ·  ")}
               </Text>
             </Show>
           </View>
