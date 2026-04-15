@@ -8,6 +8,8 @@ export interface ContentRowProps extends NodeProps {
   onSelectedChanged?: (selected: number) => void;
   onItemSelected?: (item: any) => void;
   autofocus?: boolean;
+  /** Forwarded to the inner Lightning Row. */
+  onUpRequest?: () => boolean;
 }
 
 // ContentRow = optional title + horizontal LightningRow.
@@ -47,6 +49,7 @@ const ContentRow = (props: ContentRowProps) => {
         plinko
         autofocus={props.autofocus}
         onEnter={handleEnter}
+        onUp={props.onUpRequest}
         onSelectedChanged={(idx, _el, _child, _lastIdx) => {
           props.onSelectedChanged?.(idx);
         }}
