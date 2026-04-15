@@ -300,38 +300,12 @@ const LoginPage = () => {
             return true;
           }}
         >
-          <View
-            style={mode() === "login" ? ACTIVE_MODE_CHIP_STYLE : MODE_CHIP_STYLE}
-            onEnter={() => (switchMode("login"), true)}
-          >
-            <Text
-              y={13}
-              width={180}
-              fontSize={18}
-              fontWeight={700}
-              color={0xffffffff}
-              textAlign="center"
-              contain="width"
-            >
-              Entrar
-            </Text>
-          </View>
-          <View
-            style={mode() === "register" ? ACTIVE_MODE_CHIP_STYLE : MODE_CHIP_STYLE}
-            onEnter={() => (switchMode("register"), true)}
-          >
-            <Text
-              y={13}
-              width={180}
-              fontSize={18}
-              fontWeight={700}
-              color={0xffffffff}
-              textAlign="center"
-              contain="width"
-            >
-              Criar conta
-            </Text>
-          </View>
+          <ModeChip label="Entrar" active={mode() === "login"} onSelect={() => switchMode("login")} />
+          <ModeChip
+            label="Criar conta"
+            active={mode() === "register"}
+            onSelect={() => switchMode("register")}
+          />
         </Row>
 
         <Text y={142} fontSize={56} fontWeight={700} color={0xffffffff}>
