@@ -2,30 +2,13 @@ import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightnin
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { SearchBox, SkeletonLoader } from "../components";
+import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
 
 // Style constants
-const CategoryButtonStyle = {
-  height: 40,
-  borderRadius: 20,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  scale: 1,
-  transition: {
-    color: { duration: 150, easing: "ease-out" },
-    scale: { duration: 150, easing: "ease-out" },
-  },
-  $focus: {
-    color: 0xe50914ff,
-    scale: 1.1,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
 const ChannelCardStyle = {
   width: 180,
   height: 130,
@@ -150,57 +133,27 @@ const Channels = () => {
           onUp={() => titleRow?.setFocus()}
           onDown={() => contentGrid?.setFocus()}
         >
-          <View
+          <CategoryChip
+            label="Todos"
             width={100}
-            style={CategoryButtonStyle}
-            color={selectedCategory() === undefined && !searchQuery() ? 0x3a1118ff : 0x222222ff}
-            border={{
-              color: selectedCategory() === undefined && !searchQuery() ? 0xe50914ff : 0x00000000,
-              width: selectedCategory() === undefined && !searchQuery() ? 2 : 0,
-            }}
-            onEnter={() => {
-              if (selectedCategory() === undefined && !searchQuery()) {
-                return true;
-              }
+            active={selectedCategory() === undefined && !searchQuery()}
+            onSelect={() => {
+              if (selectedCategory() === undefined && !searchQuery()) return;
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
-              return true;
             }}
-          >
-            <Text width={84} fontSize={16} color={0xffffffff} textAlign="center" contain="width" maxLines={1}>
-              Todos
-            </Text>
-          </View>
+          />
           <For each={categories()}>
             {(category: Category) => (
-              <View
-                width={Math.max(100, category.name.length * 10 + 24)}
-                style={CategoryButtonStyle}
-                color={selectedCategory() === category.id && !searchQuery() ? 0x3a1118ff : 0x222222ff}
-                border={{
-                  color: selectedCategory() === category.id && !searchQuery() ? 0xe50914ff : 0x00000000,
-                  width: selectedCategory() === category.id && !searchQuery() ? 2 : 0,
-                }}
-                onEnter={() => {
-                  if (selectedCategory() === category.id && !searchQuery()) {
-                    return true;
-                  }
+              <CategoryChip
+                label={category.name}
+                active={selectedCategory() === category.id && !searchQuery()}
+                onSelect={() => {
+                  if (selectedCategory() === category.id && !searchQuery()) return;
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
-                  return true;
                 }}
-              >
-                <Text
-                  width={Math.max(68, category.name.length * 10)}
-                  fontSize={16}
-                  color={0xffffffff}
-                  textAlign="center"
-                  contain="width"
-                  maxLines={1}
-                >
-                  {category.name}
-                </Text>
-              </View>
+              />
             )}
           </For>
         </Row>

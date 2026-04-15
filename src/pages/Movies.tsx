@@ -1,8 +1,8 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
+import { Card, CategoryChip, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Movie } from "../lib/api";
 
 const ITEMS_PER_ROW = 6;
@@ -10,23 +10,6 @@ const ITEMS_PER_PAGE = 30;
 const HEADER_HEIGHT = 196;
 
 // Style constants following demo app patterns
-const CategoryButtonStyle = {
-  height: 40,
-  borderRadius: 20,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  scale: 1,
-  transition: {
-    color: { duration: 150, easing: "ease-out" },
-    scale: { duration: 150, easing: "ease-out" },
-  },
-  $focus: {
-    color: 0xe50914ff,
-    scale: 1.1,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
 function movieCaption(movie: Movie) {
   return [movie.year ? String(movie.year) : null, movie.rating ? `${movie.rating.toFixed(1)} IMDb` : null]
     .filter(Boolean)
@@ -164,61 +147,31 @@ const Movies = () => {
           onUp={() => titleRow?.setFocus()}
           onDown={() => contentGrid?.setFocus()}
         >
-          <View
+          <CategoryChip
+            label="Todos"
             width={100}
-            style={CategoryButtonStyle}
-            color={selectedCategory() === undefined && !searchQuery() ? 0x3a1118ff : 0x222222ff}
-            border={{
-              color: selectedCategory() === undefined && !searchQuery() ? 0xe50914ff : 0x00000000,
-              width: selectedCategory() === undefined && !searchQuery() ? 2 : 0,
-            }}
-            onEnter={() => {
-              if (selectedCategory() === undefined && !searchQuery()) {
-                return true;
-              }
+            active={selectedCategory() === undefined && !searchQuery()}
+            onSelect={() => {
+              if (selectedCategory() === undefined && !searchQuery()) return;
               setAccumulatedMovies([]);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
-              return true;
             }}
-          >
-            <Text width={84} fontSize={16} color={0xffffffff} textAlign="center" contain="width" maxLines={1}>
-              Todos
-            </Text>
-          </View>
+          />
           <For each={categories()}>
             {(category: Category) => (
-              <View
-                width={Math.max(100, category.name.length * 10 + 24)}
-                style={CategoryButtonStyle}
-                color={selectedCategory() === category.id && !searchQuery() ? 0x3a1118ff : 0x222222ff}
-                border={{
-                  color: selectedCategory() === category.id && !searchQuery() ? 0xe50914ff : 0x00000000,
-                  width: selectedCategory() === category.id && !searchQuery() ? 2 : 0,
-                }}
-                onEnter={() => {
-                  if (selectedCategory() === category.id && !searchQuery()) {
-                    return true;
-                  }
+              <CategoryChip
+                label={category.name}
+                active={selectedCategory() === category.id && !searchQuery()}
+                onSelect={() => {
+                  if (selectedCategory() === category.id && !searchQuery()) return;
                   setAccumulatedMovies([]);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
-                  return true;
                 }}
-              >
-                <Text
-                  width={Math.max(68, category.name.length * 10)}
-                  fontSize={16}
-                  color={0xffffffff}
-                  textAlign="center"
-                  contain="width"
-                  maxLines={1}
-                >
-                  {category.name}
-                </Text>
-              </View>
+              />
             )}
           </For>
         </Row>
