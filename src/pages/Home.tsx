@@ -128,9 +128,14 @@ const Home = () => {
           gap={28}
           scroll="auto"
           forwardFocus={0}
-          onUp={() => {
-            hero?.setFocus();
-            return true;
+          onUp={function (this: ElementNode) {
+            // Only escape to the hero from the first rail. Otherwise let the
+            // Column's built-in vertical nav move between rails.
+            if ((this.selected ?? 0) === 0) {
+              hero?.setFocus();
+              return true;
+            }
+            return false;
           }}
         >
           <Show when={recommendedMovies()?.recommendations?.length}>
