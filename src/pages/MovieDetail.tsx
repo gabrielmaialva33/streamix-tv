@@ -220,39 +220,54 @@ const MovieDetail = () => {
               </Show>
 
               <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
-                <Column x={30} y={26} width={1332} gap={14} scroll="none" skipFocus>
-                  <Show when={currentMovie().tagline}>
-                    <Text fontSize={20} color={0xffd166ff} maxLines={1}>
-                      {currentMovie().tagline || ""}
-                    </Text>
-                  </Show>
+                <Show when={currentMovie().tagline}>
                   <Text
+                    x={30}
+                    y={22}
                     width={1332}
-                    fontSize={48}
-                    fontWeight={700}
-                    color={0xffffffff}
-                    maxLines={2}
+                    fontSize={18}
+                    color={0xffd166ff}
+                    maxLines={1}
                     contain="width"
                   >
-                    {currentMovie().title || currentMovie().name}
+                    {currentMovie().tagline || ""}
                   </Text>
-                  <Row width={1332} height={34} gap={12} scroll="none">
-                    <For each={metaItems}>
-                      {item => (
-                        <View width={Math.max(116, item.length * 12 + 30)} style={META_CHIP_STYLE}>
-                          <Text fontSize={16} color={0xffffffff}>
-                            {item}
-                          </Text>
-                        </View>
-                      )}
-                    </For>
-                  </Row>
-                </Column>
+                </Show>
+                <Text
+                  x={30}
+                  y={currentMovie().tagline ? 50 : 26}
+                  width={1332}
+                  fontSize={42}
+                  fontWeight={700}
+                  color={0xffffffff}
+                  maxLines={1}
+                  contain="width"
+                >
+                  {currentMovie().title || currentMovie().name}
+                </Text>
+                <Row
+                  x={30}
+                  y={currentMovie().tagline ? 116 : 92}
+                  width={1332}
+                  height={34}
+                  gap={12}
+                  scroll="none"
+                >
+                  <For each={metaItems}>
+                    {item => (
+                      <View width={Math.max(116, item.length * 12 + 30)} style={META_CHIP_STYLE}>
+                        <Text fontSize={16} color={0xffffffff}>
+                          {item}
+                        </Text>
+                      </View>
+                    )}
+                  </For>
+                </Row>
 
                 <Row
                   ref={actionRow}
                   x={30}
-                  y={194}
+                  y={196}
                   width={1332}
                   height={58}
                   gap={20}
