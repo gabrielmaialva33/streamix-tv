@@ -7,7 +7,7 @@
  *   /history  -> watch history (Bearer handled by the controller)
  */
 
-import { createLogger } from "../shared/logging/logger";
+import { createLogger } from "@/shared/logging/logger";
 import { authSession } from "./storage";
 
 const logger = createLogger("API");
@@ -17,6 +17,10 @@ const EPG_URL = import.meta.env.VITE_EPG_URL || "https://streamix.mahina.cloud/a
 const HISTORY_URL = import.meta.env.VITE_HISTORY_URL || "https://streamix.mahina.cloud/api/v1/history";
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || "https://streamix.mahina.cloud/api/v1/auth";
 const FAVORITES_URL = import.meta.env.VITE_FAVORITES_URL || "https://streamix.mahina.cloud/api/v1/favorites";
+const SEARCH_URL = import.meta.env.VITE_SEARCH_URL || "https://streamix.mahina.cloud/api/v1/search";
+const RECOMMENDATIONS_URL =
+  import.meta.env.VITE_RECOMMENDATIONS_URL || "https://streamix.mahina.cloud/api/v1/recommendations";
+const TELEMETRY_URL = import.meta.env.VITE_TELEMETRY_URL || "https://streamix.mahina.cloud/api/v1/telemetry";
 const API_KEY = import.meta.env.VITE_API_KEY || "";
 
 // ============ Cache + dedup ============
@@ -50,6 +54,58 @@ interface RequestOpts {
   auth?: boolean;
 }
 
+/**
+ * Error shapes observed from the backend:
+ *   { error: { code, message } }                         // validation
+ *   { error: "Too many requests", message, retry_after } // rate limit
+ *   { error: "Authentication required" }                 // auth gate
+ *   { error: "string", reason: "string" }                // recommendations/search
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly retryAfter?: number;
+  readonly payload?: unknown;
+
+  constructor(status: number, message: string, code?: string, payload?: unknown, retryAfter?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.payload = payload;
+    this.retryAfter = retryAfter;
+  }
+
+  isUnauthorized() {
+    return this.status === 401 || this.code === "unauthorized" || this.code === "invalid_credentials";
+  }
+}
+
+function parseErrorPayload(status: number, statusText: string, payload: unknown): ApiError {
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    const err = p.error;
+
+    if (err && typeof err === "object") {
+      const nested = err as Record<string, unknown>;
+      return new ApiError(
+        status,
+        (nested.message as string) || `HTTP ${status}: ${statusText}`,
+        nested.code as string | undefined,
+        payload,
+      );
+    }
+
+    if (typeof err === "string") {
+      const retry = typeof p.retry_after === "number" ? (p.retry_after as number) : undefined;
+      const detail = (p.message as string) || (p.reason as string) || err;
+      return new ApiError(status, detail, err, payload, retry);
+    }
+  }
+
+  return new ApiError(status, `HTTP ${status}: ${statusText}`, undefined, payload);
+}
+
 async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
   const { ttl = DEFAULT_TTL, method = "GET", body, noCache = false, bearer, auth = true } = opts;
   const cacheKey = `${method} ${url}`;
@@ -76,13 +132,8 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
       const isJson = contentType.includes("application/json");
 
       if (!r.ok) {
-        if (isJson) {
-          const payload = await r.json().catch(() => null);
-          const errorMessage = payload?.error?.message;
-          throw new Error(errorMessage || `HTTP ${r.status}: ${r.statusText}`);
-        }
-
-        throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        const payload = isJson ? await r.json().catch(() => null) : null;
+        throw parseErrorPayload(r.status, r.statusText, payload);
       }
 
       if (r.status === 204 || !isJson) {
@@ -126,10 +177,15 @@ export interface FeaturedItem {
   genre?: string | null;
 }
 
+// Backend stores VOD movies under type "vod"; the query param accepts the
+// friendly alias "movie" and maps internally. We reflect what the server returns.
+export type CategoryKind = "vod" | "series" | "live";
+export type CategoryFilter = "movie" | "series" | "live";
+
 export interface Category {
   id: number;
   name: string;
-  type: "movie" | "series" | "live";
+  type: CategoryKind;
 }
 
 export interface Movie {
@@ -221,6 +277,19 @@ export interface SearchResults {
   channels: Channel[];
 }
 
+export interface SimilarContentItem {
+  id: number;
+  name?: string;
+  title?: string | null;
+  year?: number | null;
+  rating?: number | null;
+  genre?: string | null;
+  poster?: string | null;
+  backdrop?: string[] | string | null;
+  plot?: string | null;
+  score?: number | null;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -229,15 +298,24 @@ export interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
-// EPG
+// EPG — listings from /epg/programs
 export interface EpgProgram {
   id: string | number;
-  channel_id: number;
   title: string;
-  description?: string;
+  description: string | null;
   start: string; // ISO datetime
   end: string;
-  category?: string;
+  category: string | null;
+}
+
+// EPG — currently-airing entry from /epg/now (no id, adds progress fraction).
+export interface EpgCurrentProgram {
+  title: string;
+  description: string | null;
+  start: string;
+  end: string;
+  category: string | null;
+  progress: number; // 0.0..1.0
 }
 
 // History (backend /history)
@@ -251,12 +329,26 @@ export interface HistoryRecord {
   watched_at?: string;
 }
 
-export interface FavoriteRecord {
-  content_type: "movie" | "series" | "live_channel";
+export type FavoriteKind = "movie" | "series" | "live_channel";
+
+// Minimal shape returned by POST /favorites (no enriched fields).
+export interface FavoriteBase {
+  content_type: FavoriteKind;
   content_id: number;
+}
+
+// Enriched shape returned by GET /favorites (joined with content metadata).
+export interface FavoriteRecord extends FavoriteBase {
   content_name?: string;
   content_icon?: string;
   created_at?: string;
+}
+
+export interface FavoriteSyncOp {
+  type: FavoriteKind;
+  content_id: string | number;
+  action: "add" | "remove";
+  at?: string;
 }
 
 export interface AuthUser {
@@ -269,6 +361,64 @@ export interface AuthUser {
 export interface AuthResponse {
   token: string;
   user: AuthUser;
+}
+
+// ----- Recommendations / semantic search -----
+export interface RecommendationItem {
+  id: number;
+  name?: string;
+  title?: string | null;
+  year?: number | null;
+  rating?: number | null;
+  genre?: string | null;
+  poster?: string | null;
+  backdrop?: string[] | string | null;
+  plot?: string | null;
+  score?: number | null;
+}
+
+export type RecommendationCollection = "movies" | "series";
+
+export interface RecommendationsResponse {
+  recommendations: RecommendationItem[];
+  type: string;
+  personalized: boolean;
+}
+
+export interface SimilarRecommendationsResponse {
+  similar: RecommendationItem[];
+  source_id: number;
+  type: string;
+}
+
+export interface SearchStatus {
+  available: boolean;
+  stats: Record<string, { status: string; vectors_count: number }>;
+}
+
+export interface SearchInfo {
+  available: boolean;
+  embeddings: {
+    dimensions: number;
+    provider: string;
+    fallback_available: boolean;
+    gemini_enabled: boolean;
+    nvidia_enabled: boolean;
+  };
+  qdrant_enabled: boolean;
+}
+
+// ----- Telemetry -----
+export interface PlaybackTelemetryEvent {
+  content_type: "movie" | "episode" | "live_channel";
+  content_id: string | number;
+  event: "start" | "progress" | "pause" | "resume" | "complete" | "error";
+  position_seconds?: number;
+  duration_seconds?: number;
+  bitrate?: number;
+  error_code?: string;
+  error_message?: string;
+  at?: string;
 }
 
 // ============ Normalization helpers ============
@@ -296,6 +446,12 @@ const normEpisode = (e: Episode, seasonNumber?: number): Episode => ({
   description: e.plot ?? e.description ?? undefined,
   number: e.episode_num ?? e.number,
   season_number: seasonNumber ?? e.season_number,
+});
+
+const normSimilarItem = (item: SimilarContentItem): SimilarContentItem => ({
+  ...item,
+  poster: item.poster ?? null,
+  backdrop: Array.isArray(item.backdrop) ? item.backdrop : item.backdrop ? [item.backdrop] : [],
 });
 
 /** Convert "1h 44min" / "44min" / "59min" to seconds. Returns 0 on failure. */
@@ -363,7 +519,7 @@ export const api = {
   },
 
   // ----- Categories -----
-  getCategories: (type?: "movie" | "series" | "live") =>
+  getCategories: (type?: CategoryFilter) =>
     request<Category[]>(`${CATALOG_URL}/categories${buildQuery({ type })}`),
 
   // ----- Movies -----
@@ -458,6 +614,18 @@ export const api = {
     };
   },
 
+  getSimilarContent: async (
+    collection: "movies" | "series",
+    id: string | number,
+    limit = 12,
+  ): Promise<SimilarContentItem[]> => {
+    const r = await request<{ items: SimilarContentItem[] }>(
+      `${SEARCH_URL}/similar/${collection}/${id}${buildQuery({ limit })}`,
+      { ttl: DEFAULT_TTL },
+    );
+    return (r.items || []).map(normSimilarItem);
+  },
+
   // ----- Home rails -----
   // Cascading fallback: dedicated endpoint -> sorted listing -> unsorted listing.
   getTrending: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
@@ -514,9 +682,9 @@ export const api = {
    */
   getEpgNow: async (
     channelIds: Array<number | string>,
-  ): Promise<Record<string, (EpgProgram & { progress?: number }) | null>> => {
+  ): Promise<Record<string, EpgCurrentProgram | null>> => {
     if (channelIds.length === 0) return {};
-    type NowResp = { now: Record<string, (EpgProgram & { progress?: number }) | null> };
+    type NowResp = { now: Record<string, EpgCurrentProgram | null> };
     const r = await request<NowResp>(`${EPG_URL}/now${buildQuery({ channel_ids: channelIds.join(",") })}`, {
       ttl: SHORT_TTL,
     });
@@ -563,28 +731,28 @@ export const api = {
     request<{ ok: boolean }>(`${HISTORY_URL}/${id}`, { method: "DELETE", noCache: true, bearer }),
 
   // ----- Favorites (Bearer auth) -----
-  getFavorites: (type?: "movie" | "series" | "live_channel", bearer?: string) =>
+  getFavorites: (type?: FavoriteKind, bearer?: string) =>
     request<{ favorites: FavoriteRecord[] }>(`${FAVORITES_URL}${buildQuery({ type })}`, {
       ttl: SHORT_TTL,
       bearer,
     }),
 
-  addFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
-    request<FavoriteRecord>(FAVORITES_URL, {
+  addFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
+    request<FavoriteBase>(FAVORITES_URL, {
       method: "POST",
       body: { type, content_id: contentId },
       noCache: true,
       bearer,
     }),
 
-  removeFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
+  removeFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
     request<void>(`${FAVORITES_URL}/${type}/${contentId}`, {
       method: "DELETE",
       noCache: true,
       bearer,
     }),
 
-  toggleFavorite: (type: "movie" | "series" | "live_channel", contentId: string | number, bearer?: string) =>
+  toggleFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
     request<{ status: "added" | "removed" }>(`${FAVORITES_URL}/toggle`, {
       method: "POST",
       body: { type, content_id: contentId },
@@ -592,15 +760,7 @@ export const api = {
       bearer,
     }),
 
-  syncFavorites: (
-    operations: Array<{
-      type: "movie" | "series" | "live_channel";
-      content_id: string | number;
-      action: "add" | "remove";
-      at?: string;
-    }>,
-    bearer?: string,
-  ) =>
+  syncFavorites: (operations: FavoriteSyncOp[], bearer?: string) =>
     request<{ added: number; removed: number; skipped: number }>(`${FAVORITES_URL}/sync`, {
       method: "POST",
       body: { operations },
@@ -637,6 +797,59 @@ export const api = {
       method: "POST",
       noCache: true,
       bearer,
+    }),
+
+  // ----- Personalized recommendations (Bearer auth) -----
+  getRecommendations: (type: RecommendationCollection = "movies", limit = 20) =>
+    request<RecommendationsResponse>(`${RECOMMENDATIONS_URL}${buildQuery({ type, limit })}`, {
+      ttl: SHORT_TTL,
+    }),
+
+  getSimilarRecommendations: (id: string | number, type: RecommendationCollection = "movies", limit = 10) =>
+    request<SimilarRecommendationsResponse>(
+      `${RECOMMENDATIONS_URL}/similar/${id}${buildQuery({ type, limit })}`,
+      { ttl: DEFAULT_TTL },
+    ),
+
+  getChannelRecommendations: (limit = 10) =>
+    request<{ channels: Channel[]; personalized: boolean }>(
+      `${RECOMMENDATIONS_URL}/channels${buildQuery({ limit })}`,
+      { ttl: SHORT_TTL },
+    ),
+
+  getUserInsights: () =>
+    request<{ insights: Record<string, unknown> }>(`${RECOMMENDATIONS_URL}/insights`, {
+      ttl: SHORT_TTL,
+    }),
+
+  refreshRecommendations: () =>
+    request<{ status: string; message?: string }>(`${RECOMMENDATIONS_URL}/refresh`, {
+      method: "POST",
+      noCache: true,
+    }),
+
+  // ----- Semantic search (distinct from /catalog/search fulltext) -----
+  searchMoviesSemantic: (query: string, limit = 20) =>
+    request<{ movies: Movie[]; query: string | null; semantic: boolean }>(
+      `${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`,
+      { ttl: SHORT_TTL },
+    ),
+
+  searchSeriesSemantic: (query: string, limit = 20) =>
+    request<{ series: Series[]; query: string | null; semantic: boolean }>(
+      `${SEARCH_URL}/series${buildQuery({ q: query, limit })}`,
+      { ttl: SHORT_TTL },
+    ),
+
+  getSearchStatus: () => request<SearchStatus>(`${SEARCH_URL}/status`, { ttl: SHORT_TTL }),
+  getSearchInfo: () => request<SearchInfo>(`${SEARCH_URL}/info`, { ttl: DEFAULT_TTL }),
+
+  // ----- Playback telemetry (best-effort, server accepts batch) -----
+  sendPlaybackTelemetry: (event: PlaybackTelemetryEvent | PlaybackTelemetryEvent[]) =>
+    request<void>(`${TELEMETRY_URL}/playback`, {
+      method: "POST",
+      body: Array.isArray(event) ? { events: event } : event,
+      noCache: true,
     }),
 
   // ----- Prefetch -----
