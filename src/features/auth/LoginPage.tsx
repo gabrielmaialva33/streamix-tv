@@ -320,11 +320,15 @@ const LoginPage = () => {
               firstField?.setFocus();
               return true;
             }}
-            onUp={() => {
+            onUp={function (this: ElementNode) {
+              if ((this.selected ?? 0) > 0) return false;
               chipsRow?.setFocus();
               return true;
             }}
-            onDown={() => {
+            onDown={function (this: ElementNode) {
+              const focusable = this.children.filter(c => !(c as ElementNode).skipFocus);
+              const lastIdx = focusable.length - 1;
+              if ((this.selected ?? 0) < lastIdx) return false;
               primaryButton?.setFocus();
               return true;
             }}
