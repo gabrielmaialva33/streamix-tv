@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+dist/
+.env
+.env.local
+.env.production
+environments/.env
+environments/.env.local
+environments/.env.production
+*.wgt
+.claude
+.idea
+*storybook.log
+streamix.log
