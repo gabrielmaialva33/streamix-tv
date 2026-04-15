@@ -1,4 +1,4 @@
-import { Text, View } from "@lightningtv/solid";
+import { type ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -37,6 +37,8 @@ const Search = () => {
   const navigate = useNavigate();
   const [query, setQuery] = createSignal("");
   const [searchTriggered, setSearchTriggered] = createSignal(false);
+
+  let keyboardColumn: ElementNode | undefined;
 
   // Search results
   const [results] = createResource(
@@ -93,7 +95,14 @@ const Search = () => {
   };
 
   return (
-    <View width={1700} height={1080} forwardFocus={2}>
+    <View
+      width={1700}
+      height={1080}
+      forwardFocus={() => {
+        keyboardColumn?.setFocus();
+        return true;
+      }}
+    >
       {/* Header */}
       <View y={30} width={1700} height={60}>
         <Text fontSize={42} fontWeight={700} color={0xffffffff}>
@@ -113,7 +122,7 @@ const Search = () => {
       </View>
 
       {/* Keyboard */}
-      <Column y={180} width={500} height={300} gap={10} autofocus forwardFocus={0}>
+      <Column ref={keyboardColumn} y={180} width={500} height={300} gap={10} autofocus forwardFocus={0}>
         <For each={KEYBOARD_ROWS}>
           {row => (
             <Row width={500} height={45} gap={8}>
