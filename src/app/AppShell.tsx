@@ -34,7 +34,7 @@ const AppShell = (props: AppShellProps) => {
       }}
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
-      color={0x0d0d12ff}
+      color={0x00000000}
       onAnnouncer={() => {
         announcer.enabled = !announcer.enabled;
         preferences.update({ announcer: announcer.enabled });
