@@ -283,7 +283,7 @@ const LoginPage = () => {
         return true;
       }}
     >
-      <View x={550} y={88} width={820} height={904}>
+      <View x={550} y={64} width={820} height={1000}>
         <Text fontSize={28} fontWeight={700} color={theme.primary}>
           STREAMIX
         </Text>
@@ -315,7 +315,7 @@ const LoginPage = () => {
           {descriptionCopy()}
         </Text>
 
-        <Row y={304} width={820} height={60} gap={14} scroll="none" skipFocus>
+        <Row y={298} width={820} height={60} gap={14} scroll="none" skipFocus>
           <For each={highlights()}>
             {item => (
               <View style={INFO_CARD_STYLE}>
@@ -335,7 +335,7 @@ const LoginPage = () => {
           </For>
         </Row>
 
-        <View y={354} style={mode() === "register" ? FORM_PANEL_REGISTER : FORM_PANEL_LOGIN}>
+        <View y={380} style={mode() === "register" ? FORM_PANEL_REGISTER : FORM_PANEL_LOGIN}>
           <Column
             ref={fieldsColumn}
             x={30}
@@ -457,6 +457,50 @@ const LoginPage = () => {
     </View>
   );
 };
+
+interface ModeChipProps {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}
+
+// Reactive chip — Lightning's style prop doesn't cleanly swap between two
+// static objects when reactivity changes, so we feed individual props instead.
+const ModeChip = (props: ModeChipProps) => (
+  <View
+    width={180}
+    height={48}
+    borderRadius={24}
+    color={props.active ? 0x2b1015ff : theme.surface}
+    border={{
+      color: props.active ? theme.primary : theme.border,
+      width: props.active ? 2 : 1,
+    }}
+    scale={1}
+    transition={{ scale: { duration: 150 }, color: { duration: 150 } }}
+    $focus={{
+      border: { color: theme.primary, width: 3 },
+      color: props.active ? 0x401820ff : theme.surfaceHover,
+      scale: 1.05,
+    }}
+    onEnter={() => {
+      props.onSelect();
+      return true;
+    }}
+  >
+    <Text
+      y={13}
+      width={180}
+      fontSize={18}
+      fontWeight={700}
+      color={0xffffffff}
+      textAlign="center"
+      contain="width"
+    >
+      {props.label}
+    </Text>
+  </View>
+);
 
 interface FieldCardProps {
   field: FieldName;
