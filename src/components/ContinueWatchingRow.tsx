@@ -59,7 +59,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
 
   return (
     <View {...props} width={1700} height={280}>
-      <Text x={20} fontSize={32} fontWeight="bold" color={0xffffffff}>
+      <Text x={20} fontSize={32} fontWeight={700} color={0xffffffff}>
         Continue Assistindo
       </Text>
 
@@ -98,7 +98,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                 <View x={130} y={10} width={180}>
                   <Text
                     fontSize={16}
-                    fontWeight="bold"
+                    fontWeight={700}
                     color={0xffffffff}
                     contain="width"
                     width={180}

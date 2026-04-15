@@ -129,7 +129,7 @@ const Guide = () => {
     <Column width={1700} height={1080} scroll="none">
       {/* Header */}
       <View width={1680} height={60} x={20} skipFocus>
-        <Text y={10} fontSize={42} fontWeight="bold" color={0xffffffff}>
+        <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
           Guia de Programação
         </Text>
         <Text x={1400} y={20} fontSize={24} color={0xaaaaaaff}>
@@ -248,7 +248,7 @@ const Guide = () => {
                         x={isNowPlaying(program) ? 14 : 8}
                         y={8}
                         fontSize={14}
-                        fontWeight="bold"
+                        fontWeight={700}
                         color={0xffffffff}
                         contain="width"
                         width={getProgramWidth(program) - 20}

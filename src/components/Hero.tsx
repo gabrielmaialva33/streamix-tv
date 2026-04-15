@@ -45,7 +45,7 @@ const InfoButtonStyle = {
 
 const PlayButtonTextStyle = {
   fontSize: 22,
-  fontWeight: "bold",
+  fontWeight: 700,
   color: 0xffffffff,
   $focus: {
     color: 0x000000ff,
@@ -54,7 +54,7 @@ const PlayButtonTextStyle = {
 
 const InfoButtonTextStyle = {
   fontSize: 22,
-  fontWeight: "bold",
+  fontWeight: 700,
   color: 0xffffffff,
   $focus: {
     color: 0x000000ff,
@@ -110,7 +110,7 @@ const Hero = (props: HeroProps) => {
       <View x={SAFE_AREA_X + 12} y={300} width={800} zIndex={2}>
         <Text
           fontSize={56}
-          fontWeight="bold"
+          fontWeight={700}
           color={0xffffffff}
           contain="width"
           width={800}
@@ -159,7 +159,7 @@ const Hero = (props: HeroProps) => {
           alignItems="center"
           zIndex={2}
         >
-          <Text fontSize={16} fontWeight="bold" color={0xffffffff}>
+          <Text fontSize={16} fontWeight={700} color={0xffffffff}>
             {props.item!.type.toUpperCase()}
           </Text>
         </View>

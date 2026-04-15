@@ -149,7 +149,7 @@ const Sidebar = (props: SidebarProps) => {
       {/* The logo image already ships with the final colors, so avoid tinting it. */}
       <View skipFocus y={40} x={20} width={180} height={48} zIndex={105}>
         <View src="assets/streamix-logo.png" x={0} y={0} width={44} height={44} />
-        <Text x={56} y={8} fontSize={24} fontWeight="bold" color={theme.primary}>
+        <Text x={56} y={8} fontSize={24} fontWeight={700} color={theme.primary}>
           STREAMIX
         </Text>
       </View>
@@ -180,7 +180,7 @@ const Sidebar = (props: SidebarProps) => {
       {/* Version */}
       <View skipFocus y={1000} x={20} zIndex={105}>
         <Text fontSize={12} color={theme.textDisabled}>
-          v2.0.0
+          v1.0.0
         </Text>
       </View>
     </>

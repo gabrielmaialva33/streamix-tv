@@ -90,7 +90,7 @@ const Favorites = () => {
     <Column width={1700} height={1080} scroll="none">
       {/* Header */}
       <View width={1660} height={70} x={20} skipFocus>
-        <Text y={15} fontSize={42} fontWeight="bold" color={0xffffffff}>
+        <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
           Meus Favoritos
         </Text>
         <Text x={1400} y={25} fontSize={20} color={0x888888ff}>

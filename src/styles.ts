@@ -106,7 +106,7 @@ export const ButtonStyle = {
 // Button text style
 export const ButtonTextStyle = {
   fontSize: 18,
-  fontWeight: "bold",
+  fontWeight: 700,
   color: theme.textPrimary,
 } satisfies IntrinsicTextNodeStyleProps;
 

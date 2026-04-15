@@ -32,7 +32,7 @@ const ContentRow = (props: ContentRowProps) => {
       forwardFocus={props.title ? 1 : 0}
     >
       <Show when={props.title}>
-        <Text x={20} fontSize={32} fontWeight="bold" color={0xffffffff} y={0} zIndex={10}>
+        <Text x={20} fontSize={32} fontWeight={700} color={0xffffffff} y={0} zIndex={10}>
           {props.title}
         </Text>
       </Show>

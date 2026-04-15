@@ -140,7 +140,7 @@ const Movies = () => {
           onDown={() => categoriesRow?.setFocus()}
         >
           <View width={1400} skipFocus>
-            <Text y={15} fontSize={42} fontWeight="bold" color={0xffffffff}>
+            <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
               Filmes
             </Text>
           </View>

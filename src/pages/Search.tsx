@@ -53,7 +53,7 @@ const Search = () => {
     <View width={1700} height={1080} forwardFocus={2}>
       {/* Header */}
       <View y={30} width={1700} height={60}>
-        <Text fontSize={42} fontWeight="bold" color={0xffffffff}>
+        <Text fontSize={42} fontWeight={700} color={0xffffffff}>
           Buscar
         </Text>
       </View>
@@ -99,7 +99,7 @@ const Search = () => {
           {/* Movies */}
           <Show when={results()?.movies?.length}>
             <View width={1150} height={450}>
-              <Text fontSize={24} color={0xffffffff} fontWeight="bold">
+              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                 {`Filmes (${results()!.movies.length})`}
               </Text>
               <Row y={40} width={1150} height={400} gap={15}>
@@ -122,7 +122,7 @@ const Search = () => {
           {/* Series */}
           <Show when={results()?.series?.length}>
             <View width={1150} height={450}>
-              <Text fontSize={24} color={0xffffffff} fontWeight="bold">
+              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                 {`Séries (${results()!.series.length})`}
               </Text>
               <Row y={40} width={1150} height={400} gap={15}>
@@ -145,7 +145,7 @@ const Search = () => {
           {/* Channels */}
           <Show when={results()?.channels?.length}>
             <View width={1150} height={200}>
-              <Text fontSize={24} color={0xffffffff} fontWeight="bold">
+              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                 {`Canais (${results()!.channels.length})`}
               </Text>
               <Row y={40} width={1150} height={140} gap={15}>

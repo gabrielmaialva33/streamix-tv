@@ -127,7 +127,7 @@ const SeriesDetail = () => {
 
             {/* Text info */}
             <View x={160} y={0} width={1400}>
-              <Text fontSize={36} fontWeight="bold" color={0xffffffff}>
+              <Text fontSize={36} fontWeight={700} color={0xffffffff}>
                 {series()?.title || series()?.name}
               </Text>
               <Text y={45} fontSize={18} color={0xaaaaaaff}>
@@ -227,7 +227,7 @@ const SeriesDetail = () => {
 
                       {/* Episode info */}
                       <View x={episode.thumbnail_url ? 180 : 15} y={15} width={180}>
-                        <Text fontSize={16} fontWeight="bold" color={0xffffffff} maxLines={1}>
+                        <Text fontSize={16} fontWeight={700} color={0xffffffff} maxLines={1}>
                           {`E${episode.episode_num ?? "?"}. ${episode.title || "Episódio"}`}
                         </Text>
                         <Text y={25} fontSize={14} color={0xaaaaaaff} maxLines={2} contain="width">

@@ -344,7 +344,7 @@ const PlayerPage = () => {
             justifyContent="center"
             alignItems="center"
           >
-            <Text fontSize={42} fontWeight="bold" color={theme.primary}>
+            <Text fontSize={42} fontWeight={700} color={theme.primary}>
               {seekFeedback() ?? ""}
             </Text>
           </View>
@@ -365,7 +365,7 @@ const PlayerPage = () => {
             x={60}
             y={40}
             fontSize={36}
-            fontWeight="bold"
+            fontWeight={700}
             color={0xffffffff}
             contain="width"
             width={1800}

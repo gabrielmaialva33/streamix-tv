@@ -125,7 +125,7 @@ const Channels = () => {
           onDown={() => categoriesRow?.setFocus()}
         >
           <View width={1350} skipFocus>
-            <Text y={15} fontSize={42} fontWeight="bold" color={0xffffffff}>
+            <Text y={15} fontSize={42} fontWeight={700} color={0xffffffff}>
               Canais ao Vivo
             </Text>
           </View>
@@ -234,7 +234,7 @@ const Channels = () => {
                           justifyContent="center"
                           alignItems="center"
                         >
-                          <Text fontSize={36} fontWeight="bold" color={0xffffffff}>
+                          <Text fontSize={36} fontWeight={700} color={0xffffffff}>
                             {channel.name.trim().charAt(0).toUpperCase() || "?"}
                           </Text>
                         </View>

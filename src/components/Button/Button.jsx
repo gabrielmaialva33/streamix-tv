@@ -34,7 +34,7 @@ const styles = {
 };
 
 styles.text = {
-  fontFamily: "Roboto",
+  fontFamily: "NotoSans",
   fontSize: 32,
   lineHeight: styles.container.height,
   contain: "width",
