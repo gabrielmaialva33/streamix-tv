@@ -42,7 +42,9 @@ const RequireAuth = (props: RequireAuthProps) => {
             STREAMIX
           </Text>
           <Text fontSize={22} color={0xb8b8c0ff}>
-            {authState.status() === "checking" ? "Checking your session..." : "Redirecting to login..."}
+            {authState.status() === "checking"
+              ? "Verificando sua sessão..."
+              : "Redirecionando para o login..."}
           </Text>
         </View>
       }
