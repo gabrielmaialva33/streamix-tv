@@ -10,12 +10,8 @@ export interface ContentRowProps extends NodeProps {
   autofocus?: boolean;
 }
 
-// ContentRow = Title (opcional) + LightningRow horizontal com plinko.
-//
-// IMPORTANTE: o `autofocus` chega so no LightningRow interno — nao no View
-// outer. Se os 2 tiverem autofocus, o focus fica indefinido no Lightning.
-// Mesmo motivo pra nao fazer `{...props}` no outer View: isso espalharia
-// `autofocus`, `onSelectedChanged`, etc. em dois lugares.
+// ContentRow = optional title + horizontal LightningRow.
+// Keep focus props on the inner row only to avoid conflicting focus targets.
 const ContentRow = (props: ContentRowProps) => {
   const resolved = resolveChildren(() => props.children);
 
@@ -32,8 +28,7 @@ const ContentRow = (props: ContentRowProps) => {
     <View
       width={1700}
       height={props.title ? 520 : 460}
-      // Forward focus pro LightningRow (filho 1 se tiver title, 0 se nao).
-      // Sem isso, o View tentaria receber foco ele mesmo.
+      // Forward focus to the LightningRow instead of the wrapper View.
       forwardFocus={props.title ? 1 : 0}
     >
       <Show when={props.title}>

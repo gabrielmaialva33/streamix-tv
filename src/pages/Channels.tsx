@@ -48,16 +48,16 @@ const ChannelCardStyle = {
   },
 } satisfies IntrinsicNodeStyleProps;
 
-// Paleta curta pra fallback de logo — gera cor estavel a partir do nome do canal
+// Short palette for deterministic logo placeholders.
 const PLACEHOLDER_COLORS = [
-  0xe50914ff, // vermelho streamix
-  0x1e88e5ff, // azul
-  0x43a047ff, // verde
-  0xfb8c00ff, // laranja
-  0x8e24aaff, // roxo
+  0xe50914ff, // Streamix red
+  0x1e88e5ff, // blue
+  0x43a047ff, // green
+  0xfb8c00ff, // orange
+  0x8e24aaff, // purple
   0x00acc1ff, // teal
   0x3949abff, // indigo
-  0xd81b60ff, // rosa
+  0xd81b60ff, // pink
 ];
 
 function channelColorFromName(name: string): number {
@@ -114,9 +114,7 @@ const Channels = () => {
         return true;
       }}
     >
-      {/* Fixed Header - solid background hides content scrolling behind */}
       <View x={0} y={0} width={1700} height={140} zIndex={10} color={0x0a0a0fff}>
-        {/* Title and Search */}
         <Row
           ref={titleRow}
           width={1660}
@@ -134,7 +132,6 @@ const Channels = () => {
           <SearchBox onSearch={handleSearch} placeholder="Buscar canais..." />
         </Row>
 
-        {/* Category Filter - horizontal scrolling */}
         <Row
           ref={categoriesRow}
           x={20}
@@ -184,7 +181,6 @@ const Channels = () => {
         </Row>
       </View>
 
-      {/* Channels Grid - below fixed header with clipping */}
       <Column
         ref={contentGrid}
         x={20}
@@ -198,7 +194,6 @@ const Channels = () => {
         onUp={() => categoriesRow?.setFocus()}
       >
         <Show when={channels.loading}>
-          {/* Skeleton loaders */}
           <Row width={1640} height={150} gap={12} scroll="none" skipFocus>
             <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>{() => <SkeletonLoader width={180} height={130} />}</For>
           </Row>
@@ -225,7 +220,6 @@ const Channels = () => {
               <For each={row}>
                 {(channel: Channel) => (
                   <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
-                    {/* Logo */}
                     <Show
                       when={channel.logo_url}
                       fallback={
@@ -249,7 +243,6 @@ const Channels = () => {
                       <View x={40} y={15} width={100} height={65} src={channel.logo_url} color={0xffffffff} />
                     </Show>
 
-                    {/* Name */}
                     <Text
                       x={10}
                       y={90}

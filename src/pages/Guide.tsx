@@ -40,7 +40,7 @@ interface ChannelWithPrograms {
   programs: Program[];
 }
 
-// Converte EpgProgram (ISO strings) em Program (Date) ja ordenado por inicio
+// Convert EPG payload strings into date objects.
 const toProgram = (p: EpgProgram): Program => ({
   id: p.id,
   title: p.title,
@@ -56,15 +56,15 @@ const Guide = () => {
 
   let guideGrid: ElementNode | undefined;
 
-  // Fetch channels (primeira pagina ja da pra preencher o guia)
+  // Fetch the first page of channels for the grid.
   const [channels] = createResource(() => api.getChannels({ limit: 50 }));
 
-  // Fetch EPG — janela de 4h antes / 12h depois pra cobrir rolagem horizontal
+  // Fetch enough EPG data to cover horizontal scrolling.
   const [epg] = createResource(
     () => channels()?.data?.map(c => c.id),
     async (ids): Promise<Record<string, Program[]>> => {
       if (!ids?.length) return {};
-      // Backend aceita janela em horas a frente (default 6, max 12)
+      // The backend accepts a future-hours window, default 6 and max 12.
       const raw = await api.getEpgPrograms(ids, 12);
       const byChannel: Record<string, Program[]> = {};
       for (const [cid, programs] of Object.entries(raw)) {
@@ -192,7 +192,7 @@ const Guide = () => {
                 </Text>
               </View>
 
-              {/* Sem EPG: fallback clicavel pra abrir o canal direto */}
+              {/* Allow direct channel playback when EPG data is unavailable. */}
               <Show when={programs.length === 0}>
                 <View
                   x={CHANNEL_COLUMN_WIDTH}

@@ -8,16 +8,14 @@ const Home = () => {
   const navigate = useNavigate();
   const [featuredIndex, setFeaturedIndex] = createSignal(0);
 
-  // Rails: backend fornece trending/recent/top-rated curados por categoria.
+  // The backend provides curated trending, recent, and top-rated rails.
   const [featured] = createResource(() => api.getFeatured());
   const [trendingMovies] = createResource(() => api.getTrending("movie", 20) as Promise<Movie[]>);
   const [recentMovies] = createResource(() => api.getRecent("movie", 20) as Promise<Movie[]>);
   const [topRatedMovies] = createResource(() => api.getTopRated("movie", 20) as Promise<Movie[]>);
   const [trendingSeries] = createResource(() => api.getTrending("series", 20) as Promise<Series[]>);
 
-  // Auto-rotate do hero. IMPORTANTE: Solid nao consome o return de onMount,
-  // precisa registrar no onCleanup separado — senao o interval vaza quando
-  // o user sai da Home pra outra pagina.
+  // Register cleanup explicitly; returning from onMount does not dispose the timer.
   onMount(() => {
     const interval = setInterval(() => {
       const items = featured();
@@ -28,7 +26,7 @@ const Home = () => {
     onCleanup(() => clearInterval(interval));
   });
 
-  // Fallback: se o backend nao tem featured, usa o primeiro filme top
+  // Fall back to the first trending movie if featured content is unavailable.
   const featuredList = (): FeaturedItem[] => {
     const items = featured();
     if (items && items.length > 0) return items;
@@ -85,13 +83,11 @@ const Home = () => {
       height={1080}
       gap={30}
       scroll="always"
-      // Forward focus to first ContentRow (child 1, after Hero)
+      // Forward focus to the first ContentRow (child 1, after Hero).
       forwardFocus={1}
     >
-      {/* Hero Section */}
       <Hero item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
 
-      {/* Trending Filmes */}
       <Show when={trendingMovies()?.length}>
         <ContentRow
           title="Em Alta"
@@ -115,7 +111,6 @@ const Home = () => {
         </ContentRow>
       </Show>
 
-      {/* Recem-adicionados */}
       <Show when={recentMovies()?.length}>
         <ContentRow
           title="Adicionados Recentemente"
@@ -138,7 +133,6 @@ const Home = () => {
         </ContentRow>
       </Show>
 
-      {/* Mais bem avaliados */}
       <Show when={topRatedMovies()?.length}>
         <ContentRow
           title="Mais Bem Avaliados"
@@ -161,7 +155,6 @@ const Home = () => {
         </ContentRow>
       </Show>
 
-      {/* Series em alta */}
       <Show when={trendingSeries()?.length}>
         <ContentRow
           title="Series em Alta"
@@ -184,7 +177,6 @@ const Home = () => {
         </ContentRow>
       </Show>
 
-      {/* Continue Watching Row - Real implementation */}
       <ContinueWatchingRow limit={10} />
     </Column>
   );

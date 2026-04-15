@@ -1,9 +1,8 @@
 import { Text, View } from "@lightningtv/solid";
 import { createSignal, For, onCleanup, onMount } from "solid-js";
 
-// Overlay de logs visivel na TV. Toggle com a tecla "0" do controle remoto
-// (ou "0" no teclado no dev). Mostra as ultimas N linhas de console.*
-// e fetch() intercepted. Serve pra debugar sem DevTools em file:// Tizen.
+// In-TV debug overlay toggled with the remote "0" key.
+// It mirrors console output and intercepted fetch calls for environments without DevTools.
 
 export interface LogEntry {
   t: number;
@@ -38,15 +37,11 @@ function push(level: LogEntry["level"], args: unknown[]) {
   sendWs(entry);
 }
 
-// ---- WS remoto pro log-server ----
-// Tenta conectar em varios hosts (o que funcionar primeiro fica).
-// Emulador Tizen: 10.0.2.2 eh alias do host. TV real: precisa IP LAN do PC.
-const LOG_HOSTS = [
-  import.meta.env.VITE_LOG_HOST, // defina em .env se tu souber o IP
-  "10.0.2.2", // emulador Tizen/Android -> host
-  "192.168.1.100", // ajusta se teu PC tiver outro IP
-  "localhost",
-].filter(Boolean) as string[];
+// Remote WebSocket bridge for the log server.
+// The first host that connects wins.
+const LOG_HOSTS = [import.meta.env.VITE_LOG_HOST, "10.0.2.2", "192.168.1.100", "localhost"].filter(
+  Boolean,
+) as string[];
 
 let ws: WebSocket | null = null;
 let wsReady = false;
@@ -55,8 +50,7 @@ let wsReconnectTimer: number | null = null;
 const wsBuffer: LogEntry[] = [];
 const MAX_BUFFER = 500;
 
-// Reconnect exponential backoff: 1s, 2s, 4s, 8s, 16s (cap). Nao fica tentando
-// pra sempre quando nao tem log-server — mas reconecta automatico quando volta.
+// Exponential backoff capped at 16s.
 function scheduleReconnect() {
   if (wsReconnectTimer) return;
   const delay = Math.min(16000, 1000 * Math.pow(2, wsAttempt));
@@ -68,7 +62,6 @@ function scheduleReconnect() {
 }
 
 function connectWs() {
-  // Tenta cada host em paralelo — o primeiro que conectar fica, os outros fecham.
   for (const host of LOG_HOSTS) {
     try {
       const url = `ws://${host}:9999`;
@@ -77,7 +70,7 @@ function connectWs() {
         if (ws && ws !== sock) ws.close();
         ws = sock;
         wsReady = true;
-        wsAttempt = 0; // reset backoff em conexao bem sucedida
+        wsAttempt = 0; // Reset backoff after a successful connection.
         while (wsBuffer.length) sock.send(JSON.stringify(wsBuffer.shift()));
       };
       sock.onerror = () => sock.close();
@@ -89,7 +82,7 @@ function connectWs() {
         }
       };
     } catch {
-      /* tenta proximo */
+      /* try next host */
     }
   }
 }
@@ -99,7 +92,7 @@ function sendWs(entry: LogEntry) {
     ws.send(JSON.stringify(entry));
   } else {
     wsBuffer.push(entry);
-    if (wsBuffer.length > MAX_BUFFER) wsBuffer.shift(); // evita crescimento infinito
+    if (wsBuffer.length > MAX_BUFFER) wsBuffer.shift(); // Prevent unbounded buffer growth.
   }
 }
 
@@ -138,7 +131,7 @@ export function installDebugCapture() {
     push("error", ["[unhandledrejection]", r]);
   });
 
-  // Intercepta fetch pra logar URL + status + tempo
+  // Intercept fetch to capture URL, status, and duration.
   const origFetch = window.fetch;
   window.fetch = async (...args) => {
     const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
@@ -168,12 +161,12 @@ const colorFor = (l: LogEntry["level"]) =>
   l === "error" ? 0xff5555ff : l === "warn" ? 0xffbb33ff : l === "info" ? 0x88ccffff : 0xdddddd_ff;
 
 const DebugOverlay = () => {
-  // Auto-scroll — mantem as ultimas linhas visiveis
+  // Keep the latest log lines visible.
   const visibleEntries = () => entries().slice(-35);
 
   onMount(() => {
-    // Tecla "0" do controle remoto alterna o overlay.
-    // Tizen: 48 = "0" no dpad numerico; browser dev: 48 tambem.
+    // Toggle the overlay with the remote "0" key.
+    // Tizen: 48 = "0" on the numeric pad; browser dev uses the same keycode.
     const h = (e: KeyboardEvent) => {
       if (e.key === "0" || e.keyCode === 48 || e.keyCode === 96) {
         toggleDebug();

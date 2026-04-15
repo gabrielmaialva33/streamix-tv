@@ -121,8 +121,7 @@ const Movies = () => {
     <View
       width={1700}
       height={1080}
-      // Quando o pageContainer delegar foco pra ca, passamos pra categoriesRow
-      // (elemento principal de interacao na pagina Filmes).
+      // When the page container forwards focus here, land on the categories row.
       forwardFocus={() => {
         categoriesRow?.setFocus();
         return true;

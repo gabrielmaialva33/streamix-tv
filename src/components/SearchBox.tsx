@@ -1,6 +1,9 @@
 import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { theme } from "../styles";
+import { createLogger } from "../shared/logging/logger";
+
+const logger = createLogger("SearchBox");
 
 const SearchBoxStyle = {
   width: 140,
@@ -58,15 +61,14 @@ const SearchBox = (props: SearchBoxProps) => {
     inputRef.addEventListener("input", e => {
       const value = (e.target as HTMLInputElement).value;
       setQuery(value);
-      console.log("[SearchBox] input:", value);
+      logger.debug("Input updated", value);
     });
 
     // Samsung TV keyboard closes and fires blur - this is our main trigger
     inputRef.addEventListener("blur", () => {
-      console.log("[SearchBox] blur, query:", inputRef?.value);
       const value = inputRef?.value?.trim() || "";
       if (value.length >= 2) {
-        console.log("[SearchBox] triggering search for:", value);
+        logger.debug("Triggering search from blur", value);
         props.onSearch(value);
         setIsSearching(true);
         setTimeout(() => setIsSearching(false), 2000);
@@ -78,7 +80,6 @@ const SearchBox = (props: SearchBoxProps) => {
 
     // Also handle Enter key for non-TV environments
     inputRef.addEventListener("keydown", e => {
-      console.log("[SearchBox] keydown:", e.key, e.keyCode);
       if (e.key === "Enter" || e.keyCode === 13 || e.keyCode === 65376) {
         e.preventDefault();
         inputRef?.blur();
@@ -108,7 +109,6 @@ const SearchBox = (props: SearchBoxProps) => {
   };
 
   const openKeyboard = () => {
-    console.log("[SearchBox] opening keyboard");
     // Small delay to ensure Lightning has processed focus
     setTimeout(() => {
       if (inputRef) {
