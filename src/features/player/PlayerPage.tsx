@@ -4,9 +4,10 @@ import { createEffect, createResource, createSignal, onCleanup, onMount, Show } 
 import { history } from "../../lib/storage";
 import { theme } from "../../styles";
 import { createLogger } from "../../shared/logging/logger";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../shared/layout";
 import PlayerManager, { type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
-import { resolvePlayerSource, type PlayerType } from "./stream";
+import { type PlayerType, resolvePlayerSource } from "./stream";
 
 const logger = createLogger("PlayerPage");
 
@@ -210,6 +211,38 @@ const PlayerPage = () => {
   onMount(() => {
     resetControlsTimeout();
     historyInterval = window.setInterval(saveHistory, 10000);
+
+    let wasHidden = false;
+    const onVisibilityChange = () => {
+      const backend = PlayerManager.getBackend();
+
+      if (document.visibilityState === "hidden") {
+        wasHidden = true;
+        saveHistory();
+        if (backend === "avplay") {
+          PlayerManager.suspend();
+        }
+        return;
+      }
+
+      if (!wasHidden || document.visibilityState !== "visible" || destroyed || backend !== "avplay") {
+        wasHidden = false;
+        return;
+      }
+
+      wasHidden = false;
+      void PlayerManager.restore().then(restored => {
+        if (restored || destroyed || !loadedUrl) {
+          return;
+        }
+
+        logger.warn("AVPlay restore failed; reloading source");
+        return PlayerManager.load(loadedUrl);
+      });
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    onCleanup(() => document.removeEventListener("visibilitychange", onVisibilityChange));
   });
 
   onCleanup(() => {
@@ -220,8 +253,8 @@ const PlayerPage = () => {
     <View
       x={0}
       y={0}
-      width={1920}
-      height={1080}
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
       color={0x00000000}
       onEnter={handlePlayPause}
       onLast={handleClose}
@@ -258,7 +291,13 @@ const PlayerPage = () => {
       autofocus
     >
       <Show when={state().buffering && !state().error}>
-        <View width={1920} height={1080} display="flex" justifyContent="center" alignItems="center">
+        <View
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Text fontSize={36} color={0xffffffff}>
             Carregando...
           </Text>
@@ -267,8 +306,8 @@ const PlayerPage = () => {
 
       <Show when={state().error}>
         <View
-          width={1920}
-          height={1080}
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
           display="flex"
           flexDirection="column"
           justifyContent="center"
@@ -289,8 +328,8 @@ const PlayerPage = () => {
 
       <Show when={seekFeedback()}>
         <View
-          width={1920}
-          height={1080}
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
           display="flex"
           justifyContent="center"
           alignItems="center"
@@ -315,7 +354,7 @@ const PlayerPage = () => {
       <Show when={!state().error}>
         <View
           y={0}
-          width={1920}
+          width={SCREEN_WIDTH}
           height={120}
           color={0x333333ee}
           alpha={controlsVisible() ? 1 : 0}
@@ -339,7 +378,7 @@ const PlayerPage = () => {
 
         <View
           y={880}
-          width={1920}
+          width={SCREEN_WIDTH}
           height={200}
           color={0x333333ee}
           alpha={controlsVisible() ? 1 : 0}

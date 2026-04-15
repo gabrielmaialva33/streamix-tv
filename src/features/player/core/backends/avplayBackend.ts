@@ -1,5 +1,6 @@
 import { createLogger } from "../../../../shared/logging/logger";
 import { getTizen, isTizenRuntime } from "../../../../platform/runtime";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../../../shared/layout";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("AVPlay");
@@ -23,14 +24,25 @@ interface AVPlayHandle {
   setDisplayRect(x: number, y: number, width: number, height: number): void;
   setListener(listener: AVPlayListener): void;
   setStreamingProperty(name: string, value: string): void;
+  setTimeoutForBuffering?(seconds: number): void;
+  setBufferingParam?(option: string, unit: string, amount: number): void;
   prepareAsync(onSuccess: () => void, onError: (error: unknown) => void): void;
   getDuration(): number;
   getCurrentTime(): number;
   getState(): AVPlayStateValue;
+  getSubState?(): AVPlayStateValue;
   play(): void;
   pause(): void;
   seekTo(positionMs: number): void;
   stop(): void;
+  suspend?(): void;
+  restoreAsync?(
+    url?: string,
+    resumeTime?: number,
+    prepare?: boolean,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ): void;
 }
 
 interface AVPlayBackendDeps {
@@ -45,6 +57,11 @@ interface WebApisRuntime {
 }
 
 let timeUpdateInterval: number | null = null;
+let activeDeps: AVPlayBackendDeps | null = null;
+let activeUrl: string | null = null;
+let suspendedAtMs = 0;
+let shouldResumePlayback = false;
+let isSuspended = false;
 
 function getAVPlay(): AVPlayHandle | null {
   return (globalThis as WebApisRuntime).webapis?.avplay ?? null;
@@ -70,11 +87,38 @@ function createListener(deps: AVPlayBackendDeps): AVPlayListener {
   };
 }
 
+function applyDisplaySettings(avplay: AVPlayHandle) {
+  try {
+    avplay.setDisplayMethod("PLAYER_DISPLAY_MODE_FULL_SCREEN");
+  } catch (error) {
+    logger.warn("Failed to set display method", error);
+  }
+
+  avplay.setDisplayRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+}
+
+function applyBufferingPolicy(avplay: AVPlayHandle) {
+  try {
+    avplay.setTimeoutForBuffering?.(12);
+  } catch (error) {
+    logger.warn("Failed to set buffering timeout", error);
+  }
+
+  try {
+    avplay.setBufferingParam?.("PLAYER_BUFFER_FOR_PLAY", "PLAYER_BUFFER_SIZE_IN_SECOND", 3);
+    avplay.setBufferingParam?.("PLAYER_BUFFER_FOR_RESUME", "PLAYER_BUFFER_SIZE_IN_SECOND", 2);
+  } catch (error) {
+    logger.warn("Failed to set buffering parameters", error);
+  }
+}
+
 export function hasAVPlaySupport() {
   return isTizenRuntime() && !!getAVPlay();
 }
 
 export function initAVPlayBackend(deps: AVPlayBackendDeps) {
+  activeDeps = deps;
+
   if (timeUpdateInterval || typeof window === "undefined") {
     return;
   }
@@ -102,6 +146,12 @@ export async function loadAVPlay(url: string, deps: AVPlayBackendDeps) {
     throw new Error("AVPlay is not available");
   }
 
+  activeDeps = deps;
+  activeUrl = url;
+  suspendedAtMs = 0;
+  shouldResumePlayback = false;
+  isSuspended = false;
+
   try {
     try {
       avplay.close();
@@ -110,15 +160,9 @@ export async function loadAVPlay(url: string, deps: AVPlayBackendDeps) {
     }
 
     avplay.open(url);
-
-    try {
-      avplay.setDisplayMethod("PLAYER_DISPLAY_MODE_FULL_SCREEN");
-    } catch (error) {
-      logger.warn("Failed to set display method", error);
-    }
-
-    avplay.setDisplayRect(0, 0, 1920, 1080);
+    applyDisplaySettings(avplay);
     avplay.setListener(createListener(deps));
+    applyBufferingPolicy(avplay);
 
     if (url.includes(".m3u8")) {
       try {
@@ -168,6 +212,7 @@ export function playAVPlay(updateState: (updates: Partial<PlayerState>) => void)
     const currentState = avplay.getState();
     if (currentState === "PAUSED" || currentState === "READY") {
       avplay.play();
+      shouldResumePlayback = true;
       updateState({ playing: true });
     }
   } catch (error) {
@@ -184,6 +229,7 @@ export function pauseAVPlay(updateState: (updates: Partial<PlayerState>) => void
 
     if (avplay.getState() === "PLAYING") {
       avplay.pause();
+      shouldResumePlayback = false;
       updateState({ playing: false });
     }
   } catch (error) {
@@ -215,6 +261,97 @@ export function seekToAVPlay(positionSeconds: number) {
   }
 }
 
+export function suspendAVPlay(updateState: (updates: Partial<PlayerState>) => void) {
+  try {
+    const avplay = getAVPlay();
+    if (!avplay?.suspend || !activeUrl) {
+      return false;
+    }
+
+    const currentState = avplay.getState();
+    if (currentState !== "READY" && currentState !== "PLAYING" && currentState !== "PAUSED") {
+      return false;
+    }
+
+    suspendedAtMs = avplay.getCurrentTime();
+    shouldResumePlayback = currentState === "PLAYING";
+    avplay.suspend();
+    isSuspended = true;
+    updateState({ playing: false, buffering: false });
+
+    try {
+      getTizen()?.power?.release("SCREEN");
+    } catch (error) {
+      logger.warn("Failed to release wake lock during suspend", error);
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("Failed to suspend AVPlay", error);
+    return false;
+  }
+}
+
+export async function restoreAVPlay(updateState: (updates: Partial<PlayerState>) => void) {
+  const avplay = getAVPlay();
+  if (!avplay?.restoreAsync || !activeUrl || !isSuspended) {
+    return false;
+  }
+
+  const restoreAsync = avplay.restoreAsync;
+  const activeSourceUrl = activeUrl;
+
+  return new Promise<boolean>(resolve => {
+    try {
+      restoreAsync.call(
+        avplay,
+        activeSourceUrl,
+        suspendedAtMs,
+        true,
+        () => {
+          applyDisplaySettings(avplay);
+          applyBufferingPolicy(avplay);
+
+          if (activeDeps) {
+            avplay.setListener(createListener(activeDeps));
+          }
+
+          if (shouldResumePlayback && avplay.getState() !== "PLAYING") {
+            avplay.play();
+          }
+
+          isSuspended = false;
+          updateState({
+            duration: avplay.getDuration() / 1000,
+            currentTime: suspendedAtMs / 1000,
+            ready: true,
+            buffering: false,
+            error: null,
+            playing: shouldResumePlayback,
+          });
+
+          try {
+            getTizen()?.power?.request("SCREEN", "SCREEN_NORMAL");
+          } catch (error) {
+            logger.warn("Failed to reacquire wake lock", error);
+          }
+
+          resolve(true);
+        },
+        error => {
+          logger.error("Failed to restore AVPlay session", error);
+          isSuspended = false;
+          resolve(false);
+        },
+      );
+    } catch (error) {
+      logger.error("Failed to call AVPlay restoreAsync", error);
+      isSuspended = false;
+      resolve(false);
+    }
+  });
+}
+
 export function destroyAVPlayBackend() {
   if (timeUpdateInterval) {
     clearInterval(timeUpdateInterval);
@@ -235,6 +372,12 @@ export function destroyAVPlayBackend() {
   } catch {
     // Best-effort cleanup.
   }
+
+  activeDeps = null;
+  activeUrl = null;
+  suspendedAtMs = 0;
+  shouldResumePlayback = false;
+  isSuspended = false;
 
   try {
     getTizen()?.power?.release("SCREEN");

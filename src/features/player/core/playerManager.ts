@@ -7,8 +7,10 @@ import {
   loadAVPlay,
   pauseAVPlay,
   playAVPlay,
+  restoreAVPlay,
   seekAVPlay,
   seekToAVPlay,
+  suspendAVPlay,
 } from "./backends/avplayBackend";
 import {
   destroyHTML5Backend,
@@ -115,6 +117,22 @@ function seekTo(positionSeconds: number) {
   seekToHTML5(positionSeconds, state.duration);
 }
 
+function suspend() {
+  if (currentBackend !== "avplay") {
+    return false;
+  }
+
+  return suspendAVPlay(updateState);
+}
+
+async function restore() {
+  if (currentBackend !== "avplay") {
+    return false;
+  }
+
+  return restoreAVPlay(updateState);
+}
+
 async function destroy() {
   destroyAVPlayBackend();
   destroyHTML5Backend();
@@ -150,6 +168,8 @@ export const PlayerManager = {
   togglePlayPause,
   seek,
   seekTo,
+  suspend,
+  restore,
   getCurrentTime,
   getDuration,
   getState,
