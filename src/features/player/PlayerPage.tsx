@@ -5,6 +5,8 @@ import { history } from "../../lib/storage";
 import { theme } from "../../styles";
 import { createLogger } from "../../shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../shared/layout";
+import api from "@/lib/api";
+import { authState } from "@/features/auth/auth";
 import PlayerManager, { type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
 import { type PlayerType, resolvePlayerSource } from "./stream";
@@ -84,6 +86,21 @@ const PlayerPage = () => {
       progress: Math.min(100, (currentTime / duration) * 100),
       currentTime,
       duration,
+      episodeId: params.type === "series" ? params.id : undefined,
+    });
+
+    if (!authState.isAuthenticated()) {
+      return;
+    }
+
+    const remoteType =
+      params.type === "channel" ? "live_channel" : params.type === "series" ? "episode" : "movie";
+    void api.upsertHistory({
+      type: remoteType,
+      content_id: params.id,
+      progress_seconds: Math.floor(currentTime),
+      duration_seconds: Math.floor(duration),
+      completed: currentTime / duration >= 0.95,
     });
   }
 
