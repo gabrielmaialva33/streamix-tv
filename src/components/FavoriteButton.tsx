@@ -18,6 +18,7 @@ const ButtonStyle = {
     color: { duration: 150 },
     scale: { duration: 150 },
   },
+  scale: 1,
   $focus: {
     color: theme.surfaceHover,
     border: { color: theme.primary, width: 2 },
@@ -32,7 +33,6 @@ export interface FavoriteButtonProps extends NodeProps {
 
 const FavoriteButton = (props: FavoriteButtonProps) => {
   const [isFavorite, setIsFavorite] = createSignal(favorites.isFavorite(props.item.id, props.item.type));
-  const [feedbackMessage, setFeedbackMessage] = createSignal<string | null>(null);
   const [feedbackTone, setFeedbackTone] = createSignal<"neutral" | "warning" | "success">("neutral");
   let feedbackTimeout: number | null = null;
 
@@ -41,8 +41,7 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
     setIsFavorite(favorites.isFavorite(props.item.id, props.item.type));
   });
 
-  function showFeedback(message: string, tone: "neutral" | "warning" | "success" = "neutral") {
-    setFeedbackMessage(message);
+  function showFeedback(_message: string, tone: "neutral" | "warning" | "success" = "neutral") {
     setFeedbackTone(tone);
 
     if (feedbackTimeout) {
@@ -50,31 +49,9 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
     }
 
     feedbackTimeout = window.setTimeout(() => {
-      setFeedbackMessage(null);
+      setFeedbackTone("neutral");
       feedbackTimeout = null;
     }, 2200);
-  }
-
-  function getFeedbackColor() {
-    switch (feedbackTone()) {
-      case "success":
-        return 0x14311dff;
-      case "warning":
-        return 0x3a1b1eff;
-      default:
-        return 0x20202bff;
-    }
-  }
-
-  function getFeedbackTextColor() {
-    switch (feedbackTone()) {
-      case "success":
-        return 0x9cf2b0ff;
-      case "warning":
-        return 0xffb4b4ff;
-      default:
-        return 0xffffffff;
-    }
   }
 
   const handleToggle = () => {
@@ -109,42 +86,49 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
   };
 
   return (
-    <View {...props} width={220} height={58} style={ButtonStyle} onEnter={handleToggle} forwardStates>
+    <View
+      {...props}
+      width={220}
+      height={58}
+      style={ButtonStyle}
+      color={
+        feedbackTone() === "success"
+          ? 0x15261cff
+          : feedbackTone() === "warning"
+            ? 0x2e171bff
+            : theme.surfaceLight
+      }
+      border={{
+        color:
+          feedbackTone() === "success"
+            ? 0x2d8f4eff
+            : feedbackTone() === "warning"
+              ? 0xb85c5cff
+              : theme.border,
+        width: 2,
+      }}
+      onEnter={handleToggle}
+      forwardStates
+    >
       <Text
         width={188}
         fontSize={20}
         fontWeight={700}
-        color={isFavorite() ? theme.primary : theme.textPrimary}
+        color={
+          feedbackTone() === "success"
+            ? 0x9cf2b0ff
+            : feedbackTone() === "warning"
+              ? 0xffb4b4ff
+              : isFavorite()
+                ? theme.primary
+                : theme.textPrimary
+        }
         textAlign="center"
         contain="width"
         maxLines={1}
       >
-        {isFavorite() ? "Na minha lista" : "Adicionar a lista"}
+        {isFavorite() ? "Na minha lista" : "Salvar"}
       </Text>
-
-      {feedbackMessage() ? (
-        <View
-          x={0}
-          y={68}
-          width={220}
-          height={40}
-          color={getFeedbackColor()}
-          borderRadius={20}
-          border={{ color: 0x3a3a48ff, width: 1 }}
-          skipFocus
-        >
-          <Text
-            y={12}
-            width={220}
-            fontSize={14}
-            color={getFeedbackTextColor()}
-            textAlign="center"
-            maxLines={1}
-          >
-            {feedbackMessage() || ""}
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 };

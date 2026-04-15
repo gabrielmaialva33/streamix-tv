@@ -1,4 +1,5 @@
 import {
+  ElementNode,
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
   type NodeProps,
@@ -24,6 +25,7 @@ const PlayButtonStyle = {
     color: { duration: 150 },
     scale: { duration: 150 },
   },
+  scale: 1,
   $focus: {
     color: 0xffffffff,
     border: { color: 0xffffffff, width: 2 },
@@ -44,6 +46,7 @@ const InfoButtonStyle = {
     color: { duration: 150 },
     scale: { duration: 150 },
   },
+  scale: 1,
   $focus: {
     color: 0xffffffff,
     border: { color: theme.primaryLight, width: 2 },
@@ -99,8 +102,18 @@ function heroMeta(item?: FeaturedItem) {
 }
 
 const Hero = (props: HeroProps) => {
+  let playButton: ElementNode | undefined;
+
   return (
-    <View {...props} width={CONTENT_WIDTH} height={600}>
+    <View
+      {...props}
+      width={CONTENT_WIDTH}
+      height={600}
+      forwardFocus={() => {
+        playButton?.setFocus();
+        return true;
+      }}
+    >
       <Show when={heroBackdrop(props.item)}>
         <View
           x={0}
@@ -110,6 +123,7 @@ const Hero = (props: HeroProps) => {
           width={CONTENT_WIDTH}
           height={600}
           borderRadius={16}
+          textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.28 } }}
           zIndex={0}
         />
       </Show>
@@ -123,7 +137,7 @@ const Hero = (props: HeroProps) => {
           borderRadius={16}
           shader={{
             type: "linearGradient",
-            colors: [0x06070dff, 0x06070dbb, 0x06070d11],
+            colors: [0x06070dff, 0x06070de8, 0x06070d44],
             angle: 0,
           }}
           zIndex={1}
@@ -139,7 +153,7 @@ const Hero = (props: HeroProps) => {
           borderRadius={16}
           shader={{
             type: "linearGradient",
-            colors: [0x06070d00, 0x06070d55, 0x06070dff],
+            colors: [0x06070d00, 0x06070d88, 0x06070dff],
             angle: 180,
           }}
           zIndex={1}
@@ -158,9 +172,21 @@ const Hero = (props: HeroProps) => {
         />
       </Show>
 
-      <View x={SAFE_AREA_X + 12} y={218} width={860} zIndex={2}>
+      <View
+        x={SAFE_AREA_X + 12}
+        y={168}
+        width={820}
+        height={336}
+        color={0x0b0c12d8}
+        borderRadius={24}
+        border={{ color: 0x20232eff, width: 1 }}
+        zIndex={2}
+        skipFocus
+      />
+
+      <View x={SAFE_AREA_X + 44} y={200} width={748} zIndex={3} skipFocus>
         <Show when={heroMeta(props.item).length > 0}>
-          <View y={0} width={860} height={36} skipFocus>
+          <View y={0} width={748} height={36} skipFocus>
             <Show when={heroMeta(props.item)[0]}>
               <Text fontSize={18} color={0xffd166ff} maxLines={1}>
                 {heroMeta(props.item).join(" • ")}
@@ -174,7 +200,7 @@ const Hero = (props: HeroProps) => {
           fontWeight={700}
           color={0xffffffff}
           contain="width"
-          width={800}
+          width={748}
           textOverflow="ellipsis"
           maxLines={2}
           y={heroMeta(props.item).length > 0 ? 38 : 0}
@@ -184,23 +210,25 @@ const Hero = (props: HeroProps) => {
 
         <Show when={props.item?.description || props.item?.plot}>
           <Text
-            y={heroMeta(props.item).length > 0 ? 178 : 140}
-            fontSize={24}
-            color={0xccccccff}
+            y={heroMeta(props.item).length > 0 ? 172 : 138}
+            fontSize={23}
+            color={0xe7e7ecff}
             contain="both"
-            width={740}
+            width={700}
             textOverflow="ellipsis"
-            maxLines={4}
-            lineHeight={34}
+            maxLines={3}
+            lineHeight={33}
           >
             {props.item?.description || props.item?.plot}
           </Text>
         </Show>
 
-        <View y={heroMeta(props.item).length > 0 ? 330 : 292} display="flex" gap={20}>
+        <View y={heroMeta(props.item).length > 0 ? 286 : 252} display="flex" gap={20}>
           <View
+            ref={playButton}
             style={PlayButtonStyle}
             forwardStates
+            autofocus
             onEnter={() => {
               props.onPlay?.();
               return true;

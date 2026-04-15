@@ -15,6 +15,7 @@ const CardImageStyle = {
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
+  scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
     scale: 1.03,
@@ -29,6 +30,7 @@ const PlaceholderStyle = {
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
+  scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
     scale: 1.03,

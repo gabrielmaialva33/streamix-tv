@@ -21,6 +21,7 @@ const TabStyle = {
     color: { duration: 150 },
     scale: { duration: 150 },
   },
+  scale: 1,
   $focus: {
     color: theme.primary,
     scale: 1.05,
