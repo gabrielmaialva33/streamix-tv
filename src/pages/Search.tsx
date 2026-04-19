@@ -210,7 +210,7 @@ const Search = () => {
               ref={suggestionsColumn}
               x={560}
               y={170}
-              width={1120}
+              width={1100}
               height={860}
               gap={8}
               scroll="auto"
@@ -235,13 +235,11 @@ const Search = () => {
                   const hasItem = () => !!item();
                   return (
                     <View
-                      width={1120}
+                      width={1100}
                       height={72}
                       color={theme.surface}
                       borderRadius={14}
                       border={{ color: theme.border, width: 1 }}
-                      display="flex"
-                      alignItems="center"
                       transition={{
                         alpha: { duration: 150 },
                         color: { duration: 120 },
@@ -258,8 +256,6 @@ const Search = () => {
                       onEnter={() => {
                         const picked = item();
                         if (!picked) return true;
-                        // Transition so the results resource goes pending
-                        // without flashing the Suspense fallback.
                         startTransition(() => {
                           setQuery(picked.title);
                           setSearchTriggered(true);
@@ -269,8 +265,8 @@ const Search = () => {
                       }}
                     >
                       <Text
-                        x={20}
-                        y={20}
+                        x={24}
+                        y={22}
                         fontSize={22}
                         fontWeight={700}
                         color={theme.textPrimary}
@@ -280,7 +276,16 @@ const Search = () => {
                       >
                         {item()?.title ?? ""}
                       </Text>
-                      <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
+                      <Text
+                        x={880}
+                        y={26}
+                        width={200}
+                        fontSize={16}
+                        color={theme.textMuted}
+                        textAlign="right"
+                        contain="width"
+                        maxLines={1}
+                      >
                         {(() => {
                           const it = item();
                           if (!it) return "";
