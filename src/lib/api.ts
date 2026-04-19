@@ -249,6 +249,7 @@ export interface Series {
   poster_w240?: string | null;
   poster_w480?: string | null;
   poster_w720?: string | null;
+  youtube_trailer?: string | null;
 }
 
 export interface Season {

@@ -113,7 +113,7 @@ function heroBackdrop(item?: FeaturedItem, detail?: Movie | Series | null) {
     pickBestBackdrop(detail?.backdrop) ||
     pickBestBackdrop(item?.backdrop) ||
     upgradeTmdbSize(item?.backdrop_url) ||
-    youtubeThumb((detail as Movie | Series | undefined)?.youtube_trailer) ||
+    youtubeThumb(detail?.youtube_trailer) ||
     upgradeTmdbSize(item?.poster_url) ||
     upgradeTmdbSize(item?.poster) ||
     undefined;
