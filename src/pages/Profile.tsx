@@ -7,22 +7,23 @@ import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ActionButtonStyle = {
-  width: 360,
-  height: 64,
-  borderRadius: 14,
+  width: 420,
+  height: 72,
+  borderRadius: 16,
   color: theme.surface,
-  border: { color: theme.border, width: 1 },
+  border: { color: theme.border, width: 2 },
   display: "flex",
+  justifyContent: "center",
   alignItems: "center",
   transition: {
-    color: { duration: 150 },
-    scale: { duration: 150 },
+    color: { duration: 180 },
+    scale: { duration: 180 },
   },
   scale: 1,
   $focus: {
     color: theme.primary,
-    border: { color: theme.primary, width: 2 },
-    scale: 1.02,
+    border: { color: theme.primaryLight, width: 2 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -112,9 +113,14 @@ const Profile = () => {
       </Row>
 
       {/* Actions */}
-      <Column ref={actionsColumn} x={60} y={420} width={360} height={500} gap={16} autofocus scroll="none">
+      <View x={60} y={420} width={1580} skipFocus>
+        <Text fontSize={16} color={theme.textMuted} width={1580}>
+          Sessão
+        </Text>
+      </View>
+      <Column ref={actionsColumn} x={60} y={460} width={420} height={500} gap={16} autofocus scroll="none">
         <View style={ActionButtonStyle} onEnter={handleSignOut}>
-          <Text x={22} fontSize={20} fontWeight={700} color={theme.textPrimary}>
+          <Text fontSize={22} fontWeight={700} color={theme.textPrimary}>
             Sair da conta
           </Text>
         </View>

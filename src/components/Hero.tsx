@@ -9,7 +9,7 @@ import {
 import { createMemo, createResource, Show } from "solid-js";
 import api, { type FeaturedItem, type Movie, type Series } from "../lib/api";
 import { pickBackdrop, proxyBackdropUrl } from "../lib/imageUrl";
-import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
+import { CONTENT_WIDTH, SAFE_AREA_X } from "../shared/layout";
 import { theme } from "../styles";
 
 // Hero button styles with $focus
@@ -263,9 +263,10 @@ const Hero = (props: HeroProps) => {
           const title = () => props.item?.title || "Bem-vindo ao Streamix";
           const dynamicFontSize = () => {
             const len = title().length;
-            if (len <= 24) return 56;
-            if (len <= 36) return 46;
-            return 38;
+            if (len <= 20) return 54;
+            if (len <= 30) return 44;
+            if (len <= 44) return 36;
+            return 30;
           };
           return (
             <Text
@@ -335,25 +336,6 @@ const Hero = (props: HeroProps) => {
           </View>
         </View>
       </View>
-
-      <Show when={props.item?.type}>
-        <View
-          x={CONTENT_WIDTH - 160}
-          y={SAFE_AREA_Y}
-          width={120}
-          height={36}
-          color={0xe5091499}
-          borderRadius={18}
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          zIndex={2}
-        >
-          <Text fontSize={16} fontWeight={700} color={0xffffffff}>
-            {props.item!.type.toUpperCase()}
-          </Text>
-        </View>
-      </Show>
     </View>
   );
 };

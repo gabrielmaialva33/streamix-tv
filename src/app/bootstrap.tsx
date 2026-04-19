@@ -25,7 +25,7 @@ export async function bootstrapApp() {
     logger.warn("Device initialization failed", error);
   }
 
-  const { render, renderer } = getAppRenderer();
+  const { render } = getAppRenderer();
 
   render(() => (
     <FocusStackProvider>

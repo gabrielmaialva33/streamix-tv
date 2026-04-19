@@ -47,6 +47,13 @@ function channelColorFromName(name: string): number {
   return PLACEHOLDER_COLORS[Math.abs(hash) % PLACEHOLDER_COLORS.length];
 }
 
+// Strip tag prefixes like "[24H] ", "[L] ", "[4K] " before pulling the first
+// letter — otherwise every "[24H] X" channel shows "[" as its placeholder.
+function channelInitial(name: string): string {
+  const stripped = name.replace(/^\s*(\[[^\]]*\]\s*)+/, "").trim();
+  return (stripped || name).trim().charAt(0).toUpperCase() || "?";
+}
+
 const Channels = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
@@ -244,7 +251,7 @@ const Channels = () => {
                             alignItems="center"
                           >
                             <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                              {channel.name.trim().charAt(0).toUpperCase() || "?"}
+                              {channelInitial(channel.name)}
                             </Text>
                           </View>
                         }
