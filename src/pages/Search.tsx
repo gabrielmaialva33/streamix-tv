@@ -3,7 +3,7 @@ import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
-import api, { type Channel, type Movie, type SearchResults, type Series } from "../lib/api";
+import api, { type Channel, type Movie, type Series } from "../lib/api";
 import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
