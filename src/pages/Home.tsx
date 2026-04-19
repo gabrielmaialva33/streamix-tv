@@ -118,159 +118,137 @@ const Home = () => {
   };
 
   return (
-    <View
-      width={1700}
-      height={1080}
-      color={theme.background}
-      forwardFocus={() => {
-        hero?.setFocus();
-        return true;
-      }}
-    >
-      <Hero
-        ref={hero}
-        item={currentFeatured()}
-        onPlay={handlePlayFeatured}
-        onInfo={handleInfoFeatured}
-        onDownRequest={() => {
-          railsColumn?.setFocus();
-          return true;
+    <View width={1700} height={1080} color={theme.background} clipping forwardFocus={0}>
+      <Column
+        ref={railsColumn}
+        width={1700}
+        height={1080}
+        gap={28}
+        scroll="auto"
+        forwardFocus={0}
+        onDown={() => {
+          // Any downward nav reveals all rails at once so scroll has somewhere
+          // to go. Without this the stagger keeps later rails unmounted and
+          // the Column appears to freeze at the last visible child.
+          setRailTick(4);
+          return false;
         }}
-      />
+      >
+        <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
+        <Show when={recommendedMovies()?.recommendations?.length}>
+          <ContentRow
+            title="Para você"
+            onSelectedChanged={index => {
+              const movie = recommendedMovies()?.recommendations?.[index];
+              if (movie) api.prefetchMovie(String(movie.id));
+            }}
+            onItemSelected={item => navigate(item.href)}
+          >
+            <For each={recommendedMovies()?.recommendations || []}>
+              {(movie: RecommendationItem) => (
+                <Card
+                  title={movie.title || movie.name || ""}
+                  imageUrl={recommendationPoster(movie)}
+                  subtitle={recommendationCaption(movie)}
+                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                />
+              )}
+            </For>
+          </ContentRow>
+        </Show>
 
-      <View x={0} y={620} width={1700} height={460} clipping forwardFocus={0}>
-        <Column
-          ref={railsColumn}
-          width={1700}
-          height={460}
-          gap={28}
-          scroll="auto"
-          forwardFocus={0}
-          onUp={function (this: ElementNode) {
-            // Only escape to the hero from the first rail. Otherwise let the
-            // Column's built-in vertical nav move between rails.
-            if ((this.selected ?? 0) === 0) {
-              hero?.setFocus();
-              return true;
-            }
-            return false;
-          }}
-        >
-          <Show when={recommendedMovies()?.recommendations?.length}>
-            <ContentRow
-              title="Para você"
-              onSelectedChanged={index => {
-                const movie = recommendedMovies()?.recommendations?.[index];
-                if (movie) api.prefetchMovie(String(movie.id));
-              }}
-              onItemSelected={item => navigate(item.href)}
-            >
-              <For each={recommendedMovies()?.recommendations || []}>
-                {(movie: RecommendationItem) => (
-                  <Card
-                    title={movie.title || movie.name || ""}
-                    imageUrl={recommendationPoster(movie)}
-                    subtitle={recommendationCaption(movie)}
-                    item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                  />
-                )}
-              </For>
-            </ContentRow>
-          </Show>
+        <Show when={trendingMovies()?.length}>
+          <ContentRow
+            title="Em alta"
+            onSelectedChanged={index => {
+              const movie = trendingMovies()?.[index];
+              if (movie) api.prefetchMovie(String(movie.id));
+            }}
+            onItemSelected={item => navigate(item.href)}
+          >
+            <For each={trendingMovies()}>
+              {(movie: Movie) => (
+                <Card
+                  title={movie.title || movie.name || ""}
+                  imageUrl={pickPoster(movie, 240)}
+                  subtitle={movieCaption(movie)}
+                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                />
+              )}
+            </For>
+          </ContentRow>
+        </Show>
 
-          <Show when={trendingMovies()?.length}>
-            <ContentRow
-              title="Em alta"
-              onSelectedChanged={index => {
-                const movie = trendingMovies()?.[index];
-                if (movie) api.prefetchMovie(String(movie.id));
-              }}
-              onItemSelected={item => navigate(item.href)}
-            >
-              <For each={trendingMovies()}>
-                {(movie: Movie) => (
-                  <Card
-                    title={movie.title || movie.name || ""}
-                    imageUrl={pickPoster(movie, 240)}
-                    subtitle={movieCaption(movie)}
-                    item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                  />
-                )}
-              </For>
-            </ContentRow>
-          </Show>
+        <Show when={railTick() >= 1 && recentMovies()?.length}>
+          <ContentRow
+            title="Chegaram agora"
+            onSelectedChanged={index => {
+              const movie = recentMovies()?.[index];
+              if (movie) api.prefetchMovie(String(movie.id));
+            }}
+            onItemSelected={item => navigate(item.href)}
+          >
+            <For each={recentMovies()}>
+              {(movie: Movie) => (
+                <Card
+                  title={movie.title || movie.name || ""}
+                  imageUrl={pickPoster(movie, 240)}
+                  subtitle={movieCaption(movie)}
+                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                />
+              )}
+            </For>
+          </ContentRow>
+        </Show>
 
-          <Show when={railTick() >= 1 && recentMovies()?.length}>
-            <ContentRow
-              title="Chegaram agora"
-              onSelectedChanged={index => {
-                const movie = recentMovies()?.[index];
-                if (movie) api.prefetchMovie(String(movie.id));
-              }}
-              onItemSelected={item => navigate(item.href)}
-            >
-              <For each={recentMovies()}>
-                {(movie: Movie) => (
-                  <Card
-                    title={movie.title || movie.name || ""}
-                    imageUrl={pickPoster(movie, 240)}
-                    subtitle={movieCaption(movie)}
-                    item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                  />
-                )}
-              </For>
-            </ContentRow>
-          </Show>
+        <Show when={railTick() >= 2 && topRatedMovies()?.length}>
+          <ContentRow
+            title="Mais elogiados"
+            onSelectedChanged={index => {
+              const movie = topRatedMovies()?.[index];
+              if (movie) api.prefetchMovie(String(movie.id));
+            }}
+            onItemSelected={item => navigate(item.href)}
+          >
+            <For each={topRatedMovies()}>
+              {(movie: Movie) => (
+                <Card
+                  title={movie.title || movie.name || ""}
+                  imageUrl={pickPoster(movie, 240)}
+                  subtitle={movieCaption(movie)}
+                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                />
+              )}
+            </For>
+          </ContentRow>
+        </Show>
 
-          <Show when={railTick() >= 2 && topRatedMovies()?.length}>
-            <ContentRow
-              title="Mais elogiados"
-              onSelectedChanged={index => {
-                const movie = topRatedMovies()?.[index];
-                if (movie) api.prefetchMovie(String(movie.id));
-              }}
-              onItemSelected={item => navigate(item.href)}
-            >
-              <For each={topRatedMovies()}>
-                {(movie: Movie) => (
-                  <Card
-                    title={movie.title || movie.name || ""}
-                    imageUrl={pickPoster(movie, 240)}
-                    subtitle={movieCaption(movie)}
-                    item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                  />
-                )}
-              </For>
-            </ContentRow>
-          </Show>
+        <Show when={railTick() >= 3 && trendingSeries()?.length}>
+          <ContentRow
+            title="Séries em alta"
+            onSelectedChanged={index => {
+              const show = trendingSeries()?.[index];
+              if (show) api.prefetchSeries(String(show.id));
+            }}
+            onItemSelected={item => navigate(item.href)}
+          >
+            <For each={trendingSeries()}>
+              {(show: Series) => (
+                <Card
+                  title={show.title || show.name || ""}
+                  imageUrl={pickPoster(show, 240)}
+                  subtitle={show.year ? String(show.year) : undefined}
+                  item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
+                />
+              )}
+            </For>
+          </ContentRow>
+        </Show>
 
-          <Show when={railTick() >= 3 && trendingSeries()?.length}>
-            <ContentRow
-              title="Séries em alta"
-              onSelectedChanged={index => {
-                const show = trendingSeries()?.[index];
-                if (show) api.prefetchSeries(String(show.id));
-              }}
-              onItemSelected={item => navigate(item.href)}
-            >
-              <For each={trendingSeries()}>
-                {(show: Series) => (
-                  <Card
-                    title={show.title || show.name || ""}
-                    imageUrl={pickPoster(show, 240)}
-                    subtitle={show.year ? String(show.year) : undefined}
-                    item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
-                  />
-                )}
-              </For>
-            </ContentRow>
-          </Show>
-
-          <Show when={railTick() >= 4}>
-            <ContinueWatchingRow limit={10} />
-          </Show>
-        </Column>
-      </View>
+        <Show when={railTick() >= 4}>
+          <ContinueWatchingRow limit={10} />
+        </Show>
+      </Column>
     </View>
   );
 };
