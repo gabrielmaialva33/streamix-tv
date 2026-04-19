@@ -22,6 +22,10 @@ export default defineConfig(({ mode }) => {
         include: ["src/**/*.{ts,tsx,js,jsx}"],
       }),
       solidPlugin({
+        // Restrict Babel/JSX transform to our own source. Without an include
+        // filter the plugin walks every candidate file the resolver hands it,
+        // which dominated the production build timing chart (~39% of cost).
+        include: ["src/**/*.{tsx,jsx}"],
         solid: {
           moduleName: "@lightningtv/solid",
           generate: "universal",
@@ -47,6 +51,12 @@ export default defineConfig(({ mode }) => {
         "#devices": path.resolve(__dirname, "./devices"),
       },
       dedupe: ["solid-js", "@lightningtv/solid", "@lightningjs/renderer"],
+    },
+    build: {
+      // Tizen 3.0+ runs Chromium 47; the legacy plugin still produces the
+      // compatibility bucket so the modern target just has to out-run legacy.
+      target: "es2020",
+      sourcemap: false,
     },
     optimizeDeps: {
       exclude: ["@lightningtv/solid", "@lightningjs/renderer"],
