@@ -4,6 +4,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Series as SeriesType } from "../lib/api";
+import { pickPoster } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
@@ -248,7 +249,7 @@ const Series = () => {
                   {(show: SeriesType) => (
                     <Card
                       title={show.title || show.name || ""}
-                      imageUrl={loadImages() ? show.poster_url || show.poster || undefined : undefined}
+                      imageUrl={loadImages() ? pickPoster(show, 240) : undefined}
                       subtitle={seriesCaption(show)}
                       onFocus={() => api.prefetchSeries(String(show.id))}
                       onEnter={() => {

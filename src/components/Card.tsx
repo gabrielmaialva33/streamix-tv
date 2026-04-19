@@ -5,9 +5,8 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
-import { createMemo, createSignal, Show } from "solid-js";
-import { proxyImageUrl } from "../lib/imageUrl";
-import { theme } from "../styles";
+import { createSignal, Show } from "solid-js";
+import { theme } from "@/styles";
 
 // Card image container - subtle border that highlights on focus
 const CardImageStyle = {
@@ -84,15 +83,11 @@ const Card = (props: CardProps) => {
   // Show placeholder only if no image or error
   const showPlaceholder = () => !props.imageUrl || imageError();
 
-  // Route through a resizing proxy so A4-sized catalog posters don't blow the
-  // TV's WebGL texture budget (a single 2480x3508 JPEG decodes to ~35MB VRAM).
-  const resizedUrl = createMemo(() => proxyImageUrl(props.imageUrl, width * 2));
-
   return (
     <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
       {/* Card Image with border - show when image URL exists and no error */}
       <Show when={props.imageUrl && !imageError()}>
-        <View src={resizedUrl()} width={width} height={height} color={0xffffffff} style={CardImageStyle} />
+        <View src={props.imageUrl} width={width} height={height} color={0xffffffff} style={CardImageStyle} />
         <View
           y={height - 104}
           width={width}

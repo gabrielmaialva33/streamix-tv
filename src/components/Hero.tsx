@@ -8,7 +8,7 @@ import {
 } from "@lightningtv/solid";
 import { createMemo, createResource, Show } from "solid-js";
 import api, { type FeaturedItem, type Movie, type Series } from "../lib/api";
-import { proxyBackdropUrl } from "../lib/imageUrl";
+import { pickBackdrop, proxyBackdropUrl } from "../lib/imageUrl";
 import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
 import { theme } from "../styles";
 
@@ -102,6 +102,13 @@ function youtubeThumb(videoId?: string | null) {
 }
 
 function heroBackdrop(item?: FeaturedItem, detail?: Movie | Series | null) {
+  // Prefer backend pre-sized variants first (no TMDB round trip on the TV).
+  const preSized = pickBackdrop(detail) || pickBackdrop(item);
+  if (preSized) return preSized;
+
+  // Fall back: pick the nicest raw backdrop, then the trailer thumb, then the
+  // poster. proxyBackdropUrl routes A4 scans through the resize proxy so the
+  // hero texture stays within the TV's WebGL budget.
   const raw =
     pickBestBackdrop(detail?.backdrop) ||
     pickBestBackdrop(item?.backdrop) ||
@@ -110,8 +117,6 @@ function heroBackdrop(item?: FeaturedItem, detail?: Movie | Series | null) {
     upgradeTmdbSize(item?.poster_url) ||
     upgradeTmdbSize(item?.poster) ||
     undefined;
-  // Catalog posters can be full-resolution A4 scans — route everything through
-  // the resize proxy so the hero texture stays within the TV's WebGL budget.
   return proxyBackdropUrl(raw);
 }
 

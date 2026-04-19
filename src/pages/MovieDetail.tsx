@@ -4,7 +4,7 @@ import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
 import api, { type Movie, type RecommendationItem, type SimilarContentItem } from "@/lib/api";
-import { proxyBackdropUrl, proxyImageUrl } from "@/lib/imageUrl";
+import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -70,14 +70,6 @@ function buildMeta(movie?: Movie) {
     movie.content_rating || null,
     movie.genre || null,
   ].filter(Boolean) as string[];
-}
-
-function backdropFor(movie?: Movie) {
-  return movie?.backdrop?.[0] || movie?.backdrop_url || movie?.poster_url || movie?.poster || undefined;
-}
-
-function posterFor(movie?: Movie) {
-  return movie?.poster_url || movie?.poster || movie?.backdrop?.[0] || movie?.backdrop_url || undefined;
 }
 
 type RelatedMovie = SimilarContentItem | RecommendationItem;
@@ -149,8 +141,8 @@ const MovieDetail = () => {
       <Show when={movie()}>
         {currentMovie => {
           const metaItems = buildMeta(currentMovie());
-          const posterUrl = proxyImageUrl(posterFor(currentMovie()), 480);
-          const backdropUrl = proxyBackdropUrl(backdropFor(currentMovie()));
+          const posterUrl = pickPoster(currentMovie(), 480);
+          const backdropUrl = pickBackdrop(currentMovie(), 1280);
 
           return (
             <>

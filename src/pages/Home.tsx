@@ -4,6 +4,7 @@ import { createResource, createSignal, For, onCleanup, onMount, Show } from "sol
 import { useNavigate } from "@solidjs/router";
 import { Card, ContentRow, ContinueWatchingRow, Hero } from "../components";
 import api, { type FeaturedItem, type Movie, type RecommendationItem, type Series } from "../lib/api";
+import { pickPoster } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
 function movieCaption(movie: Movie) {
@@ -19,7 +20,8 @@ function recommendationCaption(item: RecommendationItem) {
 }
 
 function recommendationPoster(item: RecommendationItem) {
-  return item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  return pickPoster({ poster: raw }, 240);
 }
 
 const Home = () => {
@@ -189,7 +191,7 @@ const Home = () => {
                 {(movie: Movie) => (
                   <Card
                     title={movie.title || movie.name || ""}
-                    imageUrl={movie.poster_url || movie.poster || undefined}
+                    imageUrl={pickPoster(movie, 240)}
                     subtitle={movieCaption(movie)}
                     item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                   />
@@ -211,7 +213,7 @@ const Home = () => {
                 {(movie: Movie) => (
                   <Card
                     title={movie.title || movie.name || ""}
-                    imageUrl={movie.poster_url || movie.poster || undefined}
+                    imageUrl={pickPoster(movie, 240)}
                     subtitle={movieCaption(movie)}
                     item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                   />
@@ -233,7 +235,7 @@ const Home = () => {
                 {(movie: Movie) => (
                   <Card
                     title={movie.title || movie.name || ""}
-                    imageUrl={movie.poster_url || movie.poster || undefined}
+                    imageUrl={pickPoster(movie, 240)}
                     subtitle={movieCaption(movie)}
                     item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                   />
@@ -255,7 +257,7 @@ const Home = () => {
                 {(show: Series) => (
                   <Card
                     title={show.title || show.name || ""}
-                    imageUrl={show.poster_url || show.poster || undefined}
+                    imageUrl={pickPoster(show, 240)}
                     subtitle={show.year ? String(show.year) : undefined}
                     item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
                   />

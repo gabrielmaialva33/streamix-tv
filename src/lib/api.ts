@@ -175,8 +175,13 @@ export interface FeaturedItem {
   description?: string;
   poster?: string;
   poster_url?: string;
+  poster_w240?: string | null;
+  poster_w480?: string | null;
+  poster_w720?: string | null;
   backdrop?: string[];
   backdrop_url?: string;
+  backdrop_w720?: string | null;
+  backdrop_w1280?: string | null;
   year?: number | null;
   rating?: number | null;
   genre?: string | null;
@@ -203,6 +208,9 @@ export interface Movie {
   rating: number | null;
   poster: string | null;
   poster_url?: string; // normalized alias for the UI
+  poster_w240?: string | null;
+  poster_w480?: string | null;
+  poster_w720?: string | null;
   // Full detail payload.
   cast?: string | null;
   plot?: string | null;
@@ -214,6 +222,8 @@ export interface Movie {
   youtube_trailer?: string | null;
   backdrop?: string[];
   backdrop_url?: string;
+  backdrop_w720?: string | null;
+  backdrop_w1280?: string | null;
 }
 
 export interface Series {
@@ -232,8 +242,13 @@ export interface Series {
   seasons: Season[];
   backdrop: string[];
   backdrop_url?: string;
+  backdrop_w720?: string | null;
+  backdrop_w1280?: string | null;
   poster: string | null;
   poster_url?: string;
+  poster_w240?: string | null;
+  poster_w480?: string | null;
+  poster_w720?: string | null;
 }
 
 export interface Season {

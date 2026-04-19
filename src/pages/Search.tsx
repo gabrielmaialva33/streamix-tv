@@ -4,7 +4,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import api, { type Channel, type Movie, type SearchResults, type Series } from "../lib/api";
-import { proxyImageUrl } from "../lib/imageUrl";
+import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
 const KEYBOARD_ROWS = [
@@ -184,7 +184,7 @@ const Search = () => {
                   {(movie: Movie) => (
                     <Card
                       title={movie.title || movie.name || ""}
-                      imageUrl={movie.poster_url || movie.poster || undefined}
+                      imageUrl={pickPoster(movie, 240)}
                       subtitle={movie.year?.toString()}
                       width={200}
                       height={300}
@@ -210,7 +210,7 @@ const Search = () => {
                   {(show: Series) => (
                     <Card
                       title={show.title || show.name || ""}
-                      imageUrl={show.poster_url || show.poster || undefined}
+                      imageUrl={pickPoster(show, 240)}
                       subtitle={show.year?.toString()}
                       width={200}
                       height={300}

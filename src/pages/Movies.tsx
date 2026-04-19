@@ -4,6 +4,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Movie } from "../lib/api";
+import { pickPoster } from "../lib/imageUrl";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
@@ -255,7 +256,7 @@ const Movies = () => {
                   {(movie: Movie) => (
                     <Card
                       title={movie.title || movie.name || ""}
-                      imageUrl={loadImages() ? movie.poster_url || movie.poster || undefined : undefined}
+                      imageUrl={loadImages() ? pickPoster(movie, 240) : undefined}
                       subtitle={movieCaption(movie)}
                       onFocus={() => api.prefetchMovie(String(movie.id))}
                       onEnter={() => {

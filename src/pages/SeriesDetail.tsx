@@ -4,7 +4,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
 import api, { type RecommendationItem, type Season, type Series, type SimilarContentItem } from "@/lib/api";
-import { proxyBackdropUrl, proxyImageUrl } from "@/lib/imageUrl";
+import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -72,14 +72,6 @@ function buildMeta(show?: Series) {
     show.season_count ? `${show.season_count} temporadas` : null,
     show.episode_count ? `${show.episode_count} episódios` : null,
   ].filter(Boolean) as string[];
-}
-
-function backdropFor(show?: Series) {
-  return show?.backdrop?.[0] || show?.backdrop_url || show?.poster_url || show?.poster || undefined;
-}
-
-function posterFor(show?: Series) {
-  return show?.poster_url || show?.poster || show?.backdrop?.[0] || show?.backdrop_url || undefined;
 }
 
 function relatedPoster(item: RelatedSeries) {
@@ -163,8 +155,8 @@ const SeriesDetail = () => {
       <Show when={series()}>
         {currentSeries => {
           const metaItems = buildMeta(currentSeries());
-          const posterUrl = proxyImageUrl(posterFor(currentSeries()), 480);
-          const backdropUrl = proxyBackdropUrl(backdropFor(currentSeries()));
+          const posterUrl = pickPoster(currentSeries(), 480);
+          const backdropUrl = pickBackdrop(currentSeries(), 1280);
 
           return (
             <>
