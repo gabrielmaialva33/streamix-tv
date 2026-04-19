@@ -25,7 +25,7 @@ export async function bootstrapApp() {
     logger.warn("Device initialization failed", error);
   }
 
-  const { render } = getAppRenderer();
+  const { render, renderer } = getAppRenderer();
 
   render(() => (
     <FocusStackProvider>
@@ -34,4 +34,33 @@ export async function bootstrapApp() {
       </HashRouter>
     </FocusStackProvider>
   ));
+
+  // Dismiss the HTML splash once Lightning has painted its first frame. We
+  // wait for either an `idle` event from the renderer (canvas settled) or a
+  // safety timeout so a broken init can't leave the splash up forever. The
+  // CSS transition on #splash fades it out smoothly; we remove it from the
+  // DOM afterwards so it can't intercept pointer/key events.
+  const dismissSplash = () => {
+    if (document.body.classList.contains("app-ready")) return;
+    document.body.classList.add("app-ready");
+    setTimeout(() => {
+      document.getElementById("splash")?.remove();
+    }, 500);
+  };
+
+  let dismissed = false;
+  const markReady = () => {
+    if (dismissed) return;
+    dismissed = true;
+    dismissSplash();
+  };
+
+  renderer?.once?.("idle", () => {
+    // One more frame so the Hero/rails have a chance to fill in before we
+    // pull the splash down — avoids a flash of empty background.
+    requestAnimationFrame(() => requestAnimationFrame(markReady));
+  });
+  // Hard safety net: if idle never fires (e.g. init failure), drop splash
+  // after 4s so the user isn't left staring at "CARREGANDO" forever.
+  setTimeout(markReady, 4000);
 }

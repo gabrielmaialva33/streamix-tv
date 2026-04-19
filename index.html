@@ -17,11 +17,135 @@
         height: 1080px;
         background: #0a0a0f;
       }
+
+      /* Splash screen — visible from the very first frame the TV can paint
+         (index.html is served before the JS bundle is parsed). Fades out
+         through the `.app-ready` class added by bootstrap after render(). */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(1200px 800px at 50% 40%, #2a0b14 0%, #0a0a0f 60%), #0a0a0f;
+        opacity: 1;
+        transition: opacity 420ms ease-out;
+        pointer-events: none;
+      }
+      body.app-ready #splash {
+        opacity: 0;
+      }
+
+      #splash .logo-wrap {
+        position: relative;
+        width: 320px;
+        height: 320px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: splash-breathe 3s ease-in-out infinite;
+      }
+
+      #splash .pulse {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2px solid rgba(229, 9, 20, 0.35);
+        animation: splash-pulse 2.4s cubic-bezier(0.2, 0.6, 0.2, 1) infinite;
+      }
+      #splash .pulse.b2 {
+        animation-delay: 0.8s;
+      }
+      #splash .pulse.b3 {
+        animation-delay: 1.6s;
+      }
+
+      #splash .logo {
+        position: relative;
+        width: 180px;
+        height: 180px;
+        filter: drop-shadow(0 0 28px rgba(229, 9, 20, 0.55));
+        animation: splash-fade-in 800ms ease-out both;
+      }
+
+      #splash .wordmark {
+        position: absolute;
+        bottom: 220px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 54px;
+        letter-spacing: 18px;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 0 24px rgba(229, 9, 20, 0.35);
+        animation: splash-fade-in 1000ms 200ms ease-out both;
+      }
+
+      #splash .tagline {
+        position: absolute;
+        bottom: 160px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px;
+        letter-spacing: 6px;
+        color: rgba(255, 255, 255, 0.55);
+        animation: splash-fade-in 1200ms 400ms ease-out both;
+      }
+
+      @keyframes splash-pulse {
+        0% {
+          transform: scale(0.6);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.9;
+        }
+        100% {
+          transform: scale(1.6);
+          opacity: 0;
+        }
+      }
+
+      @keyframes splash-breathe {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.04);
+        }
+      }
+
+      @keyframes splash-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
     </style>
   </head>
 
   <body tabindex="0">
     <div id="app"></div>
+    <div id="splash" aria-hidden="true">
+      <div class="wordmark">STREAMIX</div>
+      <div class="logo-wrap">
+        <div class="pulse"></div>
+        <div class="pulse b2"></div>
+        <div class="pulse b3"></div>
+        <img class="logo" src="assets/streamix-logo.png" alt="" />
+      </div>
+      <div class="tagline">CARREGANDO SEU CATÁLOGO</div>
+    </div>
     <!-- Debug overlay visible on TV when devtools are not available.
  Captures JS errors and console.error/console.warn, then renders on top. -->
     <div
