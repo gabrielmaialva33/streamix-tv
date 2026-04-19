@@ -24,6 +24,8 @@ const Search = () => {
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
 
   let keyboardColumn: ElementNode | undefined;
+  let suggestionsColumn: ElementNode | undefined;
+  let resultsColumn: ElementNode | undefined;
 
   // Live typeahead — fires ~180ms after the last keystroke so each press
   // doesn't hammer the API. Goes silent once OK is pressed (full results
@@ -74,6 +76,27 @@ const Search = () => {
     return (r.movies?.length || 0) + (r.series?.length || 0) + (r.channels?.length || 0);
   };
 
+  // Keep the last resolved suggestion payload visible during refetch so the
+  // suggestions block doesn't blink each keystroke (createResource returns
+  // undefined while refetching). `latest` falls back to the last non-empty
+  // response we saw.
+  const latestSuggestions = () => suggestions.latest ?? null;
+
+  // Shared handler: land on the first focusable result when the user steps
+  // out of the keyboard to the right. Prefers suggestion items first (if
+  // showing), otherwise jumps into the results grid.
+  const focusResults = () => {
+    if (!searchTriggered() && latestSuggestions()?.items?.length) {
+      suggestionsColumn?.setFocus();
+      return true;
+    }
+    if (searchTriggered() && totalResults() > 0) {
+      resultsColumn?.setFocus();
+      return true;
+    }
+    return false;
+  };
+
   return (
     <View
       width={1700}
@@ -83,18 +106,24 @@ const Search = () => {
         return true;
       }}
     >
-      {/* Header */}
-      <View y={30} width={1700} height={60}>
+      {/* Header — fixed band at the top, skipFocus so D-pad never lands here. */}
+      <View y={30} x={20} width={1660} height={60} skipFocus>
         <Text fontSize={42} fontWeight={700} color={0xffffffff}>
           Buscar
         </Text>
-        <Text y={48} fontSize={18} color={theme.textSecondary}>
-          Misture busca direta com descoberta inteligente para achar mais rápido.
-        </Text>
       </View>
 
-      {/* Search Input Display */}
-      <View y={100} width={600} height={60} color={0x1a1a2eff} borderRadius={8}>
+      {/* Search input display — aligned with the keyboard beneath it. */}
+      <View
+        x={20}
+        y={110}
+        width={500}
+        height={60}
+        color={0x1a1a2eff}
+        borderRadius={8}
+        border={{ color: theme.border, width: 1 }}
+        skipFocus
+      >
         <Text x={20} y={15} fontSize={28} color={query() ? 0xffffffff : 0x666666ff}>
           {query() || "Digite para buscar..."}
         </Text>
@@ -102,49 +131,96 @@ const Search = () => {
       </View>
 
       {/* Keyboard */}
-      <Column ref={keyboardColumn} y={180} width={500} height={300} gap={10} autofocus forwardFocus={0}>
+      <Column
+        ref={keyboardColumn}
+        x={20}
+        y={200}
+        width={500}
+        height={320}
+        gap={10}
+        autofocus
+        forwardFocus={0}
+        onRight={focusResults}
+      >
         <For each={KEYBOARD_ROWS}>
           {row => (
-            <Row width={500} height={45} gap={8}>
+            <Row width={500} height={45} gap={8} onRight={focusResults}>
               <For each={row}>{key => <KeyboardKey key={key} onPress={() => handleKey(key)} />}</For>
             </Row>
           )}
         </For>
       </Column>
 
-      {/* Results */}
-      <View x={550} y={100} width={1150} height={950}>
-        {/* Live typeahead while the user is still typing (before OK). */}
-        <Show when={!searchTriggered() && suggestions()?.items?.length}>
-          <View width={1150} height={36} skipFocus>
-            <Text fontSize={16} color={theme.textMuted}>
-              Sugestões enquanto você digita — aperte OK para ver tudo
-            </Text>
-          </View>
-          <Row y={44} width={1150} height={64} gap={10} scroll="auto" skipFocus>
-            <For each={suggestions()!.items.slice(0, 8)}>
-              {item => (
-                <View
-                  width={220}
-                  height={60}
-                  color={theme.surface}
-                  borderRadius={30}
-                  border={{ color: theme.border, width: 1 }}
-                  display="flex"
-                  alignItems="center"
-                  skipFocus
+      {/* Live typeahead column — only while the user is still typing. */}
+      <Show when={!searchTriggered() && (latestSuggestions()?.items?.length ?? 0) > 0}>
+        <View x={560} y={110} width={1120} height={60} skipFocus>
+          <Text fontSize={16} color={theme.textMuted}>
+            Sugestões (aperte OK para ver tudo)
+          </Text>
+        </View>
+        <Column
+          ref={suggestionsColumn}
+          x={560}
+          y={170}
+          width={1120}
+          height={860}
+          gap={8}
+          scroll="auto"
+          clipping
+          onLeft={() => {
+            keyboardColumn?.setFocus();
+            return true;
+          }}
+        >
+          <For each={latestSuggestions()!.items.slice(0, 8)}>
+            {item => (
+              <View
+                width={1120}
+                height={72}
+                color={theme.surface}
+                borderRadius={14}
+                border={{ color: theme.border, width: 1 }}
+                display="flex"
+                alignItems="center"
+                transition={{ color: { duration: 120 }, scale: { duration: 120 } }}
+                scale={1}
+                $focus={{
+                  color: theme.surfaceHover,
+                  border: { color: theme.primary, width: 2 },
+                  scale: 1.01,
+                }}
+                onEnter={() => {
+                  setQuery(item.title);
+                  setSearchTriggered(true);
+                  return true;
+                }}
+              >
+                <Text
+                  x={20}
+                  y={20}
+                  fontSize={22}
+                  fontWeight={700}
+                  color={theme.textPrimary}
+                  width={820}
+                  maxLines={1}
+                  contain="width"
                 >
-                  <Text x={18} y={20} fontSize={16} color={theme.textPrimary} maxLines={1} width={184}>
-                    {item.title}
-                  </Text>
-                </View>
-              )}
-            </For>
-          </Row>
-        </Show>
+                  {item.title}
+                </Text>
+                <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
+                  {item.type === "movie" ? "Filme" : item.type === "series" ? "Série" : "Canal"}
+                  {item.year ? ` · ${item.year}` : ""}
+                </Text>
+              </View>
+            )}
+          </For>
+        </Column>
+      </Show>
 
+      {/* Results — full ranked payload after OK. */}
+      <View x={560} y={170} width={1120} height={890} skipFocus>
         <Show when={results.loading}>
-          <View width={1150} height={400} display="flex" justifyContent="center" alignItems="center">
+          <View width={1120} height={400} display="flex" justifyContent="center" alignItems="center">
             <Text fontSize={28} color={0x888888ff}>
               Buscando...
             </Text>
@@ -152,94 +228,101 @@ const Search = () => {
         </Show>
 
         <Show when={searchTriggered() && !results.loading && totalResults() === 0}>
-          <View width={1150} height={400} display="flex" justifyContent="center" alignItems="center">
+          <View width={1120} height={400} display="flex" justifyContent="center" alignItems="center">
             <Text fontSize={28} color={0x888888ff}>
               Nenhum resultado encontrado
             </Text>
           </View>
         </Show>
 
-        <Column
-          y={suggestions()?.items?.length && !searchTriggered() ? 120 : 0}
-          width={1150}
-          height={suggestions()?.items?.length && !searchTriggered() ? 830 : 950}
-          gap={30}
-          scroll="always"
-        >
-          {/* Movies */}
-          <Show when={results()?.movies?.length}>
-            <View width={1150} height={450}>
-              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                {`Filmes (${results()!.movies.length})`}
-              </Text>
-              <Row y={40} width={1150} height={400} gap={15}>
-                <For each={results()!.movies.slice(0, 4)}>
-                  {(movie: Movie) => (
-                    <Card
-                      title={movie.title || movie.name || ""}
-                      imageUrl={pickPoster(movie, 240)}
-                      subtitle={movie.year?.toString()}
-                      width={200}
-                      height={300}
-                      onEnter={() => {
-                        navigate(`/movie/${movie.id}`);
-                        return true;
-                      }}
-                    />
-                  )}
-                </For>
-              </Row>
-            </View>
-          </Show>
+        <Show when={searchTriggered() && totalResults() > 0}>
+          <Column
+            ref={resultsColumn}
+            width={1120}
+            height={890}
+            gap={24}
+            scroll="auto"
+            clipping
+            onLeft={() => {
+              keyboardColumn?.setFocus();
+              return true;
+            }}
+          >
+            {/* Movies */}
+            <Show when={results()?.movies?.length}>
+              <View width={1100} height={400}>
+                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                  {`Filmes (${results()!.movies.length})`}
+                </Text>
+                <Row y={40} width={1100} height={360} gap={15}>
+                  <For each={results()!.movies.slice(0, 4)}>
+                    {(movie: Movie) => (
+                      <Card
+                        title={movie.title || movie.name || ""}
+                        imageUrl={pickPoster(movie, 240)}
+                        subtitle={movie.year?.toString()}
+                        width={200}
+                        height={300}
+                        onEnter={() => {
+                          navigate(`/movie/${movie.id}`);
+                          return true;
+                        }}
+                      />
+                    )}
+                  </For>
+                </Row>
+              </View>
+            </Show>
 
-          {/* Series */}
-          <Show when={results()?.series?.length}>
-            <View width={1150} height={450}>
-              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                {`Séries (${results()!.series.length})`}
-              </Text>
-              <Row y={40} width={1150} height={400} gap={15}>
-                <For each={results()!.series.slice(0, 4)}>
-                  {(show: Series) => (
-                    <Card
-                      title={show.title || show.name || ""}
-                      imageUrl={pickPoster(show, 240)}
-                      subtitle={show.year?.toString()}
-                      width={200}
-                      height={300}
-                      onEnter={() => {
-                        navigate(`/series/${show.id}`);
-                        return true;
-                      }}
-                    />
-                  )}
-                </For>
-              </Row>
-            </View>
-          </Show>
+            {/* Series */}
+            <Show when={results()?.series?.length}>
+              <View width={1100} height={400}>
+                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                  {`Séries (${results()!.series.length})`}
+                </Text>
+                <Row y={40} width={1100} height={360} gap={15}>
+                  <For each={results()!.series.slice(0, 4)}>
+                    {(show: Series) => (
+                      <Card
+                        title={show.title || show.name || ""}
+                        imageUrl={pickPoster(show, 240)}
+                        subtitle={show.year?.toString()}
+                        width={200}
+                        height={300}
+                        onEnter={() => {
+                          navigate(`/series/${show.id}`);
+                          return true;
+                        }}
+                      />
+                    )}
+                  </For>
+                </Row>
+              </View>
+            </Show>
 
-          {/* Channels */}
-          <Show when={results()?.channels?.length}>
-            <View width={1150} height={200}>
-              <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                {`Canais (${results()!.channels.length})`}
-              </Text>
-              <Row y={40} width={1150} height={140} gap={15}>
-                <For each={results()!.channels.slice(0, 6)}>
-                  {(channel: Channel) => (
-                    <ChannelResult
-                      channel={channel}
-                      onSelect={() => {
-                        navigate(`/player/channel/${channel.id}`);
-                        return true;
-                      }}
-                    />
-                  )}
-                </For>
-              </Row>
-            </View>
-          </Show>
-        </Column>
+            {/* Channels */}
+            <Show when={results()?.channels?.length}>
+              <View width={1100} height={180}>
+                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                  {`Canais (${results()!.channels.length})`}
+                </Text>
+                <Row y={40} width={1100} height={140} gap={15}>
+                  <For each={results()!.channels.slice(0, 6)}>
+                    {(channel: Channel) => (
+                      <ChannelResult
+                        channel={channel}
+                        onSelect={() => {
+                          navigate(`/player/channel/${channel.id}`);
+                          return true;
+                        }}
+                      />
+                    )}
+                  </For>
+                </Row>
+              </View>
+            </Show>
+          </Column>
+        </Show>
       </View>
     </View>
   );
