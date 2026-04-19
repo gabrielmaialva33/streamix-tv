@@ -22,10 +22,10 @@ export default defineConfig(({ mode }) => {
         include: ["src/**/*.{ts,tsx,js,jsx}"],
       }),
       solidPlugin({
-        // Restrict Babel/JSX transform to our own source. Without an include
-        // filter the plugin walks every candidate file the resolver hands it,
-        // which dominated the production build timing chart (~39% of cost).
-        include: ["src/**/*.{tsx,jsx}"],
+        // DO NOT add an `include` filter here — @solidjs/router ships raw .jsx
+        // files in its dist folder and needs this plugin to transform them.
+        // Restricting include to src/** breaks the router silently (Show/Match
+        // etc. render as plain strings, so HashRouter never invokes root).
         solid: {
           moduleName: "@lightningtv/solid",
           generate: "universal",
