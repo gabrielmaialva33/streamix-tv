@@ -9,3 +9,4 @@ export { default as FavoriteButton } from "./FavoriteButton";
 export { default as ContinueWatchingRow } from "./ContinueWatchingRow";
 export { default as ScrollIndicator } from "./ScrollIndicator";
 export { default as CategoryChip } from "./CategoryChip";
+export { default as VirtualKeyboard } from "./VirtualKeyboard";

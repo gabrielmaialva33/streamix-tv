@@ -5,172 +5,153 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { Row } from "@lightningtv/solid/primitives";
 import { useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { authState, registerAccount, signIn } from "./auth";
 import { ApiError } from "@/lib/api";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
-import { closeTvKeyboard, openTvKeyboard, type TvKeyboardInputType } from "@/shared/tvKeyboard";
+import { VirtualKeyboard } from "@/components";
 
 type FieldName = "email" | "password" | "name";
 type AuthMode = "login" | "register";
 
 const INPUT_STYLE = {
-  width: 760,
-  height: 104,
-  borderRadius: 18,
-  scale: 1,
-  transition: { scale: { duration: 150 }, color: { duration: 150 } },
-  $focus: {
-    color: theme.surfaceHover,
-    border: { color: theme.primary, width: 3 },
-    scale: 1.015,
-  },
+  width: 420,
+  height: 88,
+  borderRadius: 14,
 } satisfies IntrinsicNodeStyleProps;
 
 const PRIMARY_ACTION_STYLE = {
-  width: 320,
+  width: 300,
   height: 68,
-  borderRadius: 20,
+  borderRadius: 16,
   color: theme.primary,
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   scale: 1,
-  transition: { scale: { duration: 150 }, color: { duration: 150 } },
-  $focus: {
-    color: theme.primaryLight,
-    scale: 1.06,
-  },
+  transition: { scale: { duration: 150 } },
+  $focus: { color: theme.primaryLight, scale: 1.06 },
 } satisfies IntrinsicNodeStyleProps;
 
-const SECONDARY_ACTION_STYLE = {
-  width: 320,
-  height: 68,
-  borderRadius: 20,
-  color: theme.surfaceLight,
-  border: { color: theme.borderLight, width: 2 },
+const CHIP_STYLE = {
+  width: 180,
+  height: 44,
+  borderRadius: 22,
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   scale: 1,
-  transition: { scale: { duration: 150 }, color: { duration: 150 } },
-  $focus: {
-    border: { color: theme.primary, width: 3 },
-    color: theme.surfaceHover,
-    scale: 1.06,
-  },
-} satisfies IntrinsicNodeStyleProps;
-const FORM_PANEL_BASE = {
-  width: 820,
-  color: theme.backgroundLight,
-  borderRadius: 28,
-  border: { color: theme.border, width: 1 },
+  transition: { scale: { duration: 150 } },
+  $focus: { scale: 1.05 },
 } satisfies IntrinsicNodeStyleProps;
 
-const FORM_PANEL_LOGIN = { ...FORM_PANEL_BASE, height: 472 } satisfies IntrinsicNodeStyleProps;
-const FORM_PANEL_REGISTER = { ...FORM_PANEL_BASE, height: 596 } satisfies IntrinsicNodeStyleProps;
-
-const INFO_CARD_STYLE = {
-  width: 260,
-  height: 58,
-  color: theme.surface,
-  borderRadius: 16,
-  border: { color: theme.border, width: 1 },
-} satisfies IntrinsicNodeStyleProps;
-
-const FIELD_ORDER: FieldName[] = ["email", "password", "name"];
-
-const FIELD_LABEL: Record<FieldName, string> = {
-  email: "E-mail",
-  password: "Senha",
-  name: "Nome",
-};
-
-const FIELD_PLACEHOLDER: Record<FieldName, string> = {
-  email: "Toque OK para abrir o teclado",
-  password: "Toque OK para digitar sua senha",
-  name: "Toque OK para digitar seu nome",
-};
-
-const FIELD_TYPE: Record<FieldName, TvKeyboardInputType> = {
-  email: "email",
-  password: "password",
-  name: "text",
+const CHIP_TEXT: IntrinsicTextNodeStyleProps = {
+  fontSize: 17,
+  fontWeight: 700,
+  color: 0xffffffff,
+  textAlign: "center",
+  contain: "width",
+  width: 180,
 };
 
 function maskPassword(value: string) {
-  return value.length > 0 ? "*".repeat(value.length) : FIELD_PLACEHOLDER.password;
+  return value.length > 0 ? "*".repeat(value.length) : "";
 }
 
 function authModeLabel(mode: AuthMode) {
   return mode === "login" ? "Entrar" : "Criar conta";
 }
 
+function fieldLabel(f: FieldName) {
+  return f === "password" ? "Senha" : f === "email" ? "E-mail" : "Nome";
+}
+
 function getAuthErrorMessage(error: unknown, mode: AuthMode) {
   if (error instanceof ApiError) {
-    if (error.retryAfter) {
-      return `Muitas tentativas agora. Tente novamente em ${error.retryAfter}s.`;
-    }
-
+    if (error.retryAfter) return `Muitas tentativas agora. Tente novamente em ${error.retryAfter}s.`;
     if (error.isUnauthorized()) {
-      return mode === "login"
-        ? "E-mail ou senha incorretos. Confira os dados e tente de novo."
-        : "Não foi possível validar sua conta agora. Tente novamente.";
+      return mode === "login" ? "E-mail ou senha incorretos." : "Não foi possível validar sua conta agora.";
     }
-
-    if (error.code === "email_taken") {
-      return "Esse e-mail já está em uso. Faça login ou use outro endereço.";
-    }
-
+    if (error.code === "email_taken") return "Esse e-mail já está em uso.";
     if (error.code === "validation_error" || error.status === 422) {
-      return mode === "register"
-        ? "Revise nome, e-mail e senha antes de continuar."
-        : "Revise seus dados e tente novamente.";
+      return "Revise seus dados e tente novamente.";
     }
-
     return error.message || "Falha ao autenticar.";
   }
-
-  if (error instanceof Error) {
-    return error.message || "Falha ao autenticar.";
-  }
-
+  if (error instanceof Error) return error.message || "Falha ao autenticar.";
   return "Falha ao autenticar.";
 }
+
+interface ChipProps {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}
+
+const ModeChip = (props: ChipProps) => (
+  <View
+    style={CHIP_STYLE}
+    color={props.active ? 0x2b1015ff : theme.surface}
+    border={{
+      color: props.active ? theme.primary : theme.border,
+      width: props.active ? 2 : 1,
+    }}
+    onEnter={() => {
+      props.onSelect();
+      return true;
+    }}
+  >
+    <Text {...CHIP_TEXT} y={11} color={props.active ? 0xffffffff : theme.textSecondary}>
+      {props.label}
+    </Text>
+  </View>
+);
+
+interface FieldChipProps {
+  label: string;
+  value: string;
+  placeholder: string;
+  active: boolean;
+  onSelect: () => void;
+}
+
+const FieldChip = (props: FieldChipProps) => (
+  <View
+    style={INPUT_STYLE}
+    color={props.active ? theme.surfaceLight : theme.surface}
+    border={{
+      color: props.active ? theme.primary : theme.border,
+      width: props.active ? 3 : 2,
+    }}
+    onEnter={() => {
+      props.onSelect();
+      return true;
+    }}
+  >
+    <Text x={18} y={14} fontSize={13} fontWeight={700} color={theme.textMuted}>
+      {props.label}
+    </Text>
+    <Text x={18} y={40} width={384} fontSize={22} color={0xffffffff} contain="width" maxLines={1}>
+      {props.value || props.placeholder}
+    </Text>
+  </View>
+);
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [mode, setMode] = createSignal<AuthMode>("login");
   const [form, setForm] = createSignal({ email: "", password: "", name: "" });
-  const [editingField, setEditingField] = createSignal<FieldName | null>(null);
+  const [activeField, setActiveField] = createSignal<FieldName>("email");
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
 
-  // Refs drive remote-control navigation between the tab row, fields and actions.
-  let chipsRow: ElementNode | undefined;
-  let fieldsColumn: ElementNode | undefined;
-  let firstField: ElementNode | undefined;
-  let primaryButton: ElementNode | undefined;
+  let keyboardRef: ElementNode | undefined;
 
-  onCleanup(() => closeTvKeyboard());
-
-  const activeFields = createMemo<FieldName[]>(() =>
-    mode() === "register" ? FIELD_ORDER : FIELD_ORDER.filter(field => field !== "name"),
-  );
-
-  const titleCopy = createMemo(() => (mode() === "login" ? "Entre na sua conta" : "Crie sua conta"));
-  const descriptionCopy = createMemo(() =>
-    mode() === "login"
-      ? "Sincronize favoritos, retome a reprodução e deixe o Streamix com a sua cara."
-      : "Crie sua conta diretamente na TV para salvar favoritos, progresso e preferências pessoais.",
-  );
-  const highlights = createMemo(() =>
-    mode() === "login"
-      ? ["Favoritos sincronizados", "Continue assistindo", "Experiência personalizada"]
-      : ["Cadastro rápido na TV", "Sincronização imediata", "Seu progresso salvo"],
+  const fieldsInOrder = createMemo<FieldName[]>(() =>
+    mode() === "register" ? ["name", "email", "password"] : ["email", "password"],
   );
 
   createEffect(() => {
@@ -179,31 +160,30 @@ const LoginPage = () => {
     }
   });
 
-  function updateField(field: FieldName, value: string) {
-    setForm(current => ({ ...current, [field]: value }));
+  function currentValue() {
+    return form()[activeField()];
   }
 
-  function editField(field: FieldName) {
-    if (submitting()) return true;
-    setEditingField(field);
-    openTvKeyboard({
-      value: form()[field],
-      type: FIELD_TYPE[field],
-      onInput: value => updateField(field, value),
-      onSubmit: () => {
-        closeTvKeyboard();
-        const fields = activeFields();
-        const idx = fields.indexOf(field);
-        if (idx >= 0 && idx < fields.length - 1) {
-          editField(fields[idx + 1]);
-        } else {
-          setEditingField(null);
-          void submit();
-        }
-      },
-      onClose: () => setEditingField(null),
-    });
-    return true;
+  function setValue(val: string) {
+    const f = activeField();
+    setForm(prev => ({ ...prev, [f]: val }));
+  }
+
+  function handleOk() {
+    const fields = fieldsInOrder();
+    const idx = fields.indexOf(activeField());
+    if (idx >= 0 && idx < fields.length - 1) {
+      setActiveField(fields[idx + 1]);
+      setErrorMessage(null);
+      return;
+    }
+    void submit();
+  }
+
+  function selectField(field: FieldName) {
+    setActiveField(field);
+    setErrorMessage(null);
+    queueMicrotask(() => keyboardRef?.setFocus());
   }
 
   async function submit() {
@@ -214,14 +194,12 @@ const LoginPage = () => {
       setErrorMessage("Preencha e-mail e senha para continuar.");
       return;
     }
-
     if (mode() === "register" && !values.name.trim()) {
       setErrorMessage("Informe seu nome para criar a conta.");
       return;
     }
 
     setSubmitting(true);
-
     try {
       if (mode() === "register") {
         await registerAccount(values.name.trim(), values.email.trim(), values.password);
@@ -237,42 +215,21 @@ const LoginPage = () => {
   }
 
   function switchMode(next: AuthMode) {
-    if (next === mode()) {
-      return;
-    }
+    if (mode() === next) return;
     setMode(next);
+    setForm({ email: "", password: "", name: "" });
+    setActiveField(next === "register" ? "name" : "email");
     setErrorMessage(null);
-    closeTvKeyboard();
-    setEditingField(null);
   }
 
   return (
-    <View
-      width={SCREEN_WIDTH}
-      height={SCREEN_HEIGHT}
-      color={theme.background}
-      forwardFocus={() => {
-        firstField?.setFocus();
-        return true;
-      }}
-    >
-      <View x={550} y={64} width={820} height={1000}>
-        <Text fontSize={28} fontWeight={700} color={theme.primary}>
+    <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={theme.background}>
+      <View x={60} y={100} width={900}>
+        <Text fontSize={26} fontWeight={700} color={theme.primary}>
           STREAMIX
         </Text>
 
-        <Row
-          ref={chipsRow}
-          y={64}
-          width={420}
-          height={48}
-          gap={16}
-          scroll="none"
-          onDown={() => {
-            fieldsColumn?.setFocus();
-            return true;
-          }}
-        >
+        <Row y={52} width={400} height={44} gap={12} scroll="none">
           <ModeChip label="Entrar" active={mode() === "login"} onSelect={() => switchMode("login")} />
           <ModeChip
             label="Criar conta"
@@ -281,239 +238,104 @@ const LoginPage = () => {
           />
         </Row>
 
-        <Text y={142} fontSize={56} fontWeight={700} color={0xffffffff}>
-          {titleCopy()}
+        <Text
+          y={124}
+          fontSize={40}
+          fontWeight={700}
+          color={0xffffffff}
+          contain="width"
+          width={900}
+          maxLines={1}
+        >
+          {mode() === "login" ? "Entre na sua conta" : "Crie sua conta"}
         </Text>
-        <Text y={224} width={780} fontSize={22} color={theme.textSecondary} maxLines={2} contain="width">
-          {descriptionCopy()}
+
+        <Text y={180} fontSize={16} color={theme.textSecondary} contain="width" width={900} maxLines={2}>
+          Use o teclado à direita. OK avança pro próximo campo — no último, envia.
         </Text>
 
-        <Row y={298} width={820} height={60} gap={14} scroll="none" skipFocus>
-          <For each={highlights()}>
-            {item => (
-              <View style={INFO_CARD_STYLE}>
-                <Text
-                  y={19}
-                  width={260}
-                  fontSize={16}
-                  color={theme.textPrimary}
-                  textAlign="center"
-                  contain="width"
-                  maxLines={1}
-                >
-                  {item}
-                </Text>
-              </View>
-            )}
-          </For>
-        </Row>
-
-        <View y={380} style={mode() === "register" ? FORM_PANEL_REGISTER : FORM_PANEL_LOGIN}>
-          <Column
-            ref={fieldsColumn}
-            x={30}
-            y={24}
-            width={760}
-            gap={18}
-            scroll="none"
-            forwardFocus={() => {
-              firstField?.setFocus();
-              return true;
-            }}
-            onUp={function (this: ElementNode) {
-              if ((this.selected ?? 0) > 0) return false;
-              chipsRow?.setFocus();
-              return true;
-            }}
-            onDown={function (this: ElementNode) {
-              const focusable = this.children.filter(c => !(c as ElementNode).skipFocus);
-              const lastIdx = focusable.length - 1;
-              if ((this.selected ?? 0) < lastIdx) return false;
-              primaryButton?.setFocus();
-              return true;
-            }}
-          >
-            <FieldCard
-              ref={firstField}
-              field="email"
-              value={form().email}
-              editing={editingField() === "email"}
-              onEdit={() => editField("email")}
-              autofocus
+        <Show when={mode() === "register"}>
+          <View y={236}>
+            <FieldChip
+              label="Nome"
+              value={form().name}
+              placeholder="Use o teclado"
+              active={activeField() === "name"}
+              onSelect={() => selectField("name")}
             />
-            <FieldCard
-              field="password"
-              value={form().password}
-              editing={editingField() === "password"}
-              onEdit={() => editField("password")}
-            />
-            <Show when={mode() === "register"}>
-              <FieldCard
-                field="name"
-                value={form().name}
-                editing={editingField() === "name"}
-                onEdit={() => editField("name")}
-              />
-            </Show>
-          </Column>
+          </View>
+        </Show>
 
+        <View y={mode() === "register" ? 340 : 236}>
+          <FieldChip
+            label="E-mail"
+            value={form().email}
+            placeholder="Use o teclado"
+            active={activeField() === "email"}
+            onSelect={() => selectField("email")}
+          />
+        </View>
+
+        <View y={mode() === "register" ? 444 : 340}>
+          <FieldChip
+            label="Senha"
+            value={maskPassword(form().password)}
+            placeholder="Use o teclado"
+            active={activeField() === "password"}
+            onSelect={() => selectField("password")}
+          />
+        </View>
+
+        <View y={mode() === "register" ? 548 : 444}>
           <View
-            x={30}
-            y={mode() === "register" ? 388 : 268}
-            width={760}
-            height={28}
-            color={0x00000000}
-            skipFocus
+            style={PRIMARY_ACTION_STYLE}
+            onEnter={() => {
+              void submit();
+              return true;
+            }}
           >
-            <Text fontSize={15} color={theme.textMuted}>
-              Selecione um campo e pressione OK para abrir o teclado da TV.
+            <Text fontSize={22} fontWeight={700} color={0xffffffff}>
+              {submitting() ? "Aguarde..." : authModeLabel(mode())}
             </Text>
           </View>
+        </View>
 
-          <Show when={errorMessage()}>
-            <View
-              x={30}
-              y={mode() === "register" ? 428 : 308}
-              width={760}
-              height={56}
-              color={0x3a1518ff}
-              borderRadius={14}
-            >
-              <Text x={20} y={17} width={720} fontSize={16} color={0xffa8a8ff} contain="width" maxLines={1}>
-                {errorMessage() || ""}
-              </Text>
-            </View>
-          </Show>
-
-          <Row
-            x={30}
-            y={mode() === "register" ? 500 : 380}
-            width={760}
-            gap={24}
-            scroll="none"
-            onUp={() => {
-              fieldsColumn?.setFocus();
-              return true;
-            }}
+        <Show when={errorMessage()}>
+          <View
+            y={mode() === "register" ? 640 : 536}
+            width={420}
+            height={52}
+            color={0x3a1518ff}
+            borderRadius={12}
+            skipFocus
           >
-            <View
-              ref={primaryButton}
-              style={PRIMARY_ACTION_STYLE}
-              onEnter={() => {
-                void submit();
-                return true;
-              }}
-            >
-              <Text
-                width={280}
-                fontSize={22}
-                fontWeight={700}
-                color={0xffffffff}
-                textAlign="center"
-                contain="width"
-              >
-                {submitting() ? "Aguarde..." : authModeLabel(mode())}
-              </Text>
-            </View>
-            <View
-              style={SECONDARY_ACTION_STYLE}
-              onEnter={() => {
-                switchMode(mode() === "login" ? "register" : "login");
-                return true;
-              }}
-            >
-              <Text width={280} fontSize={20} color={theme.textPrimary} textAlign="center" contain="width">
-                {mode() === "login" ? "Quero criar conta" : "Voltar ao login"}
-              </Text>
-            </View>
-          </Row>
+            <Text x={16} y={16} width={388} fontSize={14} color={0xffa8a8ff} contain="width" maxLines={2}>
+              {errorMessage() || ""}
+            </Text>
+          </View>
+        </Show>
+      </View>
+
+      {/* Virtual keyboard — no Tizen IME, Lightning-native */}
+      <View x={960} y={200} width={900}>
+        <Text fontSize={20} fontWeight={700} color={theme.textPrimary}>
+          Teclado
+        </Text>
+        <Text y={32} fontSize={14} color={theme.textMuted}>
+          {`Digitando: ${fieldLabel(activeField())}`}
+        </Text>
+
+        <View y={72}>
+          <VirtualKeyboard
+            ref={keyboardRef}
+            value={currentValue()}
+            password={activeField() === "password"}
+            autofocus
+            onChange={setValue}
+            onSubmit={handleOk}
+          />
         </View>
       </View>
-    </View>
-  );
-};
-
-interface ModeChipProps {
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-}
-
-// Static style is applied once by the Lightning renderer on mount — dynamic
-// values (color/border) must be direct props to stay reactive.
-const CHIP_STYLE = {
-  width: 180,
-  height: 48,
-  borderRadius: 24,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  transition: {
-    scale: { duration: 150, easing: "ease-out" },
-    color: { duration: 150, easing: "ease-out" },
-  },
-  scale: 1,
-  $focus: {
-    border: { color: theme.primary, width: 3 },
-    scale: 1.05,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const CHIP_TEXT_STYLE = {
-  width: 148,
-  fontSize: 18,
-  fontWeight: 700,
-  textAlign: "center",
-  contain: "width",
-} satisfies IntrinsicTextNodeStyleProps;
-
-const ModeChip = (props: ModeChipProps) => (
-  <View
-    style={CHIP_STYLE}
-    color={props.active ? 0x2b1015ff : theme.surface}
-    border={{ color: props.active ? theme.primary : theme.border, width: props.active ? 2 : 1 }}
-    onEnter={() => {
-      props.onSelect();
-      return true;
-    }}
-  >
-    <Text style={CHIP_TEXT_STYLE} color={props.active ? 0xffffffff : theme.textSecondary}>
-      {props.label}
-    </Text>
-  </View>
-);
-
-interface FieldCardProps {
-  ref?: ElementNode;
-  autofocus?: boolean;
-  field: FieldName;
-  value: string;
-  editing: boolean;
-  onEdit: () => boolean;
-}
-
-const FieldCard = (props: FieldCardProps) => {
-  const displayValue = () => {
-    if (props.field === "password") return maskPassword(props.value);
-    return props.value || FIELD_PLACEHOLDER[props.field];
-  };
-
-  return (
-    <View
-      ref={props.ref}
-      autofocus={props.autofocus}
-      style={INPUT_STYLE}
-      color={props.editing ? theme.surfaceLight : theme.surface}
-      border={{ color: props.editing ? theme.primary : theme.border, width: props.editing ? 3 : 2 }}
-      forwardStates
-      onEnter={props.onEdit}
-    >
-      <Text x={24} y={20} fontSize={14} fontWeight={700} color={theme.textMuted}>
-        {FIELD_LABEL[props.field]}
-      </Text>
-      <Text x={24} y={56} width={712} fontSize={24} color={0xffffffff} contain="width" maxLines={1}>
-        {displayValue()}
-      </Text>
     </View>
   );
 };
