@@ -24,6 +24,10 @@
 </p>
 
 <p align="center">
+  <img src=".github/assets/demo.png" alt="Streamix TV — Home screen on a Samsung smart TV" width="900" />
+</p>
+
+<p align="center">
   <a href="#sparkles-highlights">Highlights</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
   <a href="#art-architecture">Architecture</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
   <a href="#tv-runtime-surfaces">Runtime Surfaces</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;

@@ -162,6 +162,7 @@ const Search = () => {
         gap={10}
         autofocus
         forwardFocus={0}
+        plinko
         onRight={focusResults}
       >
         <For each={KEYBOARD_ROWS}>
