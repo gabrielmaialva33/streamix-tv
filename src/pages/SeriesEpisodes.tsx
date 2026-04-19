@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
+import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -229,7 +230,7 @@ const SeriesEpisodes = () => {
                               y={14}
                               width={184}
                               height={128}
-                              src={episode.thumbnail_url}
+                              src={proxyImageUrl(episode.thumbnail_url, 400)}
                               color={0xffffffff}
                               borderRadius={14}
                               textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.5 } }}

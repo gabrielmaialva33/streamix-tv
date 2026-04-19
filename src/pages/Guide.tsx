@@ -3,6 +3,7 @@ import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "../lib/api";
+import { proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
 // Time slot width (30 min = 200px)
@@ -185,7 +186,14 @@ const Guide = () => {
               {/* Channel info */}
               <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={0x1a1a2eff}>
                 <Show when={channel.logo_url}>
-                  <View x={10} y={10} width={60} height={40} src={channel.logo_url} color={0xffffffff} />
+                  <View
+                    x={10}
+                    y={10}
+                    width={60}
+                    height={40}
+                    src={proxyImageUrl(channel.logo_url, 120)}
+                    color={0xffffffff}
+                  />
                 </Show>
                 <Text x={80} y={25} fontSize={14} color={0xffffffff} contain="width" width={110} maxLines={2}>
                   {channel.name}

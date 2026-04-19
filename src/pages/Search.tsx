@@ -4,6 +4,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import api, { type Channel, type Movie, type SearchResults, type Series } from "../lib/api";
+import { proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
 const KEYBOARD_ROWS = [
@@ -302,7 +303,14 @@ const ChannelResult = (props: ChannelResultProps) => {
       onEnter={props.onSelect}
     >
       <Show when={props.channel.logo_url}>
-        <View x={35} y={15} width={100} height={60} src={props.channel.logo_url} color={0xffffffff} />
+        <View
+          x={35}
+          y={15}
+          width={100}
+          height={60}
+          src={proxyImageUrl(props.channel.logo_url, 200)}
+          color={0xffffffff}
+        />
       </Show>
       <Text
         x={10}

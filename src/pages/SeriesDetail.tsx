@@ -4,6 +4,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
 import api, { type RecommendationItem, type Season, type Series, type SimilarContentItem } from "@/lib/api";
+import { proxyBackdropUrl, proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -162,8 +163,8 @@ const SeriesDetail = () => {
       <Show when={series()}>
         {currentSeries => {
           const metaItems = buildMeta(currentSeries());
-          const posterUrl = posterFor(currentSeries());
-          const backdropUrl = backdropFor(currentSeries());
+          const posterUrl = proxyImageUrl(posterFor(currentSeries()), 480);
+          const backdropUrl = proxyBackdropUrl(backdropFor(currentSeries()));
 
           return (
             <>

@@ -4,6 +4,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
+import { proxyImageUrl } from "../lib/imageUrl";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
@@ -83,10 +84,23 @@ const Channels = () => {
       setChannelsData(result.data);
     } else {
       setChannelsData(prev => [...prev, ...result.data]);
-      queueMicrotask(() => loadMoreButton?.setFocus());
     }
     // Backend may return has_more=true with empty page when offset >= total — trust both signals.
-    setHasMore(result.has_more && result.data.length > 0);
+    const more = result.has_more && result.data.length > 0;
+    setHasMore(more);
+    if (offset() > 0) {
+      // Restore focus after a paginated fetch. The <Show when={hasMore()}>
+      // wrapper unmounts the load-more button when there is no next page;
+      // setFocus() on the disposed ref would be a silent no-op and the D-pad
+      // would hang. Fall back to the grid in that case.
+      queueMicrotask(() => {
+        if (more && loadMoreButton?.parent) {
+          loadMoreButton.setFocus();
+        } else {
+          contentGrid?.setFocus();
+        }
+      });
+    }
   });
 
   // Handle search
@@ -235,7 +249,14 @@ const Channels = () => {
                         </View>
                       }
                     >
-                      <View x={40} y={15} width={100} height={65} src={channel.logo_url} color={0xffffffff} />
+                      <View
+                        x={40}
+                        y={15}
+                        width={100}
+                        height={65}
+                        src={proxyImageUrl(channel.logo_url, 200)}
+                        color={0xffffffff}
+                      />
                     </Show>
 
                     <Text

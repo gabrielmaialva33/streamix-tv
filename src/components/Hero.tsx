@@ -6,8 +6,9 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
-import { Show } from "solid-js";
-import type { FeaturedItem } from "../lib/api";
+import { createMemo, createResource, Show } from "solid-js";
+import api, { type FeaturedItem, type Movie, type Series } from "../lib/api";
+import { proxyBackdropUrl } from "../lib/imageUrl";
 import { CONTENT_WIDTH, SAFE_AREA_X, SAFE_AREA_Y } from "../shared/layout";
 import { theme } from "../styles";
 
@@ -80,8 +81,38 @@ export interface HeroProps extends NodeProps {
   onDownRequest?: () => boolean;
 }
 
-function heroBackdrop(item?: FeaturedItem) {
-  return item?.backdrop?.[0] || item?.backdrop_url || item?.poster_url || item?.poster || undefined;
+// TMDB-style URLs come in many flavors (`/t/p/w300/`, `w600_and_h900_bestv2`, etc.).
+// Promote anything thumbnail-ish to original so the hero doesn't render upscaled jpegs.
+function upgradeTmdbSize(url?: string) {
+  if (!url) return url;
+  return url.replace(/\/t\/p\/[^/]+\//, "/t/p/original/");
+}
+
+function pickBestBackdrop(list?: string[]) {
+  if (!list?.length) return undefined;
+  const original = list.find(u => u?.includes("/t/p/original/"));
+  return upgradeTmdbSize(original ?? list[list.length - 1]);
+}
+
+// YouTube serves landscape 16:9 thumbnails for every video, so a movie's trailer
+// is a reliable source of a real backdrop when the catalog only has posters.
+function youtubeThumb(videoId?: string | null) {
+  if (!videoId) return undefined;
+  return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
+function heroBackdrop(item?: FeaturedItem, detail?: Movie | Series | null) {
+  const raw =
+    pickBestBackdrop(detail?.backdrop) ||
+    pickBestBackdrop(item?.backdrop) ||
+    upgradeTmdbSize(item?.backdrop_url) ||
+    youtubeThumb((detail as Movie | Series | undefined)?.youtube_trailer) ||
+    upgradeTmdbSize(item?.poster_url) ||
+    upgradeTmdbSize(item?.poster) ||
+    undefined;
+  // Catalog posters can be full-resolution A4 scans — route everything through
+  // the resize proxy so the hero texture stays within the TV's WebGL budget.
+  return proxyBackdropUrl(raw);
 }
 
 function heroMeta(item?: FeaturedItem) {
@@ -107,6 +138,28 @@ const Hero = (props: HeroProps) => {
   let playButton: ElementNode | undefined;
   let infoButton: ElementNode | undefined;
 
+  // Featured payload only carries one backdrop. Pull the full detail to surface
+  // the rest of the TMDB backdrop array (and pick the best one).
+  const detailKey = createMemo(() => {
+    const item = props.item;
+    if (!item?.id) return null;
+    if (item.type === "movie" || item.type === "series") {
+      return { id: item.id, type: item.type } as const;
+    }
+    return null;
+  });
+
+  const [detail] = createResource(detailKey, async key => {
+    if (!key) return null;
+    try {
+      return key.type === "movie" ? await api.getMovie(key.id) : await api.getSeriesDetail(String(key.id));
+    } catch {
+      return null;
+    }
+  });
+
+  const backdrop = createMemo(() => heroBackdrop(props.item, detail()));
+
   return (
     <View
       {...props}
@@ -117,11 +170,11 @@ const Hero = (props: HeroProps) => {
         return true;
       }}
     >
-      <Show when={heroBackdrop(props.item)}>
+      <Show when={backdrop()}>
         <View
           x={0}
           y={0}
-          src={heroBackdrop(props.item)}
+          src={backdrop()}
           color={0xffffffff}
           width={CONTENT_WIDTH}
           height={600}
@@ -131,7 +184,7 @@ const Hero = (props: HeroProps) => {
         />
       </Show>
 
-      <Show when={heroBackdrop(props.item)}>
+      <Show when={backdrop()}>
         <View
           x={0}
           y={0}
@@ -147,7 +200,7 @@ const Hero = (props: HeroProps) => {
         />
       </Show>
 
-      <Show when={heroBackdrop(props.item)}>
+      <Show when={backdrop()}>
         <View
           x={0}
           y={0}
@@ -163,7 +216,7 @@ const Hero = (props: HeroProps) => {
         />
       </Show>
 
-      <Show when={!heroBackdrop(props.item)}>
+      <Show when={!backdrop()}>
         <View
           x={0}
           y={0}
