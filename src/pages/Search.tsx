@@ -201,7 +201,7 @@ const Search = () => {
               was torn down and remounted per keystroke, causing the blink.
               Index keys by position so the same <View>s are reused with
               updated content. */}
-              <Index each={latestSuggestions()!.items.slice(0, 8)}>
+              <Index each={(latestSuggestions()?.items ?? []).slice(0, 8)}>
                 {item => (
                   <View
                     width={1120}
@@ -255,112 +255,143 @@ const Search = () => {
       })()}
 
       {/* Results — full ranked payload after OK. */}
-      <View x={560} y={170} width={1120} height={890} skipFocus>
-        <Show when={results.loading}>
-          <View width={1120} height={400} display="flex" justifyContent="center" alignItems="center">
-            <Text fontSize={28} color={0x888888ff}>
-              Buscando...
-            </Text>
-          </View>
-        </Show>
+      {/* Results — always mounted; alpha flips so switching between suggestions
+           and results cross-fades instead of tearing down scene graph subtrees
+           (which was flashing the canvas). */}
+      {(() => {
+        const showResults = () => searchTriggered() && totalResults() > 0;
+        const showEmpty = () => searchTriggered() && !results.loading && totalResults() === 0;
+        const showLoading = () => searchTriggered() && results.loading && totalResults() === 0;
+        return (
+          <>
+            <View
+              x={560}
+              y={170}
+              width={1120}
+              height={400}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              alpha={showLoading() ? 1 : 0}
+              transition={{ alpha: { duration: 180 } }}
+              skipFocus
+            >
+              <Text fontSize={28} color={0x888888ff}>
+                Buscando...
+              </Text>
+            </View>
 
-        <Show when={searchTriggered() && !results.loading && totalResults() === 0}>
-          <View width={1120} height={400} display="flex" justifyContent="center" alignItems="center">
-            <Text fontSize={28} color={0x888888ff}>
-              Nenhum resultado encontrado
-            </Text>
-          </View>
-        </Show>
+            <View
+              x={560}
+              y={170}
+              width={1120}
+              height={400}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              alpha={showEmpty() ? 1 : 0}
+              transition={{ alpha: { duration: 180 } }}
+              skipFocus
+            >
+              <Text fontSize={28} color={0x888888ff}>
+                Nenhum resultado encontrado
+              </Text>
+            </View>
 
-        <Show when={searchTriggered() && totalResults() > 0}>
-          <Column
-            ref={resultsColumn}
-            width={1120}
-            height={890}
-            gap={24}
-            scroll="auto"
-            clipping
-            onLeft={() => {
-              keyboardColumn?.setFocus();
-              return true;
-            }}
-          >
-            {/* Movies */}
-            <Show when={results()?.movies?.length}>
-              <View width={1100} height={400} forwardFocus={1}>
-                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                  {`Filmes (${results()!.movies.length})`}
-                </Text>
-                <Row y={40} width={1100} height={360} gap={15}>
-                  <For each={results()!.movies.slice(0, 4)}>
-                    {(movie: Movie) => (
-                      <Card
-                        title={movie.title || movie.name || ""}
-                        imageUrl={pickPoster(movie, 240)}
-                        subtitle={movie.year?.toString()}
-                        width={200}
-                        height={300}
-                        onEnter={() => {
-                          navigate(`/movie/${movie.id}`);
-                          return true;
-                        }}
-                      />
-                    )}
-                  </For>
-                </Row>
-              </View>
-            </Show>
+            <Column
+              ref={resultsColumn}
+              x={560}
+              y={170}
+              width={1120}
+              height={890}
+              gap={24}
+              scroll="auto"
+              clipping
+              alpha={showResults() ? 1 : 0}
+              transition={{ alpha: { duration: 180 } }}
+              skipFocus={!showResults()}
+              onLeft={() => {
+                keyboardColumn?.setFocus();
+                return true;
+              }}
+            >
+              {/* Movies */}
+              <Show when={results()?.movies?.length}>
+                <View width={1100} height={400} forwardFocus={1}>
+                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                    {`Filmes (${results()!.movies.length})`}
+                  </Text>
+                  <Row y={40} width={1100} height={360} gap={15}>
+                    <For each={results()!.movies.slice(0, 4)}>
+                      {(movie: Movie) => (
+                        <Card
+                          title={movie.title || movie.name || ""}
+                          imageUrl={pickPoster(movie, 240)}
+                          subtitle={movie.year?.toString()}
+                          width={200}
+                          height={300}
+                          onEnter={() => {
+                            navigate(`/movie/${movie.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                </View>
+              </Show>
 
-            {/* Series */}
-            <Show when={results()?.series?.length}>
-              <View width={1100} height={400} forwardFocus={1}>
-                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                  {`Séries (${results()!.series.length})`}
-                </Text>
-                <Row y={40} width={1100} height={360} gap={15}>
-                  <For each={results()!.series.slice(0, 4)}>
-                    {(show: Series) => (
-                      <Card
-                        title={show.title || show.name || ""}
-                        imageUrl={pickPoster(show, 240)}
-                        subtitle={show.year?.toString()}
-                        width={200}
-                        height={300}
-                        onEnter={() => {
-                          navigate(`/series/${show.id}`);
-                          return true;
-                        }}
-                      />
-                    )}
-                  </For>
-                </Row>
-              </View>
-            </Show>
+              {/* Series */}
+              <Show when={results()?.series?.length}>
+                <View width={1100} height={400} forwardFocus={1}>
+                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                    {`Séries (${results()!.series.length})`}
+                  </Text>
+                  <Row y={40} width={1100} height={360} gap={15}>
+                    <For each={results()!.series.slice(0, 4)}>
+                      {(show: Series) => (
+                        <Card
+                          title={show.title || show.name || ""}
+                          imageUrl={pickPoster(show, 240)}
+                          subtitle={show.year?.toString()}
+                          width={200}
+                          height={300}
+                          onEnter={() => {
+                            navigate(`/series/${show.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                </View>
+              </Show>
 
-            {/* Channels */}
-            <Show when={results()?.channels?.length}>
-              <View width={1100} height={180} forwardFocus={1}>
-                <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                  {`Canais (${results()!.channels.length})`}
-                </Text>
-                <Row y={40} width={1100} height={140} gap={15}>
-                  <For each={results()!.channels.slice(0, 6)}>
-                    {(channel: Channel) => (
-                      <ChannelResult
-                        channel={channel}
-                        onSelect={() => {
-                          navigate(`/player/channel/${channel.id}`);
-                          return true;
-                        }}
-                      />
-                    )}
-                  </For>
-                </Row>
-              </View>
-            </Show>
-          </Column>
-        </Show>
-      </View>
+              {/* Channels */}
+              <Show when={results()?.channels?.length}>
+                <View width={1100} height={180} forwardFocus={1}>
+                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+                    {`Canais (${results()!.channels.length})`}
+                  </Text>
+                  <Row y={40} width={1100} height={140} gap={15}>
+                    <For each={results()!.channels.slice(0, 6)}>
+                      {(channel: Channel) => (
+                        <ChannelResult
+                          channel={channel}
+                          onSelect={() => {
+                            navigate(`/player/channel/${channel.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                </View>
+              </Show>
+            </Column>
+          </>
+        );
+      })()}
     </View>
   );
 };
