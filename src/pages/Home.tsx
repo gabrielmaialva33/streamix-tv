@@ -64,6 +64,16 @@ const Home = () => {
     hero?.setFocus();
   });
 
+  // Tell the bootstrap splash to fade as soon as we have paintable data.
+  // Guard so we only fire once even though the resource re-runs on refresh.
+  let splashSignaled = false;
+  createEffect(() => {
+    if (splashSignaled) return;
+    if (!home()) return;
+    splashSignaled = true;
+    window.dispatchEvent(new Event("streamix:ready"));
+  });
+
   // Register cleanup explicitly; returning from onMount does not dispose the timer.
   onMount(() => {
     const interval = setInterval(() => {

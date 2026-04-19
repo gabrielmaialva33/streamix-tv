@@ -55,12 +55,17 @@ export async function bootstrapApp() {
     dismissSplash();
   };
 
+  // Primary signal — the Home page (or any other first-route page) fires a
+  // `streamix:ready` event once its first batch of data is on screen. This
+  // covers slow networks where /catalog/home can take 2s+ and avoids the
+  // user seeing a black canvas between the splash fading and rails painting.
+  window.addEventListener("streamix:ready", markReady, { once: true });
+  // Fallback — on auth/login flows there's no home data, so also dismiss
+  // shortly after Lightning settles its first idle frame.
   renderer?.once?.("idle", () => {
-    // One more frame so the Hero/rails have a chance to fill in before we
-    // pull the splash down — avoids a flash of empty background.
-    requestAnimationFrame(() => requestAnimationFrame(markReady));
+    setTimeout(markReady, 1200);
   });
   // Hard safety net: if idle never fires (e.g. init failure), drop splash
-  // after 4s so the user isn't left staring at "CARREGANDO" forever.
-  setTimeout(markReady, 4000);
+  // after 6s so the user isn't left staring at "CARREGANDO" forever.
+  setTimeout(markReady, 6000);
 }

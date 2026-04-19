@@ -141,6 +141,10 @@ const FieldChip = (props: FieldChipProps) => (
 );
 
 const LoginPage = () => {
+  // If the cold boot lands here (no stored session), tell the splash it's
+  // safe to fade. Otherwise the user stares at the splash until the 6s
+  // safety net kicks in.
+  window.dispatchEvent(new Event("streamix:ready"));
   const navigate = useNavigate();
   const [mode, setMode] = createSignal<AuthMode>("login");
   const [form, setForm] = createSignal({ email: "", password: "", name: "" });

@@ -1,6 +1,6 @@
 import { type ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Index, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import api, { type Channel, type Movie, type Series } from "../lib/api";
@@ -54,6 +54,9 @@ const Search = () => {
   const handleKey = (key: string) => {
     if (key === "DEL") {
       setQuery(q => q.slice(0, -1));
+      // Back to typeahead while the user is editing — the full results grid
+      // was firing /catalog/search on every backspace otherwise.
+      setSearchTriggered(false);
       return true;
     } else if (key === "OK") {
       if (query().trim().length >= 2) {
@@ -62,6 +65,7 @@ const Search = () => {
       return true;
     } else if (key === " ") {
       setQuery(q => q + " ");
+      setSearchTriggered(false);
       return true;
     } else {
       setQuery(q => q + key);
@@ -130,7 +134,10 @@ const Search = () => {
         <View x={query().length * 16 + 20} y={10} width={3} height={40} color={0xe50914ff} />
       </View>
 
-      {/* Keyboard */}
+      {/* Keyboard — Column wraps Rows. Lightning's built-in Row nav handles
+           Left/Right between keys; we only care about the bubble that happens
+           when Row.onRight default says "no more kids that way". The Column's
+           onRight fires in that exact case and jumps to the results. */}
       <Column
         ref={keyboardColumn}
         x={20}
@@ -144,7 +151,7 @@ const Search = () => {
       >
         <For each={KEYBOARD_ROWS}>
           {row => (
-            <Row width={500} height={45} gap={8} onRight={focusResults}>
+            <Row width={500} height={45} gap={8}>
               <For each={row}>{key => <KeyboardKey key={key} onPress={() => handleKey(key)} />}</For>
             </Row>
           )}
@@ -172,7 +179,12 @@ const Search = () => {
             return true;
           }}
         >
-          <For each={latestSuggestions()!.items.slice(0, 8)}>
+          {/* Use Index instead of For: For keys by reference, and every
+              /catalog/suggest response is a fresh array — the whole list
+              was torn down and remounted per keystroke, causing the blink.
+              Index keys by position so the same <View>s are reused with
+              updated content. */}
+          <Index each={latestSuggestions()!.items.slice(0, 8)}>
             {item => (
               <View
                 width={1120}
@@ -190,8 +202,14 @@ const Search = () => {
                   scale: 1.01,
                 }}
                 onEnter={() => {
-                  setQuery(item.title);
+                  const picked = item();
+                  setQuery(picked.title);
                   setSearchTriggered(true);
+                  // The Show wrapping suggestionsColumn is about to flip false
+                  // and unmount this node — move focus to the results Column
+                  // as soon as it mounts on the next tick, otherwise the
+                  // D-pad ends up stranded on a detached node.
+                  queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
                   return true;
                 }}
               >
@@ -205,15 +223,15 @@ const Search = () => {
                   maxLines={1}
                   contain="width"
                 >
-                  {item.title}
+                  {item().title}
                 </Text>
                 <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
-                  {item.type === "movie" ? "Filme" : item.type === "series" ? "Série" : "Canal"}
-                  {item.year ? ` · ${item.year}` : ""}
+                  {item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
+                  {item().year ? ` · ${item().year}` : ""}
                 </Text>
               </View>
             )}
-          </For>
+          </Index>
         </Column>
       </Show>
 
