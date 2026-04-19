@@ -42,13 +42,23 @@ const Search = () => {
   createEffect(() => {
     const q = query();
     if (searchTriggered()) return;
-    const timer = setTimeout(() => setDebouncedQuery(q), 180);
+    const timer = setTimeout(() => {
+      // setDebouncedQuery flips the suggest resource source accessor. Without
+      // a transition, the resource goes pending and the enclosing Suspense
+      // boundary flashes its fallback — wiping the whole content area
+      // (including sidebar) for a frame.
+      startTransition(() => setDebouncedQuery(q));
+    }, 180);
     onCleanup(() => clearTimeout(timer));
   });
 
   const [suggestions] = createResource(
     () => (!searchTriggered() && debouncedQuery().trim().length >= 2 ? debouncedQuery().trim() : null),
     q => api.suggest(q, 10).catch(() => null),
+    // Seed with an empty payload so `.latest` is never undefined on the first
+    // fetch — otherwise Solid's `.latest` falls back to `()` behaviour and
+    // still trips the enclosing Suspense (the exact bug we were chasing).
+    { initialValue: { query: "", items: [] } },
   );
 
   // Full ranked results — only after the user presses OK.
@@ -58,6 +68,7 @@ const Search = () => {
       if (!q || q.length < 2) return null;
       return api.search(q, 10);
     },
+    { initialValue: { query: "", movies: [], series: [], channels: [] } as const },
   );
 
   const handleKey = (key: string) => {
@@ -247,8 +258,12 @@ const Search = () => {
                       onEnter={() => {
                         const picked = item();
                         if (!picked) return true;
-                        setQuery(picked.title);
-                        setSearchTriggered(true);
+                        // Transition so the results resource goes pending
+                        // without flashing the Suspense fallback.
+                        startTransition(() => {
+                          setQuery(picked.title);
+                          setSearchTriggered(true);
+                        });
                         queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
                         return true;
                       }}
