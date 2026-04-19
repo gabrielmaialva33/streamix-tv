@@ -144,7 +144,7 @@ const Series = () => {
           width={1660}
           height={50}
           gap={12}
-          scroll="auto"
+          scroll="center"
           autofocus
           onDown={() => contentGrid?.setFocus()}
         >

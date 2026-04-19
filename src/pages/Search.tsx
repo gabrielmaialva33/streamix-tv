@@ -1,6 +1,15 @@
 import { type ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, Index, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  For,
+  Index,
+  onCleanup,
+  Show,
+  startTransition,
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import api, { type Channel, type Movie, type Series } from "../lib/api";
@@ -52,30 +61,36 @@ const Search = () => {
   );
 
   const handleKey = (key: string) => {
-    if (key === "DEL") {
-      setQuery(q => q.slice(0, -1));
-      // Back to typeahead while the user is editing — the full results grid
-      // was firing /catalog/search on every backspace otherwise.
-      setSearchTriggered(false);
-      return true;
-    } else if (key === "OK") {
-      if (query().trim().length >= 2) {
-        setSearchTriggered(true);
+    // Wrap in startTransition so Solid treats the signal updates as a
+    // transition — resources transition through pending WITHOUT tripping the
+    // enclosing Suspense boundary (see createResource + startTransition
+    // pattern in Solid docs).
+    startTransition(() => {
+      if (key === "DEL") {
+        setQuery(q => q.slice(0, -1));
+        setSearchTriggered(false);
+      } else if (key === "OK") {
+        if (query().trim().length >= 2) {
+          setSearchTriggered(true);
+        }
+      } else if (key === " ") {
+        setQuery(q => q + " ");
+        setSearchTriggered(false);
+      } else {
+        setQuery(q => q + key);
+        setSearchTriggered(false);
       }
-      return true;
-    } else if (key === " ") {
-      setQuery(q => q + " ");
-      setSearchTriggered(false);
-      return true;
-    } else {
-      setQuery(q => q + key);
-      setSearchTriggered(false);
-      return true;
-    }
+    });
+    return true;
   };
 
+  // Reading `results.latest` instead of `results()` avoids tripping the
+  // Suspense boundary up the tree — every `results()` access while the fetch
+  // is pending would flash the AppShell/MainLayout Suspense fallback (a
+  // full-viewport dark View), which is exactly what was wiping the sidebar
+  // and content for ~200ms after each keystroke / suggestion click.
   const totalResults = () => {
-    const r = results();
+    const r = results.latest;
     if (!r) return 0;
     return (r.movies?.length || 0) + (r.series?.length || 0) + (r.channels?.length || 0);
   };
@@ -329,13 +344,13 @@ const Search = () => {
               }}
             >
               {/* Movies */}
-              <Show when={results()?.movies?.length}>
+              <Show when={results.latest?.movies?.length}>
                 <View width={1100} height={400} forwardFocus={1}>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Filmes (${results()!.movies.length})`}
+                    {`Filmes (${results.latest!.movies.length})`}
                   </Text>
                   <Row y={40} width={1100} height={360} gap={15}>
-                    <For each={results()!.movies.slice(0, 4)}>
+                    <For each={results.latest!.movies.slice(0, 4)}>
                       {(movie: Movie) => (
                         <Card
                           title={movie.title || movie.name || ""}
@@ -355,13 +370,13 @@ const Search = () => {
               </Show>
 
               {/* Series */}
-              <Show when={results()?.series?.length}>
+              <Show when={results.latest?.series?.length}>
                 <View width={1100} height={400} forwardFocus={1}>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Séries (${results()!.series.length})`}
+                    {`Séries (${results.latest!.series.length})`}
                   </Text>
                   <Row y={40} width={1100} height={360} gap={15}>
-                    <For each={results()!.series.slice(0, 4)}>
+                    <For each={results.latest!.series.slice(0, 4)}>
                       {(show: Series) => (
                         <Card
                           title={show.title || show.name || ""}
@@ -381,13 +396,13 @@ const Search = () => {
               </Show>
 
               {/* Channels */}
-              <Show when={results()?.channels?.length}>
+              <Show when={results.latest?.channels?.length}>
                 <View width={1100} height={180} forwardFocus={1}>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Canais (${results()!.channels.length})`}
+                    {`Canais (${results.latest!.channels.length})`}
                   </Text>
                   <Row y={40} width={1100} height={140} gap={15}>
-                    <For each={results()!.channels.slice(0, 6)}>
+                    <For each={results.latest!.channels.slice(0, 6)}>
                       {(channel: Channel) => (
                         <ChannelResult
                           channel={channel}
