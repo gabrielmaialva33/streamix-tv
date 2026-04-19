@@ -236,26 +236,27 @@ const Channels = () => {
                 <For each={row}>
                   {(channel: Channel) => (
                     <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
-                      <Show
-                        when={loadLogos() && channel.logo_url}
-                        fallback={
-                          <View
-                            x={40}
-                            y={15}
-                            width={100}
-                            height={65}
-                            color={channelColorFromName(channel.name)}
-                            borderRadius={8}
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                          >
-                            <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                              {channelInitial(channel.name)}
-                            </Text>
-                          </View>
-                        }
+                      {/* Placeholder is always rendered as a background layer
+                          so broken/404 logo_urls don't leave the card blank.
+                          The logo <View> on top replaces it visually when
+                          the texture actually loads. */}
+                      <View
+                        x={40}
+                        y={15}
+                        width={100}
+                        height={65}
+                        color={channelColorFromName(channel.name)}
+                        borderRadius={8}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        skipFocus
                       >
+                        <Text fontSize={36} fontWeight={700} color={0xffffffff}>
+                          {channelInitial(channel.name)}
+                        </Text>
+                      </View>
+                      <Show when={loadLogos() && channel.logo_url}>
                         <View
                           x={40}
                           y={15}
