@@ -9,6 +9,7 @@ const SeriesPage = lazy(() => import("../pages/Series"));
 const ChannelsPage = lazy(() => import("../pages/Channels"));
 const GuidePage = lazy(() => import("../pages/Guide"));
 const FavoritesPage = lazy(() => import("../pages/Favorites"));
+const ProfilePage = lazy(() => import("../pages/Profile"));
 const SearchPage = lazy(() => import("../pages/Search"));
 const MovieDetailPage = lazy(() => import("../pages/MovieDetail"));
 const SeriesDetailPage = lazy(() => import("../pages/SeriesDetail"));
@@ -30,6 +31,7 @@ export default function AppRoutes() {
           <Route path="/channels" component={ChannelsPage} />
           <Route path="/guide" component={GuidePage} />
           <Route path="/favorites" component={FavoritesPage} />
+          <Route path="/profile" component={ProfilePage} />
           <Route path="/search" component={SearchPage} />
           <Route path="/movie/:id" component={MovieDetailPage} />
           <Route path="/series/:id" component={SeriesDetailPage} />

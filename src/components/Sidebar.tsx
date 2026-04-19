@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from "@solidjs/router";
 import { bumpNavReset } from "@/shared/navReset";
 import { Show } from "solid-js";
 import { theme } from "@/styles";
-import { authState, signOut } from "@/features/auth/auth";
+import { authState } from "@/features/auth/auth";
 
 // Menu column positioning.
 const ColumnStyle = {
@@ -190,59 +190,11 @@ const Sidebar = (props: SidebarProps) => {
         <NavButton route="/favorites" onEnter={() => go("/favorites")} isActive={isActive("/favorites")}>
           Favoritos
         </NavButton>
-
-        {/* Divider before the account area so D-pad nav reaches "Sair". Used
-            to sit outside the Column, which made the sign-out unreachable. */}
         <Show when={authState.user()}>
           <View style={DividerStyle} skipFocus />
-          <View
-            width={180}
-            height={58}
-            color={0x00000000}
-            skipFocus
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-          >
-            <Text x={16} fontSize={12} color={theme.textMuted} maxLines={1} width={164} contain="width">
-              Conectado como
-            </Text>
-            <Text
-              x={16}
-              y={22}
-              fontSize={15}
-              fontWeight={700}
-              color={theme.textPrimary}
-              contain="width"
-              width={164}
-              maxLines={1}
-            >
-              {authState.user()?.name || authState.user()?.email || ""}
-            </Text>
-          </View>
-
-          <View
-            width={180}
-            height={48}
-            borderRadius={10}
-            color={theme.surface}
-            border={{ color: theme.border, width: 1 }}
-            transition={{ color: { duration: 150 }, scale: { duration: 150 } }}
-            scale={1}
-            $focus={{
-              color: theme.primary,
-              border: { color: theme.primary, width: 1 },
-              scale: 1.02,
-            }}
-            onEnter={() => {
-              void signOut().then(() => navigate("/login"));
-              return true;
-            }}
-          >
-            <Text x={18} y={14} fontSize={18} color={theme.textPrimary}>
-              Sair
-            </Text>
-          </View>
+          <NavButton route="/profile" onEnter={() => go("/profile")} isActive={isActive("/profile")}>
+            Perfil
+          </NavButton>
         </Show>
       </Column>
 

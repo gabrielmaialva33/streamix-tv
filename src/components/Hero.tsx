@@ -256,18 +256,32 @@ const Hero = (props: HeroProps) => {
           </View>
         </Show>
 
-        <Text
-          fontSize={56}
-          fontWeight={700}
-          color={0xffffffff}
-          contain="width"
-          width={748}
-          textOverflow="ellipsis"
-          maxLines={2}
-          y={heroMeta(props.item).length > 0 ? 38 : 0}
-        >
-          {props.item?.title || "Bem-vindo ao Streamix"}
-        </Text>
+        {(() => {
+          // Shrink the hero title to fit long names (e.g. "True Beauty: The
+          // Movie - Part 2 [L]") within two lines without clipping. The 748px
+          // panel fits roughly 16 chars at 56px, 22 at 46px, 28 at 38px.
+          const title = () => props.item?.title || "Bem-vindo ao Streamix";
+          const dynamicFontSize = () => {
+            const len = title().length;
+            if (len <= 24) return 56;
+            if (len <= 36) return 46;
+            return 38;
+          };
+          return (
+            <Text
+              fontSize={dynamicFontSize()}
+              fontWeight={700}
+              color={0xffffffff}
+              contain="width"
+              width={748}
+              textOverflow="ellipsis"
+              maxLines={2}
+              y={heroMeta(props.item).length > 0 ? 38 : 0}
+            >
+              {title()}
+            </Text>
+          );
+        })()}
 
         <Show when={props.item?.description || props.item?.plot}>
           <Text
