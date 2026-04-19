@@ -648,6 +648,18 @@ export const api = {
   },
 
   // ----- Home rails -----
+  // One-shot aggregator — Home fires 5 rails in parallel today, this endpoint
+  // returns them all in a single request (~124ms on prod). Falls back to the
+  // individual endpoints if the server is older.
+  getHome: (limit = 20) =>
+    request<{
+      featured: FeaturedItem | null;
+      trending_movies: Movie[];
+      recent_movies: Movie[];
+      top_rated_movies: Movie[];
+      trending_series: Series[];
+    }>(`${CATALOG_URL}/home${buildQuery({ limit })}`, { ttl: SHORT_TTL }),
+
   // Cascading fallback: dedicated endpoint -> sorted listing -> unsorted listing.
   getTrending: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
     try {

@@ -1,10 +1,11 @@
 import { type ElementNode, View } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
-import { createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, ContentRow, ContinueWatchingRow, Hero } from "../components";
 import api, { type FeaturedItem, type Movie, type RecommendationItem, type Series } from "../lib/api";
-import { pickPoster } from "../lib/imageUrl";
+import { pickPoster } from "@/lib/imageUrl";
+import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 function movieCaption(movie: Movie) {
@@ -35,13 +36,33 @@ const Home = () => {
   let hero: ElementNode | undefined;
   let railsColumn: ElementNode | undefined;
 
-  // The backend provides curated trending, recent, and top-rated rails.
-  const [featured] = createResource(() => api.getFeatured());
-  const [trendingMovies] = createResource(() => api.getTrending("movie", 20) as Promise<Movie[]>);
-  const [recentMovies] = createResource(() => api.getRecent("movie", 20) as Promise<Movie[]>);
-  const [topRatedMovies] = createResource(() => api.getTopRated("movie", 20) as Promise<Movie[]>);
-  const [trendingSeries] = createResource(() => api.getTrending("series", 20) as Promise<Series[]>);
+  // Single aggregated request — /catalog/home returns featured + 4 rails in
+  // one round-trip. Cuts cold-start latency vs. the 5 parallel fetches.
+  const [home] = createResource(() => api.getHome(20));
+  const featured = () => {
+    const f = home()?.featured;
+    return f ? [f] : [];
+  };
+  const trendingMovies = () => home()?.trending_movies;
+  const recentMovies = () => home()?.recent_movies;
+  const topRatedMovies = () => home()?.top_rated_movies;
+  const trendingSeries = () => home()?.trending_series;
+  // Recommendations stay on a separate call — they're user-specific and
+  // expire on a different cadence than the public rails.
   const [recommendedMovies] = createResource(() => api.getRecommendations("movies", 18).catch(() => null));
+
+  // Reset to Hero when the user re-clicks "Início" in the sidebar. Skip the
+  // first run (that's just the initial mount).
+  let navResetSeen = 0;
+  createEffect(() => {
+    const t = navResetTick();
+    if (navResetSeen === 0) {
+      navResetSeen = t;
+      return;
+    }
+    navResetSeen = t;
+    hero?.setFocus();
+  });
 
   // Register cleanup explicitly; returning from onMount does not dispose the timer.
   onMount(() => {
