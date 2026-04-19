@@ -35,7 +35,12 @@ const MainLayout = (props: MainLayoutProps) => {
       return false;
     }
 
-    const nextTarget = lastFocused && lastFocused !== sidebar ? lastFocused : pageContainer;
+    // Stale-ref guard: lastFocused can point to a node unmounted by a route
+    // swap or a <Show>/<For> flip. setFocus() on a detached node is a silent
+    // no-op on real TVs — that's how the D-pad ends up "stuck". Only reuse
+    // the ref if it's still attached to the tree.
+    const nextTarget =
+      lastFocused && lastFocused !== sidebar && lastFocused.parent ? lastFocused : pageContainer;
     nextTarget?.setFocus();
     return true;
   }
@@ -58,11 +63,24 @@ const MainLayout = (props: MainLayoutProps) => {
   }
   // Route change invalidates any lastFocused reference from the prior page.
   // Otherwise returning from the sidebar setFocus-es a stale node and the
-  // page scroll snaps to that node's position on remount.
+  // page scroll snaps to that node's position on remount. The skipInitial flag
+  // ensures we don't fight the initial mount (before pageContainer is ready).
+  let navCount = 0;
   createEffect(() => {
     // Track the route signal so this effect re-runs on navigation.
     void location.pathname;
     lastFocused = undefined;
+    const count = ++navCount;
+    if (count === 1) return;
+    // After a navigation, defer one microtask so the new page can mount. If the
+    // old focused node was disposed and nothing grabbed focus, recover into
+    // pageContainer so the D-pad never dies on real TVs.
+    queueMicrotask(() => {
+      const current = activeElement();
+      if (!current || !current.parent) {
+        pageContainer?.setFocus();
+      }
+    });
   });
 
   onMount(() => {

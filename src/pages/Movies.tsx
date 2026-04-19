@@ -55,15 +55,19 @@ const Movies = () => {
         setAccumulatedMovies(result.data);
       } else {
         // Load more - append data and restore focus
-        const _previousCount = accumulatedMovies().length;
         setAccumulatedMovies(prev => [...prev, ...result.data]);
 
-        // Restore focus to load more button or first new item
-        setTimeout(() => {
-          if (loadMoreButton) {
+        // If everything is loaded the <Show> unmounts the load-more button;
+        // setFocus() on the disposed ref would be a silent no-op and the D-pad
+        // would hang on a real TV. Fall back to the grid when that happens.
+        queueMicrotask(() => {
+          const allLoaded = accumulatedMovies().length >= totalItems();
+          if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
+          } else {
+            contentGrid?.setFocus();
           }
-        }, 100);
+        });
       }
     }
   });

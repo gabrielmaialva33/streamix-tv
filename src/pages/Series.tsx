@@ -61,12 +61,17 @@ const Series = () => {
         // Load more - append data and restore focus
         setAccumulatedSeries(prev => [...prev, ...result.data]);
 
-        // Restore focus to load more button
-        setTimeout(() => {
-          if (loadMoreButton) {
+        // Once everything is loaded the <Show> unmounts the load-more button;
+        // setFocus() on the disposed ref would be a silent no-op and the D-pad
+        // would hang on a real TV. Fall back to the grid in that case.
+        queueMicrotask(() => {
+          const allLoaded = accumulatedSeries().length >= totalItems();
+          if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
+          } else {
+            contentGrid?.setFocus();
           }
-        }, 100);
+        });
       }
     }
   });
