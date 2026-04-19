@@ -158,82 +158,101 @@ const Search = () => {
         </For>
       </Column>
 
-      {/* Live typeahead column — only while the user is still typing. */}
-      <Show when={!searchTriggered() && (latestSuggestions()?.items?.length ?? 0) > 0}>
-        <View x={560} y={110} width={1120} height={60} skipFocus>
-          <Text fontSize={16} color={theme.textMuted}>
-            Sugestões (aperte OK para ver tudo)
-          </Text>
-        </View>
-        <Column
-          ref={suggestionsColumn}
-          x={560}
-          y={170}
-          width={1120}
-          height={860}
-          gap={8}
-          scroll="auto"
-          clipping
-          onLeft={() => {
-            keyboardColumn?.setFocus();
-            return true;
-          }}
-        >
-          {/* Use Index instead of For: For keys by reference, and every
+      {/* Live typeahead — kept mounted across search state transitions and
+           cross-faded via alpha. Mount/unmount was flashing the canvas
+           because Lightning needed a frame to settle the new subtree; fading
+           in/out lets the scene graph stay stable. */}
+      {(() => {
+        const showSuggestions = () => !searchTriggered() && (latestSuggestions()?.items?.length ?? 0) > 0;
+        return (
+          <>
+            <View
+              x={560}
+              y={110}
+              width={1120}
+              height={60}
+              alpha={showSuggestions() ? 1 : 0}
+              transition={{ alpha: { duration: 180 } }}
+              skipFocus
+            >
+              <Text fontSize={16} color={theme.textMuted}>
+                Sugestões (aperte OK para ver tudo)
+              </Text>
+            </View>
+            <Column
+              ref={suggestionsColumn}
+              x={560}
+              y={170}
+              width={1120}
+              height={860}
+              gap={8}
+              scroll="auto"
+              clipping
+              alpha={showSuggestions() ? 1 : 0}
+              transition={{ alpha: { duration: 180 } }}
+              skipFocus={!showSuggestions()}
+              onLeft={() => {
+                keyboardColumn?.setFocus();
+                return true;
+              }}
+            >
+              {/* Use Index instead of For: For keys by reference, and every
               /catalog/suggest response is a fresh array — the whole list
               was torn down and remounted per keystroke, causing the blink.
               Index keys by position so the same <View>s are reused with
               updated content. */}
-          <Index each={latestSuggestions()!.items.slice(0, 8)}>
-            {item => (
-              <View
-                width={1120}
-                height={72}
-                color={theme.surface}
-                borderRadius={14}
-                border={{ color: theme.border, width: 1 }}
-                display="flex"
-                alignItems="center"
-                transition={{ color: { duration: 120 }, scale: { duration: 120 } }}
-                scale={1}
-                $focus={{
-                  color: theme.surfaceHover,
-                  border: { color: theme.primary, width: 2 },
-                  scale: 1.01,
-                }}
-                onEnter={() => {
-                  const picked = item();
-                  setQuery(picked.title);
-                  setSearchTriggered(true);
-                  // The Show wrapping suggestionsColumn is about to flip false
-                  // and unmount this node — move focus to the results Column
-                  // as soon as it mounts on the next tick, otherwise the
-                  // D-pad ends up stranded on a detached node.
-                  queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
-                  return true;
-                }}
-              >
-                <Text
-                  x={20}
-                  y={20}
-                  fontSize={22}
-                  fontWeight={700}
-                  color={theme.textPrimary}
-                  width={820}
-                  maxLines={1}
-                  contain="width"
-                >
-                  {item().title}
-                </Text>
-                <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
-                  {item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
-                  {item().year ? ` · ${item().year}` : ""}
-                </Text>
-              </View>
-            )}
-          </Index>
-        </Column>
-      </Show>
+              <Index each={latestSuggestions()!.items.slice(0, 8)}>
+                {item => (
+                  <View
+                    width={1120}
+                    height={72}
+                    color={theme.surface}
+                    borderRadius={14}
+                    border={{ color: theme.border, width: 1 }}
+                    display="flex"
+                    alignItems="center"
+                    transition={{ color: { duration: 120 }, scale: { duration: 120 } }}
+                    scale={1}
+                    $focus={{
+                      color: theme.surfaceHover,
+                      border: { color: theme.primary, width: 2 },
+                      scale: 1.01,
+                    }}
+                    onEnter={() => {
+                      const picked = item();
+                      setQuery(picked.title);
+                      setSearchTriggered(true);
+                      // The Show wrapping suggestionsColumn is about to flip false
+                      // and unmount this node — move focus to the results Column
+                      // as soon as it mounts on the next tick, otherwise the
+                      // D-pad ends up stranded on a detached node.
+                      queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
+                      return true;
+                    }}
+                  >
+                    <Text
+                      x={20}
+                      y={20}
+                      fontSize={22}
+                      fontWeight={700}
+                      color={theme.textPrimary}
+                      width={820}
+                      maxLines={1}
+                      contain="width"
+                    >
+                      {item().title}
+                    </Text>
+                    <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
+                      {item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
+                      {item().year ? ` · ${item().year}` : ""}
+                    </Text>
+                  </View>
+                )}
+              </Index>
+            </Column>
+          </>
+        );
+      })()}
 
       {/* Results — full ranked payload after OK. */}
       <View x={560} y={170} width={1120} height={890} skipFocus>
@@ -268,7 +287,7 @@ const Search = () => {
           >
             {/* Movies */}
             <Show when={results()?.movies?.length}>
-              <View width={1100} height={400}>
+              <View width={1100} height={400} forwardFocus={1}>
                 <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                   {`Filmes (${results()!.movies.length})`}
                 </Text>
@@ -294,7 +313,7 @@ const Search = () => {
 
             {/* Series */}
             <Show when={results()?.series?.length}>
-              <View width={1100} height={400}>
+              <View width={1100} height={400} forwardFocus={1}>
                 <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                   {`Séries (${results()!.series.length})`}
                 </Text>
@@ -320,7 +339,7 @@ const Search = () => {
 
             {/* Channels */}
             <Show when={results()?.channels?.length}>
-              <View width={1100} height={180}>
+              <View width={1100} height={180} forwardFocus={1}>
                 <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                   {`Canais (${results()!.channels.length})`}
                 </Text>
