@@ -196,58 +196,71 @@ const Search = () => {
                 return true;
               }}
             >
-              {/* Use Index instead of For: For keys by reference, and every
-              /catalog/suggest response is a fresh array — the whole list
-              was torn down and remounted per keystroke, causing the blink.
-              Index keys by position so the same <View>s are reused with
-              updated content. */}
-              <Index each={(latestSuggestions()?.items ?? []).slice(0, 8)}>
-                {item => (
-                  <View
-                    width={1120}
-                    height={72}
-                    color={theme.surface}
-                    borderRadius={14}
-                    border={{ color: theme.border, width: 1 }}
-                    display="flex"
-                    alignItems="center"
-                    transition={{ color: { duration: 120 }, scale: { duration: 120 } }}
-                    scale={1}
-                    $focus={{
-                      color: theme.surfaceHover,
-                      border: { color: theme.primary, width: 2 },
-                      scale: 1.01,
-                    }}
-                    onEnter={() => {
-                      const picked = item();
-                      setQuery(picked.title);
-                      setSearchTriggered(true);
-                      // The Show wrapping suggestionsColumn is about to flip false
-                      // and unmount this node — move focus to the results Column
-                      // as soon as it mounts on the next tick, otherwise the
-                      // D-pad ends up stranded on a detached node.
-                      queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
-                      return true;
-                    }}
-                  >
-                    <Text
-                      x={20}
-                      y={20}
-                      fontSize={22}
-                      fontWeight={700}
-                      color={theme.textPrimary}
-                      width={820}
-                      maxLines={1}
-                      contain="width"
+              {/* Pre-allocated slots — Index over a static [0..7] array so
+              Lightning instantiates 8 Views ONCE on first mount. As suggestions
+              arrive we only update the Text content of each slot; the scene
+              graph never grows or shrinks, so the typeahead block doesn't
+              flash when new data lands. Slots with no data go alpha=0 +
+              skipFocus. */}
+              <Index each={[0, 1, 2, 3, 4, 5, 6, 7]}>
+                {slotIndex => {
+                  const item = () => latestSuggestions()?.items?.[slotIndex()];
+                  const hasItem = () => !!item();
+                  return (
+                    <View
+                      width={1120}
+                      height={72}
+                      color={theme.surface}
+                      borderRadius={14}
+                      border={{ color: theme.border, width: 1 }}
+                      display="flex"
+                      alignItems="center"
+                      transition={{
+                        alpha: { duration: 150 },
+                        color: { duration: 120 },
+                        scale: { duration: 120 },
+                      }}
+                      scale={1}
+                      alpha={hasItem() ? 1 : 0}
+                      skipFocus={!hasItem()}
+                      $focus={{
+                        color: theme.surfaceHover,
+                        border: { color: theme.primary, width: 2 },
+                        scale: 1.01,
+                      }}
+                      onEnter={() => {
+                        const picked = item();
+                        if (!picked) return true;
+                        setQuery(picked.title);
+                        setSearchTriggered(true);
+                        queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
+                        return true;
+                      }}
                     >
-                      {item().title}
-                    </Text>
-                    <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
-                      {item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
-                      {item().year ? ` · ${item().year}` : ""}
-                    </Text>
-                  </View>
-                )}
+                      <Text
+                        x={20}
+                        y={20}
+                        fontSize={22}
+                        fontWeight={700}
+                        color={theme.textPrimary}
+                        width={820}
+                        maxLines={1}
+                        contain="width"
+                      >
+                        {item()?.title ?? ""}
+                      </Text>
+                      <Text x={860} y={26} fontSize={16} color={theme.textMuted}>
+                        {(() => {
+                          const it = item();
+                          if (!it) return "";
+                          const label =
+                            it.type === "movie" ? "Filme" : it.type === "series" ? "Série" : "Canal";
+                          return it.year ? `${label} · ${it.year}` : label;
+                        })()}
+                      </Text>
+                    </View>
+                  );
+                }}
               </Index>
             </Column>
           </>
