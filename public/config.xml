@@ -37,8 +37,8 @@
     <tizen:background-category value="media"/>
 
     <!-- Content Security Policy - REQUIRED for WebGL workers.
-         Em Tizen (file://) o origin vira "null", entao o XHR pra recursos
-         locais (fonts msdf, atlases) precisa de 'self' * file: etc. -->
+         On Tizen (file://), the origin becomes "null", so XHR for local
+         resources (MSDF fonts, atlases) requires 'self' * file: etc. -->
     <tizen:content-security-policy>
         default-src 'self' file: filesystem: data: blob:;
         script-src 'self' file: filesystem: 'unsafe-inline' 'unsafe-eval' blob:;

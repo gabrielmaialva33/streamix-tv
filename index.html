@@ -22,8 +22,8 @@
 
   <body tabindex="0">
     <div id="app"></div>
-    <!-- Debug overlay visivel na TV quando nao tem acesso ao devtools.
- Captura erros JS e console.error/console.warn e pinta em cima. -->
+    <!-- Debug overlay visible on TV when devtools are not available.
+ Captures JS errors and console.error/console.warn, then renders on top. -->
     <div
       id="err-overlay"
       style="
@@ -45,7 +45,7 @@
       "
     ></div>
     <script>
-      // Overlay so ativa com #debug no hash ou localStorage.streamix_debug=1
+      // Overlay only activates with #debug in the hash or localStorage.streamix_debug=1
       (function () {
         var isDebug =
           location.hash.indexOf("debug") !== -1 ||
