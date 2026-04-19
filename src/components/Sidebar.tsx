@@ -13,12 +13,12 @@ import { Show } from "solid-js";
 import { theme } from "@/styles";
 import { authState, signOut } from "@/features/auth/auth";
 
-// Menu column positioning
+// Menu column positioning.
 const ColumnStyle = {
   display: "flex",
   flexDirection: "column",
   width: 200,
-  height: 580,
+  height: 760,
   y: 120,
   gap: 6,
   zIndex: 200,
@@ -190,43 +190,61 @@ const Sidebar = (props: SidebarProps) => {
         <NavButton route="/favorites" onEnter={() => go("/favorites")} isActive={isActive("/favorites")}>
           Favoritos
         </NavButton>
-      </Column>
 
-      <Show when={authState.user()}>
-        <View skipFocus y={904} x={20} width={180} zIndex={105}>
-          <Text fontSize={14} color={theme.textMuted}>
-            Signed in as
-          </Text>
-          <Text
-            y={22}
+        {/* Divider before the account area so D-pad nav reaches "Sair". Used
+            to sit outside the Column, which made the sign-out unreachable. */}
+        <Show when={authState.user()}>
+          <View style={DividerStyle} skipFocus />
+          <View
             width={180}
-            fontSize={16}
-            fontWeight={700}
-            color={theme.textPrimary}
-            contain="width"
-            maxLines={1}
+            height={58}
+            color={0x00000000}
+            skipFocus
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
           >
-            {authState.user()?.name || authState.user()?.email || ""}
-          </Text>
-        </View>
+            <Text x={16} fontSize={12} color={theme.textMuted} maxLines={1} width={164} contain="width">
+              Conectado como
+            </Text>
+            <Text
+              x={16}
+              y={22}
+              fontSize={15}
+              fontWeight={700}
+              color={theme.textPrimary}
+              contain="width"
+              width={164}
+              maxLines={1}
+            >
+              {authState.user()?.name || authState.user()?.email || ""}
+            </Text>
+          </View>
 
-        <View
-          x={20}
-          y={952}
-          width={180}
-          height={44}
-          borderRadius={10}
-          color={theme.surface}
-          zIndex={105}
-          onEnter={() => {
-            void signOut().then(() => navigate("/login"));
-          }}
-        >
-          <Text x={18} y={12} fontSize={18} color={theme.textPrimary}>
-            Sign out
-          </Text>
-        </View>
-      </Show>
+          <View
+            width={180}
+            height={48}
+            borderRadius={10}
+            color={theme.surface}
+            border={{ color: theme.border, width: 1 }}
+            transition={{ color: { duration: 150 }, scale: { duration: 150 } }}
+            scale={1}
+            $focus={{
+              color: theme.primary,
+              border: { color: theme.primary, width: 1 },
+              scale: 1.02,
+            }}
+            onEnter={() => {
+              void signOut().then(() => navigate("/login"));
+              return true;
+            }}
+          >
+            <Text x={18} y={14} fontSize={18} color={theme.textPrimary}>
+              Sair
+            </Text>
+          </View>
+        </Show>
+      </Column>
 
       {/* Version */}
       <View skipFocus y={1020} x={20} zIndex={105}>

@@ -39,14 +39,20 @@ const Home = () => {
   // Single aggregated request — /catalog/home returns featured + 4 rails in
   // one round-trip. Cuts cold-start latency vs. the 5 parallel fetches.
   const [home] = createResource(() => api.getHome(20));
+  // `home.latest` keeps the last resolved payload visible while a refetch is
+  // in flight. Without it, re-entering Home with a cold /catalog/home (which
+  // sometimes takes 1s+ from the VPS) leaves Hero + rails blank = user sees
+  // a dark screen for ~1.5s. Falling back to latest means the prior cards
+  // stay on screen until the fresh data lands and swaps in.
+  const homeData = () => home() ?? home.latest;
   const featured = () => {
-    const f = home()?.featured;
+    const f = homeData()?.featured;
     return f ? [f] : [];
   };
-  const trendingMovies = () => home()?.trending_movies;
-  const recentMovies = () => home()?.recent_movies;
-  const topRatedMovies = () => home()?.top_rated_movies;
-  const trendingSeries = () => home()?.trending_series;
+  const trendingMovies = () => homeData()?.trending_movies;
+  const recentMovies = () => homeData()?.recent_movies;
+  const topRatedMovies = () => homeData()?.top_rated_movies;
+  const trendingSeries = () => homeData()?.trending_series;
   // Recommendations stay on a separate call — they're user-specific and
   // expire on a different cadence than the public rails.
   const [recommendedMovies] = createResource(() => api.getRecommendations("movies", 18).catch(() => null));
