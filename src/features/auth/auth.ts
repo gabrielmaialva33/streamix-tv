@@ -106,14 +106,22 @@ export async function initializeAuth() {
       if (error instanceof ApiError && error.isUnauthorized()) {
         logger.warn("Stored session is no longer valid", error);
         clearSession();
+        // Clear the promise so the user can retry after logging in again.
+        initPromise = null;
       } else {
         logger.warn("Session validation deferred (transient)", error);
         setStatus("authenticated");
+        // Transient failures (429, 5xx) clear so the next interaction can
+        // re-validate. Per-boot retries are still guarded by the
+        // status check above.
+        initPromise = null;
       }
     }
-  })().finally(() => {
-    initPromise = null;
-  });
+  })();
+  // Intentionally do NOT reset initPromise in finally on success: keeping the
+  // resolved promise means any subsequent RequireAuth remount (or navigation
+  // back into a protected route) reuses the same validation instead of
+  // firing /auth/me again, which was hitting the backend rate limit.
 
   return initPromise;
 }
