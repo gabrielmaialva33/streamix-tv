@@ -25,6 +25,10 @@ function recommendationPoster(item: RecommendationItem) {
 const Home = () => {
   const navigate = useNavigate();
   const [featuredIndex, setFeaturedIndex] = createSignal(0);
+  // Staggered rail reveal: commercial TVs choke when ~100 Card textures land
+  // in a single frame (WebGL asset burst). Mount rails in waves so image
+  // decoding is distributed and first paint is not blocked.
+  const [railTick, setRailTick] = createSignal(0);
 
   let hero: ElementNode | undefined;
   let railsColumn: ElementNode | undefined;
@@ -45,7 +49,19 @@ const Home = () => {
         setFeaturedIndex(i => (i + 1) % items.length);
       }
     }, 8000);
-    onCleanup(() => clearInterval(interval));
+    // Stagger the remaining rails — Hero + first two rails paint fast, then
+    // every ~350ms another rail unlocks. User-initiated scroll down is already
+    // fine because Column only asks for focus on the next visible child.
+    const timers = [
+      setTimeout(() => setRailTick(1), 350),
+      setTimeout(() => setRailTick(2), 700),
+      setTimeout(() => setRailTick(3), 1050),
+      setTimeout(() => setRailTick(4), 1400),
+    ];
+    onCleanup(() => {
+      clearInterval(interval);
+      for (const t of timers) clearTimeout(t);
+    });
   });
 
   // Fall back to the first trending movie if featured content is unavailable.
@@ -182,7 +198,7 @@ const Home = () => {
             </ContentRow>
           </Show>
 
-          <Show when={recentMovies()?.length}>
+          <Show when={railTick() >= 1 && recentMovies()?.length}>
             <ContentRow
               title="Chegaram agora"
               onSelectedChanged={index => {
@@ -204,7 +220,7 @@ const Home = () => {
             </ContentRow>
           </Show>
 
-          <Show when={topRatedMovies()?.length}>
+          <Show when={railTick() >= 2 && topRatedMovies()?.length}>
             <ContentRow
               title="Mais elogiados"
               onSelectedChanged={index => {
@@ -226,7 +242,7 @@ const Home = () => {
             </ContentRow>
           </Show>
 
-          <Show when={trendingSeries()?.length}>
+          <Show when={railTick() >= 3 && trendingSeries()?.length}>
             <ContentRow
               title="Séries em alta"
               onSelectedChanged={index => {
@@ -248,7 +264,9 @@ const Home = () => {
             </ContentRow>
           </Show>
 
-          <ContinueWatchingRow limit={10} />
+          <Show when={railTick() >= 4}>
+            <ContinueWatchingRow limit={10} />
+          </Show>
         </Column>
       </View>
     </View>
