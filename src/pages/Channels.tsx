@@ -8,6 +8,7 @@ import { proxyImageUrl } from "../lib/imageUrl";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
+const ROW_BUFFER = 2;
 
 // Style constants
 const ChannelCardStyle = {
@@ -76,6 +77,7 @@ const Channels = () => {
   // Accumulator keeps Column children stable across refetches; appends on
   // pagination, replaces on filter change.
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
+  const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
   createEffect(() => {
     const result = channels();
@@ -201,6 +203,9 @@ const Channels = () => {
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
+        onSelectedChanged={index => {
+          if (index < channelRows().length) setSelectedRowIndex(index);
+        }}
       >
         <Show when={channels.loading && channelsData().length === 0}>
           <Row width={1640} height={150} gap={12} scroll="none" skipFocus>
@@ -224,60 +229,63 @@ const Channels = () => {
         </Show>
 
         <For each={channelRows()}>
-          {row => (
-            <Row width={1640} height={150} gap={12} scroll="none">
-              <For each={row}>
-                {(channel: Channel) => (
-                  <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
-                    <Show
-                      when={channel.logo_url}
-                      fallback={
+          {(row, rowIndex) => {
+            const loadLogos = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_BUFFER;
+            return (
+              <Row width={1640} height={150} gap={12} scroll="none">
+                <For each={row}>
+                  {(channel: Channel) => (
+                    <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
+                      <Show
+                        when={loadLogos() && channel.logo_url}
+                        fallback={
+                          <View
+                            x={40}
+                            y={15}
+                            width={100}
+                            height={65}
+                            color={channelColorFromName(channel.name)}
+                            borderRadius={8}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <Text fontSize={36} fontWeight={700} color={0xffffffff}>
+                              {channel.name.trim().charAt(0).toUpperCase() || "?"}
+                            </Text>
+                          </View>
+                        }
+                      >
                         <View
                           x={40}
                           y={15}
                           width={100}
                           height={65}
-                          color={channelColorFromName(channel.name)}
-                          borderRadius={8}
-                          display="flex"
-                          justifyContent="center"
-                          alignItems="center"
-                        >
-                          <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                            {channel.name.trim().charAt(0).toUpperCase() || "?"}
-                          </Text>
-                        </View>
-                      }
-                    >
-                      <View
-                        x={40}
-                        y={15}
-                        width={100}
-                        height={65}
-                        src={proxyImageUrl(channel.logo_url, 200)}
-                        color={0xffffffff}
-                      />
-                    </Show>
+                          src={proxyImageUrl(channel.logo_url, 200)}
+                          color={0xffffffff}
+                        />
+                      </Show>
 
-                    <Text
-                      x={10}
-                      y={90}
-                      width={160}
-                      height={30}
-                      fontSize={14}
-                      color={0xccccccff}
-                      contain="both"
-                      textOverflow="ellipsis"
-                      textAlign="center"
-                      maxLines={1}
-                    >
-                      {channel.name}
-                    </Text>
-                  </View>
-                )}
-              </For>
-            </Row>
-          )}
+                      <Text
+                        x={10}
+                        y={90}
+                        width={160}
+                        height={30}
+                        fontSize={14}
+                        color={0xccccccff}
+                        contain="both"
+                        textOverflow="ellipsis"
+                        textAlign="center"
+                        maxLines={1}
+                      >
+                        {channel.name}
+                      </Text>
+                    </View>
+                  )}
+                </For>
+              </Row>
+            );
+          }}
         </For>
 
         <Show when={hasMore()}>

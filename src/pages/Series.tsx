@@ -21,6 +21,8 @@ function seriesCaption(show: SeriesType) {
     .join(" • ");
 }
 
+const ROW_BUFFER = 2;
+
 const Series = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
@@ -29,6 +31,7 @@ const Series = () => {
   const [accumulatedSeries, setAccumulatedSeries] = createSignal<SeriesType[]>([]);
   const [totalItems, setTotalItems] = createSignal(0);
   const [scrollPosition, setScrollPosition] = createSignal(0);
+  const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
   let titleRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
@@ -195,6 +198,9 @@ const Series = () => {
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
+        onSelectedChanged={index => {
+          if (index < seriesRows().length) setSelectedRowIndex(index);
+        }}
         onScrolled={(ref, pos, isInitial) => {
           if (!isInitial && ref.children.length > 0) {
             const totalContentHeight = ref.children.length * (420 + 24);
@@ -234,25 +240,28 @@ const Series = () => {
         </Show>
 
         <For each={seriesRows()}>
-          {row => (
-            <Row width={1640} height={420} gap={16} scroll="none">
-              <For each={row}>
-                {(show: SeriesType) => (
-                  <Card
-                    title={show.title || show.name || ""}
-                    imageUrl={show.poster_url || show.poster || undefined}
-                    subtitle={seriesCaption(show)}
-                    onFocus={() => api.prefetchSeries(String(show.id))}
-                    onEnter={() => {
-                      handleSeriesSelect(show);
-                      return true;
-                    }}
-                    item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
-                  />
-                )}
-              </For>
-            </Row>
-          )}
+          {(row, rowIndex) => {
+            const loadImages = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_BUFFER;
+            return (
+              <Row width={1640} height={420} gap={16} scroll="none">
+                <For each={row}>
+                  {(show: SeriesType) => (
+                    <Card
+                      title={show.title || show.name || ""}
+                      imageUrl={loadImages() ? show.poster_url || show.poster || undefined : undefined}
+                      subtitle={seriesCaption(show)}
+                      onFocus={() => api.prefetchSeries(String(show.id))}
+                      onEnter={() => {
+                        handleSeriesSelect(show);
+                        return true;
+                      }}
+                      item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
+                    />
+                  )}
+                </For>
+              </Row>
+            );
+          }}
         </For>
 
         {/* Load More Button */}
