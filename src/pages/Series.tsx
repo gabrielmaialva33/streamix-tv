@@ -4,7 +4,8 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Series as SeriesType } from "../lib/api";
-import { pickPoster } from "../lib/imageUrl";
+import { pickPoster } from "@/lib/imageUrl";
+import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
@@ -38,6 +39,18 @@ const Series = () => {
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
+
+  // Reset to categories when the user re-clicks "Séries" in the sidebar.
+  let navResetSeen = 0;
+  createEffect(() => {
+    const t = navResetTick();
+    if (navResetSeen === 0) {
+      navResetSeen = t;
+      return;
+    }
+    navResetSeen = t;
+    categoriesRow?.setFocus();
+  });
 
   // Fetch categories
   const [categories] = createResource(() => api.getCategories("series"));

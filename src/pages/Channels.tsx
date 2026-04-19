@@ -4,7 +4,8 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
-import { proxyImageUrl } from "../lib/imageUrl";
+import { proxyImageUrl } from "@/lib/imageUrl";
+import { navResetTick } from "@/shared/navReset";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
@@ -55,6 +56,18 @@ const Channels = () => {
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
+
+  // Reset to categories when the user re-clicks "Canais" in the sidebar.
+  let navResetSeen = 0;
+  createEffect(() => {
+    const t = navResetTick();
+    if (navResetSeen === 0) {
+      navResetSeen = t;
+      return;
+    }
+    navResetSeen = t;
+    categoriesRow?.setFocus();
+  });
 
   const PAGE_SIZE = 100;
   const [offset, setOffset] = createSignal(0);

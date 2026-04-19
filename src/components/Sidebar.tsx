@@ -8,8 +8,9 @@ import {
 } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
+import { bumpNavReset } from "@/shared/navReset";
 import { Show } from "solid-js";
-import { theme } from "../styles";
+import { theme } from "@/styles";
 import { authState, signOut } from "@/features/auth/auth";
 
 // Menu column positioning
@@ -140,7 +141,13 @@ const Sidebar = (props: SidebarProps) => {
   }
 
   function go(page: string) {
-    if (!isActive(page)) navigate(page);
+    if (isActive(page)) {
+      // Same route: tell the page to reset scroll/focus to the top, otherwise
+      // tapping "Início" while already on "Início" looks like a dead button.
+      bumpNavReset();
+    } else {
+      navigate(page);
+    }
     // Wait for the router tree to settle before returning focus to content.
     queueMicrotask(() => queueMicrotask(() => props.onExit?.()));
   }

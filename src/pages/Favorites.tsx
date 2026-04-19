@@ -1,9 +1,10 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import { type FavoriteItem, favorites } from "@/lib/storage";
+import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 import { authState } from "@/features/auth/auth";
 
@@ -42,6 +43,18 @@ const Favorites = () => {
 
   let tabsRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
+
+  // Reset to tabs when the user re-clicks "Favoritos" in the sidebar.
+  let navResetSeen = 0;
+  createEffect(() => {
+    const t = navResetTick();
+    if (navResetSeen === 0) {
+      navResetSeen = t;
+      return;
+    }
+    navResetSeen = t;
+    tabsRow?.setFocus();
+  });
 
   // Load favorites
   const loadFavorites = () => {

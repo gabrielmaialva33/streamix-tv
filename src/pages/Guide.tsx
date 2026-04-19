@@ -1,9 +1,10 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createResource, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "../lib/api";
 import { proxyImageUrl } from "../lib/imageUrl";
+import { navResetTick } from "../shared/navReset";
 import { theme } from "@/styles";
 
 // Time slot width (30 min = 200px)
@@ -56,6 +57,18 @@ const Guide = () => {
   const [timelineOffset, _setTimelineOffset] = createSignal(0);
 
   let guideGrid: ElementNode | undefined;
+
+  // Reset to the grid when the user re-clicks "Guia TV" in the sidebar.
+  let navResetSeen = 0;
+  createEffect(() => {
+    const t = navResetTick();
+    if (navResetSeen === 0) {
+      navResetSeen = t;
+      return;
+    }
+    navResetSeen = t;
+    guideGrid?.setFocus();
+  });
 
   // Fetch the first page of channels for the grid.
   const [channels] = createResource(() => api.getChannels({ limit: 50 }));
