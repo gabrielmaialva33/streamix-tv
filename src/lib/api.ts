@@ -293,9 +293,20 @@ export interface StreamUrl {
 }
 
 export interface SearchResults {
+  query?: string;
   movies: Movie[];
   series: Series[];
   channels: Channel[];
+}
+
+// Typeahead result — lightweight shape shared across movie/series/channel.
+export interface SuggestItem {
+  id: number;
+  type: "movie" | "series" | "channel";
+  title: string;
+  year?: number | null;
+  poster?: string | null;
+  score?: number | null;
 }
 
 export interface SimilarContentItem {
@@ -624,8 +635,10 @@ export const api = {
     request<StreamUrl>(`${CATALOG_URL}/channels/${id}/stream`, { ttl: SHORT_TTL }),
 
   // ----- Search -----
-  search: async (query: string): Promise<SearchResults> => {
-    const r = await request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query })}`, {
+  // Ranked catalog search: exact > prefix > substring > trigram. Each item
+  // carries a `score` so the UI can order across sections if needed.
+  search: async (query: string, limit = 10): Promise<SearchResults> => {
+    const r = await request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query, limit })}`, {
       ttl: SHORT_TTL,
     });
     return {
@@ -634,6 +647,13 @@ export const api = {
       channels: (r.channels || []).map(normChannel),
     };
   },
+
+  // Typeahead — lightweight, mixed list of {id, type, title, year, poster}.
+  suggest: (query: string, limit = 10) =>
+    request<{ query: string; items: SuggestItem[] }>(
+      `${CATALOG_URL}/suggest${buildQuery({ q: query, limit })}`,
+      { ttl: SHORT_TTL },
+    ),
 
   getSimilarContent: async (
     collection: "movies" | "series",

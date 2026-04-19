@@ -2,7 +2,7 @@ import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, CategoryChip, ScrollIndicator, SearchBox, SkeletonLoader } from "../components";
+import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "../components";
 import api, { type Category, type Series as SeriesType } from "../lib/api";
 import { pickPoster } from "@/lib/imageUrl";
 import { navResetTick } from "@/shared/navReset";
@@ -35,7 +35,6 @@ const Series = () => {
   const [scrollPosition, setScrollPosition] = createSignal(0);
   const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
-  let titleRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
@@ -93,14 +92,6 @@ const Series = () => {
     }
   });
 
-  // Handle search
-  const handleSearch = (query: string) => {
-    setAccumulatedSeries([]);
-    setSearchQuery(query);
-    setSelectedCategory(undefined);
-    setOffset(0);
-  };
-
   // Chunk series into rows
   const seriesRows = () => {
     const data = accumulatedSeries();
@@ -136,26 +127,14 @@ const Series = () => {
     >
       {/* Fixed Header - solid background hides content scrolling behind */}
       <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
-        {/* Title and Search */}
-        <Row
-          ref={titleRow}
-          width={1660}
-          height={100}
-          x={20}
-          gap={20}
-          scroll="none"
-          onDown={() => categoriesRow?.setFocus()}
-        >
-          <View width={1400} skipFocus>
-            <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
-              Séries
-            </Text>
-            <Text y={64} fontSize={18} color={theme.textSecondary}>
-              Entre no universo da série antes de escolher temporada e episódio.
-            </Text>
-          </View>
-          <SearchBox onSearch={handleSearch} placeholder="Buscar séries..." />
-        </Row>
+        <View width={1660} height={100} x={20} skipFocus>
+          <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
+            Séries
+          </Text>
+          <Text y={64} fontSize={18} color={theme.textSecondary}>
+            Entre no universo da série antes de escolher temporada e episódio.
+          </Text>
+        </View>
 
         {/* Category Filter - horizontal scrolling */}
         <Row
@@ -167,7 +146,6 @@ const Series = () => {
           gap={12}
           scroll="auto"
           autofocus
-          onUp={() => titleRow?.setFocus()}
           onDown={() => contentGrid?.setFocus()}
         >
           <CategoryChip

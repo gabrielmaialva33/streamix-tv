@@ -2,7 +2,7 @@ import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightnin
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { CategoryChip, SearchBox, SkeletonLoader } from "../components";
+import { CategoryChip, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { navResetTick } from "@/shared/navReset";
@@ -52,7 +52,6 @@ const Channels = () => {
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
   const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
 
-  let titleRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
@@ -118,13 +117,6 @@ const Channels = () => {
     }
   });
 
-  // Handle search
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setSelectedCategory(undefined);
-    setOffset(0);
-  };
-
   // Chunk channels into rows
   const channelRows = () => {
     const data = channelsData();
@@ -150,22 +142,11 @@ const Channels = () => {
       }}
     >
       <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
-        <Row
-          ref={titleRow}
-          width={1660}
-          height={76}
-          x={20}
-          gap={20}
-          scroll="none"
-          onDown={() => categoriesRow?.setFocus()}
-        >
-          <View width={1350} skipFocus>
-            <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
-              Canais ao Vivo
-            </Text>
-          </View>
-          <SearchBox onSearch={handleSearch} placeholder="Buscar canais..." />
-        </Row>
+        <View width={1660} height={76} x={20} skipFocus>
+          <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
+            Canais ao Vivo
+          </Text>
+        </View>
 
         <Row
           ref={categoriesRow}
@@ -176,7 +157,6 @@ const Channels = () => {
           gap={12}
           scroll="auto"
           autofocus
-          onUp={() => titleRow?.setFocus()}
           onDown={() => contentGrid?.setFocus()}
         >
           <CategoryChip

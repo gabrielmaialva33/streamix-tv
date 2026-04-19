@@ -181,6 +181,9 @@ const Sidebar = (props: SidebarProps) => {
           Canais
         </NavButton>
         <View style={DividerStyle} skipFocus />
+        <NavButton route="/search" onEnter={() => go("/search")} isActive={isActive("/search")}>
+          Buscar
+        </NavButton>
         <NavButton route="/guide" onEnter={() => go("/guide")} isActive={isActive("/guide")}>
           Guia TV
         </NavButton>

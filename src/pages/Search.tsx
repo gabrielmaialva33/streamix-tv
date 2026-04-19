@@ -1,6 +1,6 @@
 import { type ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "../components";
 import api, { type Channel, type Movie, type SearchResults, type Series } from "../lib/api";
@@ -16,57 +16,36 @@ const KEYBOARD_ROWS = [
   ["9", " ", "DEL", "OK"],
 ];
 
-function mergeById<T extends { id: number }>(primary: T[] = [], secondary: T[] = [], limit = 8) {
-  const seen = new Set<number>();
-  const merged: T[] = [];
-
-  for (const item of [...primary, ...secondary]) {
-    if (seen.has(item.id)) {
-      continue;
-    }
-    seen.add(item.id);
-    merged.push(item);
-    if (merged.length >= limit) {
-      break;
-    }
-  }
-
-  return merged;
-}
-
 const Search = () => {
   const navigate = useNavigate();
   const [query, setQuery] = createSignal("");
   const [searchTriggered, setSearchTriggered] = createSignal(false);
+  // Debounced mirror of `query` used to fire typeahead while the user types.
+  const [debouncedQuery, setDebouncedQuery] = createSignal("");
 
   let keyboardColumn: ElementNode | undefined;
 
-  // Search results
+  // Live typeahead — fires ~180ms after the last keystroke so each press
+  // doesn't hammer the API. Goes silent once OK is pressed (full results
+  // take over below).
+  createEffect(() => {
+    const q = query();
+    if (searchTriggered()) return;
+    const timer = setTimeout(() => setDebouncedQuery(q), 180);
+    onCleanup(() => clearTimeout(timer));
+  });
+
+  const [suggestions] = createResource(
+    () => (!searchTriggered() && debouncedQuery().trim().length >= 2 ? debouncedQuery().trim() : null),
+    q => api.suggest(q, 10).catch(() => null),
+  );
+
+  // Full ranked results — only after the user presses OK.
   const [results] = createResource(
-    () => (searchTriggered() ? query() : null),
+    () => (searchTriggered() ? query().trim() : null),
     async q => {
-      if (!q || q.trim().length < 2) return null;
-
-      const trimmed = q.trim();
-      const [catalogResult, semanticMoviesResult, semanticSeriesResult] = await Promise.allSettled([
-        api.search(trimmed),
-        api.searchMoviesSemantic(trimmed, 8),
-        api.searchSeriesSemantic(trimmed, 8),
-      ]);
-
-      const catalog: SearchResults =
-        catalogResult.status === "fulfilled" ? catalogResult.value : { movies: [], series: [], channels: [] };
-      const semanticMovies =
-        semanticMoviesResult.status === "fulfilled" ? semanticMoviesResult.value.movies : [];
-      const semanticSeries =
-        semanticSeriesResult.status === "fulfilled" ? semanticSeriesResult.value.series : [];
-
-      return {
-        movies: mergeById(catalog.movies, semanticMovies, 8),
-        series: mergeById(catalog.series, semanticSeries, 8),
-        channels: catalog.channels || [],
-        semantic: semanticMoviesResult.status === "fulfilled" || semanticSeriesResult.status === "fulfilled",
-      };
+      if (!q || q.length < 2) return null;
+      return api.search(q, 10);
     },
   );
 
@@ -135,19 +114,33 @@ const Search = () => {
 
       {/* Results */}
       <View x={550} y={100} width={1150} height={950}>
-        <Show when={results()?.semantic}>
-          <View
-            width={220}
-            height={34}
-            color={theme.surface}
-            borderRadius={17}
-            border={{ color: theme.border, width: 1 }}
-            skipFocus
-          >
-            <Text y={8} width={220} fontSize={15} color={theme.textPrimary} textAlign="center">
-              Busca inteligente ativa
+        {/* Live typeahead while the user is still typing (before OK). */}
+        <Show when={!searchTriggered() && suggestions()?.items?.length}>
+          <View width={1150} height={36} skipFocus>
+            <Text fontSize={16} color={theme.textMuted}>
+              Sugestões enquanto você digita — aperte OK para ver tudo
             </Text>
           </View>
+          <Row y={44} width={1150} height={64} gap={10} scroll="auto" skipFocus>
+            <For each={suggestions()!.items.slice(0, 8)}>
+              {item => (
+                <View
+                  width={220}
+                  height={60}
+                  color={theme.surface}
+                  borderRadius={30}
+                  border={{ color: theme.border, width: 1 }}
+                  display="flex"
+                  alignItems="center"
+                  skipFocus
+                >
+                  <Text x={18} y={20} fontSize={16} color={theme.textPrimary} maxLines={1} width={184}>
+                    {item.title}
+                  </Text>
+                </View>
+              )}
+            </For>
+          </Row>
         </Show>
 
         <Show when={results.loading}>
@@ -167,9 +160,9 @@ const Search = () => {
         </Show>
 
         <Column
-          y={results()?.semantic ? 48 : 0}
+          y={suggestions()?.items?.length && !searchTriggered() ? 120 : 0}
           width={1150}
-          height={results()?.semantic ? 902 : 950}
+          height={suggestions()?.items?.length && !searchTriggered() ? 830 : 950}
           gap={30}
           scroll="always"
         >
