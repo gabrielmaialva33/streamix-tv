@@ -96,14 +96,6 @@ const SeriesEpisodes = () => {
       clipping
       onBack={handleBack}
       onLast={handleBack}
-      forwardFocus={() => {
-        if (series()?.seasons?.length) {
-          seasonsRow?.setFocus();
-        } else {
-          episodesGrid?.setFocus();
-        }
-        return true;
-      }}
     >
       <Show when={series.loading}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
@@ -130,11 +122,8 @@ const SeriesEpisodes = () => {
                 height={48}
                 gap={12}
                 scroll="auto"
-                wrap
-                onDown={() => {
-                  episodesGrid?.setFocus();
-                  return true;
-                }}
+                autofocus
+                onDown={() => episodesGrid?.setFocus()}
               >
                 <For each={currentSeries().seasons}>
                   {(season: Season, index) => (

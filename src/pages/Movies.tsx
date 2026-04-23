@@ -67,13 +67,25 @@ const Movies = () => {
   createEffect(() => {
     const result = moviesResource();
     if (result) {
-      setTotalItems(result.total);
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
+        setTotalItems(result.total);
         setAccumulatedMovies(result.data);
       } else {
-        // Load more - append data and restore focus
-        setAccumulatedMovies(prev => [...prev, ...result.data]);
+        // Backend occasionally reports bogus totals/has_more (e.g. categoria
+        // Documentarios devolve total do catálogo inteiro). Guard against that
+        // by dedupping by id and clamping total when the page comes back empty
+        // or only with duplicates.
+        setAccumulatedMovies(prev => {
+          const seen = new Set(prev.map(m => m.id));
+          const fresh = result.data.filter(m => !seen.has(m.id));
+          if (fresh.length === 0) {
+            // No new rows to add -> stop pagination so "Carregar Mais" hides.
+            setTotalItems(prev.length);
+            return prev;
+          }
+          return [...prev, ...fresh];
+        });
 
         // If everything is loaded the <Show> unmounts the load-more button;
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
