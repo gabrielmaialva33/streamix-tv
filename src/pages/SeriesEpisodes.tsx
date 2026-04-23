@@ -56,7 +56,6 @@ const SeriesEpisodes = () => {
 
   let seasonsRow: ElementNode | undefined;
   let episodesGrid: ElementNode | undefined;
-  let firstEpisode: ElementNode | undefined;
 
   // Honor ?season=N from URL on first load
   createEffect(() => {
@@ -171,11 +170,8 @@ const SeriesEpisodes = () => {
               height={900}
               gap={20}
               scroll="auto"
+              plinko
               clipping
-              forwardFocus={() => {
-                firstEpisode?.setFocus();
-                return true;
-              }}
               onUp={function (this: ElementNode) {
                 if ((this.selected ?? 0) > 0) return false;
                 if (currentSeries().seasons?.length) {
@@ -203,15 +199,11 @@ const SeriesEpisodes = () => {
               </Show>
 
               <For each={episodeRows()}>
-                {(row, rowIndex) => (
+                {row => (
                   <Row width={1620} height={156} gap={20} scroll="none">
                     <For each={row}>
-                      {(episode: Episode, episodeIndex) => (
-                        <View
-                          ref={rowIndex() === 0 && episodeIndex() === 0 ? firstEpisode : undefined}
-                          style={EPISODE_CARD_STYLE}
-                          onEnter={() => handlePlay(episode)}
-                        >
+                      {(episode: Episode) => (
+                        <View style={EPISODE_CARD_STYLE} onEnter={() => handlePlay(episode)}>
                           <Show
                             when={episode.thumbnail_url}
                             fallback={
