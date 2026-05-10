@@ -9,8 +9,8 @@ import { theme } from "@/styles";
 // Static shape — Lightning applies `style` once on mount and `$focus` reverts
 // to the listed properties. Reactive values (color/border) live as JSX props.
 const CHIP_STYLE = {
-  height: 38,
-  borderRadius: 8,
+  height: 36,
+  borderRadius: 7,
   scale: 1,
   transition: {
     color: { duration: 150, easing: "ease-out" },
@@ -23,9 +23,9 @@ const CHIP_STYLE = {
 } satisfies IntrinsicNodeStyleProps;
 
 const CHIP_TEXT_STYLE = {
-  fontSize: 16,
+  fontSize: 15,
   color: 0xffffffff,
-  y: 10,
+  y: 8,
   textAlign: "center",
   contain: "width",
   maxLines: 1,

@@ -26,6 +26,7 @@ const RESULT_CARD_WIDTH = 185;
 const RESULT_CARD_HEIGHT = 278;
 const RESULT_CARD_GAP = 16;
 const RESULT_ROW_HEIGHT = RESULT_CARD_HEIGHT + 62;
+const RESULT_SECTION_HEADER_HEIGHT = 34;
 
 function chunkItems<T>(items: readonly T[] | undefined, size: number): T[][] {
   const chunks: T[][] = [];
@@ -117,6 +118,7 @@ const Search = () => {
   // undefined while refetching). `latest` falls back to the last non-empty
   // response we saw.
   const latestSuggestions = () => suggestions.latest ?? null;
+  const cursorX = () => Math.min(LEFT_PANEL_WIDTH - 28, 22 + query().length * 18);
 
   // Shared handler: land on the first focusable result when the user steps
   // out of the keyboard to the right. Prefers suggestion items first (if
@@ -167,7 +169,7 @@ const Search = () => {
         <Text x={20} y={15} fontSize={28} color={query() ? 0xffffffff : 0x666666ff}>
           {query() || "Digite para buscar..."}
         </Text>
-        <View x={query().length * 16 + 20} y={10} width={3} height={40} color={0xe50914ff} />
+        <View x={cursorX()} y={18} width={3} height={30} color={0xe50914ff} />
       </View>
 
       <View x={LEFT_PANEL_X} y={200} width={LEFT_PANEL_WIDTH}>
@@ -211,8 +213,7 @@ const Search = () => {
               width={RIGHT_PANEL_WIDTH}
               height={860}
               gap={8}
-              scroll="auto"
-              clipping
+              scroll="none"
               alpha={showSuggestions() ? 1 : 0}
               transition={{ alpha: { duration: 180 } }}
               skipFocus={!showSuggestions()}
@@ -311,6 +312,9 @@ const Search = () => {
         const movieRows = () => chunkItems(results.latest?.movies, RESULT_GRID_COLUMNS);
         const seriesRows = () => chunkItems(results.latest?.series, RESULT_GRID_COLUMNS);
         const channelRows = () => chunkItems(results.latest?.channels, 4);
+        const hasMovies = () => movieRows().length > 0;
+        const hasSeries = () => seriesRows().length > 0;
+        const hasChannels = () => channelRows().length > 0;
         return (
           <>
             <View
@@ -364,116 +368,100 @@ const Search = () => {
               }}
             >
               {/* Movies */}
-              <Show when={movieRows().length}>
-                <View
-                  width={RIGHT_PANEL_WIDTH}
-                  height={48 + movieRows().length * RESULT_ROW_HEIGHT}
-                  forwardFocus={1}
-                >
+              <Show when={hasMovies()}>
+                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Filmes (${results.latest!.movies.length})`}
                   </Text>
-                  <For each={movieRows()}>
-                    {(row, rowIndex) => (
-                      <Row
-                        y={42 + rowIndex() * RESULT_ROW_HEIGHT}
-                        width={RIGHT_PANEL_WIDTH}
-                        height={RESULT_ROW_HEIGHT}
-                        gap={RESULT_CARD_GAP}
-                        scroll="none"
-                      >
-                        <For each={row}>
-                          {(movie: Movie) => (
-                            <Card
-                              title={movie.title || movie.name || ""}
-                              imageUrl={pickPoster(movie, 240)}
-                              subtitle={movie.year?.toString()}
-                              width={RESULT_CARD_WIDTH}
-                              height={RESULT_CARD_HEIGHT}
-                              onEnter={() => {
-                                navigate(`/movie/${movie.id}`);
-                                return true;
-                              }}
-                            />
-                          )}
-                        </For>
-                      </Row>
-                    )}
-                  </For>
                 </View>
               </Show>
+              <For each={movieRows()}>
+                {row => (
+                  <Row
+                    width={RIGHT_PANEL_WIDTH}
+                    height={RESULT_ROW_HEIGHT}
+                    gap={RESULT_CARD_GAP}
+                    scroll="none"
+                  >
+                    <For each={row}>
+                      {(movie: Movie) => (
+                        <Card
+                          title={movie.title || movie.name || ""}
+                          imageUrl={pickPoster(movie, 240)}
+                          subtitle={movie.year?.toString()}
+                          width={RESULT_CARD_WIDTH}
+                          height={RESULT_CARD_HEIGHT}
+                          onEnter={() => {
+                            navigate(`/movie/${movie.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                )}
+              </For>
 
               {/* Series */}
-              <Show when={seriesRows().length}>
-                <View
-                  width={RIGHT_PANEL_WIDTH}
-                  height={48 + seriesRows().length * RESULT_ROW_HEIGHT}
-                  forwardFocus={1}
-                >
+              <Show when={hasSeries()}>
+                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Séries (${results.latest!.series.length})`}
                   </Text>
-                  <For each={seriesRows()}>
-                    {(row, rowIndex) => (
-                      <Row
-                        y={42 + rowIndex() * RESULT_ROW_HEIGHT}
-                        width={RIGHT_PANEL_WIDTH}
-                        height={RESULT_ROW_HEIGHT}
-                        gap={RESULT_CARD_GAP}
-                        scroll="none"
-                      >
-                        <For each={row}>
-                          {(show: Series) => (
-                            <Card
-                              title={show.title || show.name || ""}
-                              imageUrl={pickPoster(show, 240)}
-                              subtitle={show.year?.toString()}
-                              width={RESULT_CARD_WIDTH}
-                              height={RESULT_CARD_HEIGHT}
-                              onEnter={() => {
-                                navigate(`/series/${show.id}`);
-                                return true;
-                              }}
-                            />
-                          )}
-                        </For>
-                      </Row>
-                    )}
-                  </For>
                 </View>
               </Show>
+              <For each={seriesRows()}>
+                {row => (
+                  <Row
+                    width={RIGHT_PANEL_WIDTH}
+                    height={RESULT_ROW_HEIGHT}
+                    gap={RESULT_CARD_GAP}
+                    scroll="none"
+                  >
+                    <For each={row}>
+                      {(show: Series) => (
+                        <Card
+                          title={show.title || show.name || ""}
+                          imageUrl={pickPoster(show, 240)}
+                          subtitle={show.year?.toString()}
+                          width={RESULT_CARD_WIDTH}
+                          height={RESULT_CARD_HEIGHT}
+                          onEnter={() => {
+                            navigate(`/series/${show.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                )}
+              </For>
 
               {/* Channels */}
-              <Show when={channelRows().length}>
-                <View width={RIGHT_PANEL_WIDTH} height={48 + channelRows().length * 142} forwardFocus={1}>
+              <Show when={hasChannels()}>
+                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Canais (${results.latest!.channels.length})`}
                   </Text>
-                  <For each={channelRows()}>
-                    {(row, rowIndex) => (
-                      <Row
-                        y={42 + rowIndex() * 142}
-                        width={RIGHT_PANEL_WIDTH}
-                        height={140}
-                        gap={15}
-                        scroll="none"
-                      >
-                        <For each={row}>
-                          {(channel: Channel) => (
-                            <ChannelResult
-                              channel={channel}
-                              onSelect={() => {
-                                navigate(`/player/channel/${channel.id}`);
-                                return true;
-                              }}
-                            />
-                          )}
-                        </For>
-                      </Row>
-                    )}
-                  </For>
                 </View>
               </Show>
+              <For each={channelRows()}>
+                {row => (
+                  <Row width={RIGHT_PANEL_WIDTH} height={140} gap={15} scroll="none">
+                    <For each={row}>
+                      {(channel: Channel) => (
+                        <ChannelResult
+                          channel={channel}
+                          onSelect={() => {
+                            navigate(`/player/channel/${channel.id}`);
+                            return true;
+                          }}
+                        />
+                      )}
+                    </For>
+                  </Row>
+                )}
+              </For>
             </Column>
           </>
         );
