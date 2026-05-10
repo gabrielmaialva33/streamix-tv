@@ -5,6 +5,7 @@ import { Suspense } from "@lightningtv/solid/primitives";
 import { ExitDialog, Sidebar } from "../components";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
 import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
+import { theme } from "@/styles";
 
 interface MainLayoutProps {
   children?: JSX.Element;
@@ -98,7 +99,7 @@ const MainLayout = (props: MainLayoutProps) => {
     <View
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
-      color={0x0d0d12ff}
+      color={theme.background}
       onLast={handleBack}
       onBack={handleBack}
       onBackspace={focusSidebar}
@@ -116,11 +117,11 @@ const MainLayout = (props: MainLayoutProps) => {
         x={SIDEBAR_WIDTH}
         width={CONTENT_WIDTH}
         height={CONTENT_HEIGHT}
-        color={0x0d0d12ff}
+        color={theme.background}
         clipping
         forwardFocus={0}
       >
-        <Suspense fallback={<View width={CONTENT_WIDTH} height={CONTENT_HEIGHT} color={0x0d0d12ff} />}>
+        <Suspense fallback={<View width={CONTENT_WIDTH} height={CONTENT_HEIGHT} color={theme.background} />}>
           {resolvedChildren()}
         </Suspense>
       </View>
