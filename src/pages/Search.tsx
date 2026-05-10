@@ -20,6 +20,12 @@ const LEFT_PANEL_X = 20;
 const LEFT_PANEL_WIDTH = 860;
 const RIGHT_PANEL_X = 920;
 const RIGHT_PANEL_WIDTH = 740;
+const HEADER_Y = 30;
+const SEARCH_INPUT_Y = 126;
+const KEYBOARD_Y = 226;
+const SIDE_PANEL_TITLE_Y = SEARCH_INPUT_Y + 8;
+const SIDE_PANEL_CONTENT_Y = 212;
+const SIDE_PANEL_CONTENT_HEIGHT = 820;
 const SUGGESTION_SLOT_HEIGHT = 64;
 const RESULT_GRID_COLUMNS = 3;
 const RESULT_CARD_WIDTH = 185;
@@ -118,7 +124,8 @@ const Search = () => {
   // undefined while refetching). `latest` falls back to the last non-empty
   // response we saw.
   const latestSuggestions = () => suggestions.latest ?? null;
-  const cursorX = () => Math.min(LEFT_PANEL_WIDTH - 28, 22 + query().length * 18);
+  const searchAccentWidth = () =>
+    query() ? Math.min(LEFT_PANEL_WIDTH - 40, Math.max(88, query().length * 18)) : 0;
 
   // Shared handler: land on the first focusable result when the user steps
   // out of the keyboard to the right. Prefers suggestion items first (if
@@ -149,7 +156,7 @@ const Search = () => {
       }}
     >
       {/* Header — fixed band at the top, skipFocus so D-pad never lands here. */}
-      <View y={30} x={20} width={1660} height={60} skipFocus>
+      <View y={HEADER_Y} x={20} width={1660} height={60} skipFocus>
         <Text fontSize={42} fontWeight={700} color={0xffffffff}>
           Buscar
         </Text>
@@ -158,21 +165,23 @@ const Search = () => {
       {/* Search input display — aligned with the keyboard beneath it. */}
       <View
         x={LEFT_PANEL_X}
-        y={110}
+        y={SEARCH_INPUT_Y}
         width={LEFT_PANEL_WIDTH}
         height={60}
         color={0x1a1a2eff}
         borderRadius={8}
-        border={{ color: theme.border, width: 1 }}
+        border={{ color: query() ? 0x3a3b48ff : theme.border, width: 1 }}
         skipFocus
       >
         <Text x={20} y={15} fontSize={28} color={query() ? 0xffffffff : 0x666666ff}>
           {query() || "Digite para buscar..."}
         </Text>
-        <View x={cursorX()} y={18} width={3} height={30} color={0xe50914ff} />
+        <Show when={query()}>
+          <View x={20} y={54} width={searchAccentWidth()} height={2} color={0xe50914cc} />
+        </Show>
       </View>
 
-      <View x={LEFT_PANEL_X} y={200} width={LEFT_PANEL_WIDTH}>
+      <View x={LEFT_PANEL_X} y={KEYBOARD_Y} width={LEFT_PANEL_WIDTH}>
         <VirtualKeyboard
           ref={keyboardColumn}
           value={query()}
@@ -195,11 +204,11 @@ const Search = () => {
           <>
             <View
               x={RIGHT_PANEL_X}
-              y={110}
+              y={SIDE_PANEL_TITLE_Y}
               width={RIGHT_PANEL_WIDTH}
               height={60}
               alpha={showSuggestions() ? 1 : 0}
-              transition={{ alpha: { duration: 180 } }}
+              transition={{ alpha: { duration: 80 } }}
               skipFocus
             >
               <Text fontSize={16} color={theme.textMuted}>
@@ -209,13 +218,13 @@ const Search = () => {
             <Column
               ref={suggestionsColumn}
               x={RIGHT_PANEL_X}
-              y={170}
+              y={SIDE_PANEL_CONTENT_Y}
               width={RIGHT_PANEL_WIDTH}
-              height={860}
+              height={SIDE_PANEL_CONTENT_HEIGHT}
               gap={8}
               scroll="none"
               alpha={showSuggestions() ? 1 : 0}
-              transition={{ alpha: { duration: 180 } }}
+              transition={{ alpha: { duration: 80 } }}
               skipFocus={!showSuggestions()}
               onLeft={() => {
                 return focusKeyboardHome();
@@ -235,11 +244,10 @@ const Search = () => {
                     <View
                       width={RIGHT_PANEL_WIDTH}
                       height={SUGGESTION_SLOT_HEIGHT}
-                      color={theme.surface}
+                      color={0x20202cff}
                       borderRadius={8}
-                      border={{ color: theme.border, width: 1 }}
+                      border={{ color: 0x323342ff, width: 1 }}
                       transition={{
-                        alpha: { duration: 150 },
                         color: { duration: 120 },
                         scale: { duration: 120 },
                       }}
@@ -247,7 +255,7 @@ const Search = () => {
                       alpha={hasItem() ? 1 : 0}
                       skipFocus={!hasItem()}
                       $focus={{
-                        color: theme.surfaceHover,
+                        color: 0x303142ff,
                         border: { color: theme.primary, width: 2 },
                         scale: 1.01,
                       }}
@@ -319,7 +327,21 @@ const Search = () => {
           <>
             <View
               x={RIGHT_PANEL_X}
-              y={170}
+              y={SIDE_PANEL_TITLE_Y}
+              width={RIGHT_PANEL_WIDTH}
+              height={60}
+              alpha={showResults() ? 1 : 0}
+              transition={{ alpha: { duration: 80 } }}
+              skipFocus
+            >
+              <Text fontSize={16} color={theme.textMuted}>
+                {`${totalResults()} resultados`}
+              </Text>
+            </View>
+
+            <View
+              x={RIGHT_PANEL_X}
+              y={SIDE_PANEL_CONTENT_Y}
               width={RIGHT_PANEL_WIDTH}
               height={400}
               display="flex"
@@ -336,7 +358,7 @@ const Search = () => {
 
             <View
               x={RIGHT_PANEL_X}
-              y={170}
+              y={SIDE_PANEL_CONTENT_Y}
               width={RIGHT_PANEL_WIDTH}
               height={400}
               display="flex"
@@ -354,9 +376,9 @@ const Search = () => {
             <Column
               ref={resultsColumn}
               x={RIGHT_PANEL_X}
-              y={170}
+              y={SIDE_PANEL_CONTENT_Y}
               width={RIGHT_PANEL_WIDTH}
-              height={890}
+              height={SIDE_PANEL_CONTENT_HEIGHT}
               gap={24}
               scroll="auto"
               clipping
