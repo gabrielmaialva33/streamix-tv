@@ -1,6 +1,6 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createSignal, For } from "solid-js";
+import { createEffect, createSignal, For } from "solid-js";
 import { theme } from "@/styles";
 
 export type KeyboardMode = "lower" | "upper" | "symbols";
@@ -51,11 +51,32 @@ export interface VirtualKeyboardProps {
   onSubmit: () => void;
   onUp?: () => boolean;
   autofocus?: boolean;
+  homeRow?: number;
+  focusRequest?: number;
+  resetKey?: string | number;
   ref?: ElementNode;
 }
 
 const VirtualKeyboard = (props: VirtualKeyboardProps) => {
   const [mode, setMode] = createSignal<KeyboardMode>("lower");
+  const keyRefs: Record<string, ElementNode | undefined> = {};
+
+  createEffect(() => {
+    const resetKey = props.resetKey;
+
+    if (resetKey !== undefined) {
+      setMode("lower");
+      focusHome();
+    }
+  });
+
+  createEffect(() => {
+    const focusRequest = props.focusRequest;
+
+    if (focusRequest !== undefined) {
+      focusHome();
+    }
+  });
 
   function handle(key: string) {
     if (key === "DEL") {
@@ -89,8 +110,38 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
 
   const layout = () => LAYOUTS[mode()];
 
+  function focusAt(rowIndex: number, keyIndex: number) {
+    const key = layout()[rowIndex]?.[keyIndex];
+    const target = key ? keyRefs[key] : undefined;
+
+    if (!target) return false;
+    if (props.ref) props.ref.selected = rowIndex;
+    if (props.ref?.children?.[rowIndex]) {
+      props.ref.children[rowIndex]!.selected = keyIndex;
+    }
+    target.setFocus();
+    return true;
+  }
+
+  function focusHome() {
+    requestAnimationFrame(() => {
+      if (!focusAt(props.homeRow ?? 0, 0)) {
+        props.ref?.setFocus();
+      }
+    });
+  }
+
   return (
-    <Column ref={props.ref} width={860} gap={10} scroll="none" autofocus={props.autofocus} onUp={props.onUp}>
+    <Column
+      ref={props.ref}
+      width={860}
+      gap={10}
+      scroll="none"
+      autofocus={props.autofocus}
+      selected={props.homeRow ?? 0}
+      plinko
+      onUp={props.onUp}
+    >
       <For each={layout()}>
         {row => (
           <Row width={860} height={64} gap={10} scroll="none">
@@ -101,6 +152,9 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
                 const width = key === "SPC" ? 220 : isAction ? 110 : 70;
                 return (
                   <View
+                    ref={node => {
+                      keyRefs[key] = node;
+                    }}
                     width={width}
                     style={KEY_STYLE}
                     color={isSubmit ? theme.primary : theme.surface}

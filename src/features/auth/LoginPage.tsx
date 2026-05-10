@@ -7,7 +7,7 @@ import {
 } from "@lightningtv/solid";
 import { Row } from "@lightningtv/solid/primitives";
 import { useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
 import { authState, registerAccount, signIn } from "./auth";
 import { ApiError } from "@/lib/api";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
@@ -116,6 +116,7 @@ interface FieldChipProps {
   placeholder: string;
   active: boolean;
   onSelect: () => void;
+  onRight?: () => boolean;
 }
 
 const FieldChip = (props: FieldChipProps) => (
@@ -130,6 +131,7 @@ const FieldChip = (props: FieldChipProps) => (
       props.onSelect();
       return true;
     }}
+    onRight={props.onRight}
   >
     <Text x={18} y={14} fontSize={13} fontWeight={700} color={theme.textMuted}>
       {props.label}
@@ -151,6 +153,7 @@ const LoginPage = () => {
   const [activeField, setActiveField] = createSignal<FieldName>("email");
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
+  const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
 
   let keyboardRef: ElementNode | undefined;
 
@@ -173,12 +176,20 @@ const LoginPage = () => {
     setForm(prev => ({ ...prev, [f]: val }));
   }
 
+  function focusKeyboardHome() {
+    setKeyboardFocusRequest(value => value + 1);
+    return true;
+  }
+
+  onMount(focusKeyboardHome);
+
   function handleOk() {
     const fields = fieldsInOrder();
     const idx = fields.indexOf(activeField());
     if (idx >= 0 && idx < fields.length - 1) {
       setActiveField(fields[idx + 1]);
       setErrorMessage(null);
+      focusKeyboardHome();
       return;
     }
     void submit();
@@ -187,7 +198,7 @@ const LoginPage = () => {
   function selectField(field: FieldName) {
     setActiveField(field);
     setErrorMessage(null);
-    queueMicrotask(() => keyboardRef?.setFocus());
+    focusKeyboardHome();
   }
 
   async function submit() {
@@ -266,6 +277,7 @@ const LoginPage = () => {
               placeholder="Use o teclado"
               active={activeField() === "name"}
               onSelect={() => selectField("name")}
+              onRight={focusKeyboardHome}
             />
           </View>
         </Show>
@@ -277,6 +289,7 @@ const LoginPage = () => {
             placeholder="Use o teclado"
             active={activeField() === "email"}
             onSelect={() => selectField("email")}
+            onRight={focusKeyboardHome}
           />
         </View>
 
@@ -287,6 +300,7 @@ const LoginPage = () => {
             placeholder="Use o teclado"
             active={activeField() === "password"}
             onSelect={() => selectField("password")}
+            onRight={focusKeyboardHome}
           />
         </View>
 
@@ -335,6 +349,9 @@ const LoginPage = () => {
             value={currentValue()}
             password={activeField() === "password"}
             autofocus
+            homeRow={2}
+            focusRequest={keyboardFocusRequest()}
+            resetKey={`${mode()}:${activeField()}`}
             onChange={setValue}
             onSubmit={handleOk}
           />
