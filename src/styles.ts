@@ -25,19 +25,19 @@ export const theme = {
   primaryLight: 0xff3d3dff, // Lighter for hover/active
 
   // Backgrounds
-  background: 0x0d0d12ff, // Slightly warmer dark
-  backgroundLight: 0x141418ff,
+  background: 0x090a10ff, // Deep neutral dark
+  backgroundLight: 0x12131bff,
 
   // Surfaces
-  surface: 0x1c1c24ff, // Card backgrounds
-  surfaceLight: 0x2a2a36ff, // Elevated surfaces
-  surfaceHover: 0x363644ff, // Hover state
+  surface: 0x181922ff, // Card backgrounds
+  surfaceLight: 0x252631ff, // Elevated surfaces
+  surfaceHover: 0x31323eff, // Hover state
 
   // Text hierarchy
   textPrimary: 0xffffffff,
-  textSecondary: 0xb8b8c0ff, // Slightly warmer gray
-  textMuted: 0x6e6e7aff, // For less important info
-  textDisabled: 0x4a4a54ff,
+  textSecondary: 0xc4c4ceff, // Slightly warmer gray
+  textMuted: 0x878794ff, // For less important info
+  textDisabled: 0x5d5d6aff,
 
   // Accent colors
   accent: 0x4dabf7ff, // Blue for info
@@ -45,8 +45,8 @@ export const theme = {
   warning: 0xfcc419ff, // Yellow
 
   // Borders
-  border: 0x2a2a36ff,
-  borderLight: 0x3a3a48ff,
+  border: 0x252632ff,
+  borderLight: 0x3f4050ff,
 };
 
 // Card/Thumbnail style with smooth focus
