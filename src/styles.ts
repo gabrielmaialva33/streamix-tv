@@ -27,11 +27,14 @@ export const theme = {
   // Backgrounds
   background: 0x090a10ff, // Deep neutral dark
   backgroundLight: 0x12131bff,
+  backgroundElevated: 0x0f1017ff,
 
   // Surfaces
   surface: 0x181922ff, // Card backgrounds
   surfaceLight: 0x252631ff, // Elevated surfaces
   surfaceHover: 0x31323eff, // Hover state
+  surfaceMuted: 0x14151dff,
+  surfaceActive: 0x2b1015ff,
 
   // Text hierarchy
   textPrimary: 0xffffffff,
@@ -47,6 +50,9 @@ export const theme = {
   // Borders
   border: 0x252632ff,
   borderLight: 0x3f4050ff,
+  borderSubtle: 0xffffff12,
+  panel: 0x111219f2,
+  panelBorder: 0x2a2b38ff,
 };
 
 // Card/Thumbnail style with smooth focus
