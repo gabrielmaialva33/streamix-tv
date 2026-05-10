@@ -21,6 +21,7 @@ const STALLED_RECOVERY_COOLDOWN_MS = 30000;
 const SEEK_COMMIT_DELAY_MS = 900;
 const SEEK_ACCELERATION_WINDOW_MS = 1400;
 const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
+type PlayerControl = "timeline" | "back" | "play" | "forward";
 
 const PlayerPage = () => {
   const params = useParams<{ type: PlayerType; id: string }>();
@@ -33,6 +34,7 @@ const PlayerPage = () => {
   const [seekFeedback, setSeekFeedback] = createSignal<string | null>(null);
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
+  const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
 
   let controlsTimeout: number | null = null;
   let seekFeedbackTimeout: number | null = null;
@@ -277,6 +279,26 @@ const PlayerPage = () => {
     return handlePlayPause();
   }
 
+  function handleSelectedControl() {
+    switch (selectedControl()) {
+      case "timeline":
+        if (accumulatedSeek() !== 0) {
+          commitSeek();
+          return true;
+        }
+        return handlePlayPause();
+      case "back":
+        handleSeek(-1);
+        return true;
+      case "forward":
+        handleSeek(1);
+        return true;
+      case "play":
+      default:
+        return handlePrimaryAction();
+    }
+  }
+
   function retryPlayback() {
     if (!loadedUrl || recoveryInFlight) {
       return true;
@@ -328,6 +350,23 @@ const PlayerPage = () => {
     return `${direction}${remainingSeconds}s`;
   }
 
+  function commitSeek() {
+    if (seekFeedbackTimeout) {
+      clearTimeout(seekFeedbackTimeout);
+      seekFeedbackTimeout = null;
+    }
+
+    const delta = accumulatedSeek();
+    if (delta !== 0) {
+      PlayerManager.seek(delta);
+    }
+
+    setSeekFeedback(null);
+    setAccumulatedSeek(0);
+    seekDirection = null;
+    seekStepIndex = 0;
+  }
+
   function handleSeek(direction: -1 | 1, forcedStepSeconds?: number) {
     resetControlsTimeout();
 
@@ -352,13 +391,53 @@ const PlayerPage = () => {
       clearTimeout(seekFeedbackTimeout);
     }
 
-    seekFeedbackTimeout = window.setTimeout(() => {
-      PlayerManager.seek(accumulatedSeek());
-      setSeekFeedback(null);
-      setAccumulatedSeek(0);
-      seekDirection = null;
-      seekStepIndex = 0;
-    }, SEEK_COMMIT_DELAY_MS);
+    seekFeedbackTimeout = window.setTimeout(commitSeek, SEEK_COMMIT_DELAY_MS);
+  }
+
+  function selectPreviousControl() {
+    const current = selectedControl();
+    if (current === "timeline") {
+      handleSeek(-1);
+      return true;
+    }
+
+    if (current === "forward") {
+      setSelectedControl("play");
+    } else if (current === "play") {
+      setSelectedControl("back");
+    }
+
+    resetControlsTimeout();
+    return true;
+  }
+
+  function selectNextControl() {
+    const current = selectedControl();
+    if (current === "timeline") {
+      handleSeek(1);
+      return true;
+    }
+
+    if (current === "back") {
+      setSelectedControl("play");
+    } else if (current === "play") {
+      setSelectedControl("forward");
+    }
+
+    resetControlsTimeout();
+    return true;
+  }
+
+  function selectTimeline() {
+    setSelectedControl("timeline");
+    resetControlsTimeout();
+    return true;
+  }
+
+  function selectControls() {
+    setSelectedControl("play");
+    resetControlsTimeout();
+    return true;
   }
 
   const progress = () => {
@@ -386,6 +465,17 @@ const PlayerPage = () => {
 
   const primaryControlIcon = () =>
     state().playing ? "/assets/icons/player-pause.svg" : "/assets/icons/player-play.svg";
+
+  const controlColor = (control: PlayerControl, activeColor = 0x15151dee) =>
+    selectedControl() === control ? 0xffffffff : activeColor;
+
+  const controlIconColor = (control: PlayerControl) =>
+    selectedControl() === control ? 0x050508ff : 0xffffffff;
+
+  const controlBorder = (control: PlayerControl) => ({
+    color: selectedControl() === control ? theme.primary : 0xffffff1f,
+    width: selectedControl() === control ? 3 : 1,
+  });
 
   function recoverIfPlaybackStalled() {
     if (destroyed || recoveryInFlight || !loadedUrl) {
@@ -546,25 +636,13 @@ const PlayerPage = () => {
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
       color={0x00000000}
-      onEnter={handlePrimaryAction}
+      onEnter={handleSelectedControl}
       onLast={handleClose}
       onBack={handleClose}
-      onLeft={() => {
-        handleSeek(-1);
-        return true;
-      }}
-      onRight={() => {
-        handleSeek(1);
-        return true;
-      }}
-      onUp={() => {
-        handleSeek(1, 300);
-        return true;
-      }}
-      onDown={() => {
-        handleSeek(-1, 300);
-        return true;
-      }}
+      onLeft={selectPreviousControl}
+      onRight={selectNextControl}
+      onUp={selectTimeline}
+      onDown={selectControls}
       onPlay={handlePlay}
       onPause={handlePause}
       onPlayPause={handlePlayPause}
@@ -715,21 +793,29 @@ const PlayerPage = () => {
           }}
         >
           {/* Scrub bar — tall, with hover track + filled portion */}
-          <View x={60} y={126} width={SEEK_BAR_WIDTH} height={10} color={0x3a3a44cc} borderRadius={5}>
+          <View
+            x={60}
+            y={124}
+            width={SEEK_BAR_WIDTH}
+            height={selectedControl() === "timeline" ? 14 : 10}
+            color={selectedControl() === "timeline" ? 0x565665dd : 0x3a3a44cc}
+            border={{ color: selectedControl() === "timeline" ? theme.primary : 0x00000000, width: 2 }}
+            borderRadius={7}
+          >
             <View
               width={Math.max(0, (SEEK_BAR_WIDTH * progress()) / 100)}
-              height={10}
+              height={selectedControl() === "timeline" ? 14 : 10}
               color={0xe50914ff}
-              borderRadius={5}
+              borderRadius={7}
             />
             <View
               x={Math.max(0, (SEEK_BAR_WIDTH * progress()) / 100) - 12}
-              y={-7}
-              width={24}
-              height={24}
+              y={selectedControl() === "timeline" ? -9 : -7}
+              width={selectedControl() === "timeline" ? 32 : 24}
+              height={selectedControl() === "timeline" ? 32 : 24}
               color={0xffffffff}
               border={{ color: theme.primary, width: 5 }}
-              borderRadius={12}
+              borderRadius={selectedControl() === "timeline" ? 16 : 12}
             />
           </View>
 
@@ -754,8 +840,8 @@ const PlayerPage = () => {
             y={202}
             width={56}
             height={56}
-            color={0x15151dee}
-            border={{ color: 0xffffff1f, width: 1 }}
+            color={controlColor("back")}
+            border={controlBorder("back")}
             borderRadius={28}
           >
             <View
@@ -764,7 +850,7 @@ const PlayerPage = () => {
               width={32}
               height={32}
               src="/assets/icons/player-back.svg"
-              color={0xffffffff}
+              color={controlIconColor("back")}
             />
           </View>
 
@@ -773,11 +859,18 @@ const PlayerPage = () => {
             y={192}
             width={76}
             height={76}
-            color={state().playing ? 0x24242fee : theme.primary}
-            border={{ color: state().playing ? 0xffffff26 : 0xff5a5aff, width: 1 }}
+            color={controlColor("play", state().playing ? 0x24242fee : theme.primary)}
+            border={controlBorder("play")}
             borderRadius={38}
           >
-            <View x={18} y={18} width={40} height={40} src={primaryControlIcon()} color={0xffffffff} />
+            <View
+              x={18}
+              y={18}
+              width={40}
+              height={40}
+              src={primaryControlIcon()}
+              color={controlIconColor("play")}
+            />
           </View>
 
           <View
@@ -785,8 +878,8 @@ const PlayerPage = () => {
             y={202}
             width={56}
             height={56}
-            color={0x15151dee}
-            border={{ color: 0xffffff1f, width: 1 }}
+            color={controlColor("forward")}
+            border={controlBorder("forward")}
             borderRadius={28}
           >
             <View
@@ -795,7 +888,7 @@ const PlayerPage = () => {
               width={32}
               height={32}
               src="/assets/icons/player-forward.svg"
-              color={0xffffffff}
+              color={controlIconColor("forward")}
             />
           </View>
 
