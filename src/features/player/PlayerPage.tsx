@@ -550,19 +550,19 @@ const PlayerPage = () => {
       onLast={handleClose}
       onBack={handleClose}
       onLeft={() => {
-        handleSeek(-10);
+        handleSeek(-1);
         return true;
       }}
       onRight={() => {
-        handleSeek(10);
+        handleSeek(1);
         return true;
       }}
       onUp={() => {
-        handleSeek(60);
+        handleSeek(1, 300);
         return true;
       }}
       onDown={() => {
-        handleSeek(-60);
+        handleSeek(-1, 300);
         return true;
       }}
       onPlay={handlePlay}
@@ -570,11 +570,11 @@ const PlayerPage = () => {
       onPlayPause={handlePlayPause}
       onStop={handleClose}
       onFastForward={() => {
-        handleSeek(30);
+        handleSeek(1, 60);
         return true;
       }}
       onRewind={() => {
-        handleSeek(-30);
+        handleSeek(-1, 60);
         return true;
       }}
       onAny={resetControlsTimeout}
