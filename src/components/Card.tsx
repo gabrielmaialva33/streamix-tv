@@ -10,37 +10,38 @@ import { theme } from "@/styles";
 
 // Card image container - subtle border that highlights on focus
 const CardImageStyle = {
-  borderRadius: 12,
-  border: { color: theme.border, width: 2 },
+  borderRadius: 8,
+  color: 0x101116ff,
+  border: { color: 0x343545ff, width: 1 },
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.03,
+    scale: 1.035,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 // Placeholder style for missing images
 const PlaceholderStyle = {
-  borderRadius: 12,
-  color: theme.surface,
-  border: { color: theme.border, width: 2 },
+  borderRadius: 8,
+  color: 0x15161eff,
+  border: { color: 0x343545ff, width: 1 },
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.03,
+    scale: 1.035,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 // Title style - transitions to white on focus
 const CardTitleStyle = {
-  fontSize: 18,
-  color: theme.textMuted,
+  fontSize: 17,
+  color: theme.textSecondary,
   contain: "width",
   maxLines: 1,
   $focus: {
@@ -51,7 +52,7 @@ const CardTitleStyle = {
 // Subtitle style
 const SubtitleStyle = {
   fontSize: 14,
-  color: theme.textDisabled,
+  color: theme.textMuted,
   $focus: {
     color: theme.textMuted,
   },
@@ -92,10 +93,10 @@ const Card = (props: CardProps) => {
           y={height - 104}
           width={width}
           height={104}
-          borderRadius={12}
+          borderRadius={8}
           shader={{
             type: "linearGradient",
-            colors: [0x00000000, 0x030305aa, 0x030305ff],
+            colors: [0x00000000, 0x04050999, 0x040509ee],
             angle: 180,
           }}
           skipFocus

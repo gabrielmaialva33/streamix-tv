@@ -20,62 +20,62 @@ const ColumnStyle = {
   width: 200,
   height: 760,
   y: 120,
-  gap: 6,
+  gap: 8,
   zIndex: 200,
   x: 20,
 } satisfies IntrinsicNodeStyleProps;
 
 const NavButtonStyle = {
   zIndex: 201,
-  height: 50,
+  height: 52,
   width: 180,
-  borderRadius: 10,
+  borderRadius: 8,
   color: 0x00000000,
   $focus: {
-    color: theme.primary,
+    color: 0x242631ff,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const NavButtonActiveStyle = {
   zIndex: 201,
-  height: 50,
+  height: 52,
   width: 180,
-  borderRadius: 10,
-  color: theme.surface,
+  borderRadius: 8,
+  color: 0x1a1b24ff,
   $focus: {
-    color: theme.primary,
+    color: 0x242631ff,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const NavButtonTextStyle = {
   fontSize: 18,
   x: 16,
-  y: 13,
+  y: 14,
   height: 50,
   color: theme.textMuted,
   $focus: {
-    color: theme.textPrimary,
+    color: 0xffffffff,
   },
 } satisfies IntrinsicTextNodeStyleProps;
 
 const NavButtonActiveTextStyle = {
   fontSize: 18,
   x: 16,
-  y: 13,
+  y: 14,
   height: 50,
-  color: theme.textSecondary,
+  color: 0xd8d8e2ff,
   $focus: {
     color: theme.textPrimary,
   },
 } satisfies IntrinsicTextNodeStyleProps;
 
 const ActiveIndicatorStyle = {
-  width: 4,
+  width: 3,
   height: 24,
   x: 0,
-  y: 13,
+  y: 14,
   color: theme.primary,
-  borderRadius: 2,
+  borderRadius: 1,
 } satisfies IntrinsicNodeStyleProps;
 
 const DividerStyle = {
@@ -155,8 +155,8 @@ const Sidebar = (props: SidebarProps) => {
   return (
     <>
       {/* Sidebar background and divider. */}
-      <View skipFocus zIndex={100} width={220} height={1080} color={theme.background} />
-      <View skipFocus zIndex={101} x={218} width={2} height={1080} color={theme.border} />
+      <View skipFocus zIndex={100} width={220} height={1080} color={0x07080dff} />
+      <View skipFocus zIndex={101} x={218} width={1} height={1080} color={0x2d2e3aff} />
 
       {/* The logo image already ships with the final colors, so avoid tinting it. */}
       <View skipFocus y={40} x={20} width={180} height={48} zIndex={105}>
