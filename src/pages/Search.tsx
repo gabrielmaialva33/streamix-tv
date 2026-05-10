@@ -16,6 +16,28 @@ import api, { type Channel, type Movie, type Series } from "../lib/api";
 import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
+const LEFT_PANEL_X = 20;
+const LEFT_PANEL_WIDTH = 860;
+const RIGHT_PANEL_X = 920;
+const RIGHT_PANEL_WIDTH = 740;
+const SUGGESTION_SLOT_HEIGHT = 64;
+const RESULT_GRID_COLUMNS = 3;
+const RESULT_CARD_WIDTH = 185;
+const RESULT_CARD_HEIGHT = 278;
+const RESULT_CARD_GAP = 16;
+const RESULT_ROW_HEIGHT = RESULT_CARD_HEIGHT + 62;
+
+function chunkItems<T>(items: readonly T[] | undefined, size: number): T[][] {
+  const chunks: T[][] = [];
+  const source = items ?? [];
+
+  for (let i = 0; i < source.length; i += size) {
+    chunks.push(source.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
 const Search = () => {
   const navigate = useNavigate();
   const [query, setQuery] = createSignal("");
@@ -58,7 +80,7 @@ const Search = () => {
     () => (searchTriggered() ? query().trim() : null),
     async q => {
       if (!q || q.length < 2) return null;
-      return api.search(q, 10);
+      return api.search(q, 30);
     },
     { initialValue: { query: "", movies: [], series: [], channels: [] } as const },
   );
@@ -133,9 +155,9 @@ const Search = () => {
 
       {/* Search input display — aligned with the keyboard beneath it. */}
       <View
-        x={20}
+        x={LEFT_PANEL_X}
         y={110}
-        width={500}
+        width={LEFT_PANEL_WIDTH}
         height={60}
         color={0x1a1a2eff}
         borderRadius={8}
@@ -148,7 +170,7 @@ const Search = () => {
         <View x={query().length * 16 + 20} y={10} width={3} height={40} color={0xe50914ff} />
       </View>
 
-      <View x={20} y={200} width={860}>
+      <View x={LEFT_PANEL_X} y={200} width={LEFT_PANEL_WIDTH}>
         <VirtualKeyboard
           ref={keyboardColumn}
           value={query()}
@@ -170,9 +192,9 @@ const Search = () => {
         return (
           <>
             <View
-              x={560}
+              x={RIGHT_PANEL_X}
               y={110}
-              width={1120}
+              width={RIGHT_PANEL_WIDTH}
               height={60}
               alpha={showSuggestions() ? 1 : 0}
               transition={{ alpha: { duration: 180 } }}
@@ -184,9 +206,9 @@ const Search = () => {
             </View>
             <Column
               ref={suggestionsColumn}
-              x={560}
+              x={RIGHT_PANEL_X}
               y={170}
-              width={1100}
+              width={RIGHT_PANEL_WIDTH}
               height={860}
               gap={8}
               scroll="auto"
@@ -210,10 +232,10 @@ const Search = () => {
                   const hasItem = () => !!item();
                   return (
                     <View
-                      width={1100}
-                      height={72}
+                      width={RIGHT_PANEL_WIDTH}
+                      height={SUGGESTION_SLOT_HEIGHT}
                       color={theme.surface}
-                      borderRadius={14}
+                      borderRadius={8}
                       border={{ color: theme.border, width: 1 }}
                       transition={{
                         alpha: { duration: 150 },
@@ -240,21 +262,21 @@ const Search = () => {
                       }}
                     >
                       <Text
-                        x={24}
-                        y={22}
-                        fontSize={22}
+                        x={20}
+                        y={19}
+                        fontSize={20}
                         fontWeight={700}
                         color={theme.textPrimary}
-                        width={820}
+                        width={500}
                         maxLines={1}
                         contain="width"
                       >
                         {item()?.title ?? ""}
                       </Text>
                       <Text
-                        x={880}
-                        y={26}
-                        width={200}
+                        x={540}
+                        y={22}
+                        width={180}
                         fontSize={16}
                         color={theme.textMuted}
                         textAlign="right"
@@ -286,12 +308,15 @@ const Search = () => {
         const showResults = () => searchTriggered() && totalResults() > 0;
         const showEmpty = () => searchTriggered() && !results.loading && totalResults() === 0;
         const showLoading = () => searchTriggered() && results.loading && totalResults() === 0;
+        const movieRows = () => chunkItems(results.latest?.movies, RESULT_GRID_COLUMNS);
+        const seriesRows = () => chunkItems(results.latest?.series, RESULT_GRID_COLUMNS);
+        const channelRows = () => chunkItems(results.latest?.channels, 4);
         return (
           <>
             <View
-              x={560}
+              x={RIGHT_PANEL_X}
               y={170}
-              width={1120}
+              width={RIGHT_PANEL_WIDTH}
               height={400}
               display="flex"
               justifyContent="center"
@@ -306,9 +331,9 @@ const Search = () => {
             </View>
 
             <View
-              x={560}
+              x={RIGHT_PANEL_X}
               y={170}
-              width={1120}
+              width={RIGHT_PANEL_WIDTH}
               height={400}
               display="flex"
               justifyContent="center"
@@ -324,9 +349,9 @@ const Search = () => {
 
             <Column
               ref={resultsColumn}
-              x={560}
+              x={RIGHT_PANEL_X}
               y={170}
-              width={1120}
+              width={RIGHT_PANEL_WIDTH}
               height={890}
               gap={24}
               scroll="auto"
@@ -339,76 +364,114 @@ const Search = () => {
               }}
             >
               {/* Movies */}
-              <Show when={results.latest?.movies?.length}>
-                <View width={1100} height={400} forwardFocus={1}>
+              <Show when={movieRows().length}>
+                <View
+                  width={RIGHT_PANEL_WIDTH}
+                  height={48 + movieRows().length * RESULT_ROW_HEIGHT}
+                  forwardFocus={1}
+                >
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Filmes (${results.latest!.movies.length})`}
                   </Text>
-                  <Row y={40} width={1100} height={360} gap={15}>
-                    <For each={results.latest!.movies.slice(0, 4)}>
-                      {(movie: Movie) => (
-                        <Card
-                          title={movie.title || movie.name || ""}
-                          imageUrl={pickPoster(movie, 240)}
-                          subtitle={movie.year?.toString()}
-                          width={200}
-                          height={300}
-                          onEnter={() => {
-                            navigate(`/movie/${movie.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
+                  <For each={movieRows()}>
+                    {(row, rowIndex) => (
+                      <Row
+                        y={42 + rowIndex() * RESULT_ROW_HEIGHT}
+                        width={RIGHT_PANEL_WIDTH}
+                        height={RESULT_ROW_HEIGHT}
+                        gap={RESULT_CARD_GAP}
+                        scroll="none"
+                      >
+                        <For each={row}>
+                          {(movie: Movie) => (
+                            <Card
+                              title={movie.title || movie.name || ""}
+                              imageUrl={pickPoster(movie, 240)}
+                              subtitle={movie.year?.toString()}
+                              width={RESULT_CARD_WIDTH}
+                              height={RESULT_CARD_HEIGHT}
+                              onEnter={() => {
+                                navigate(`/movie/${movie.id}`);
+                                return true;
+                              }}
+                            />
+                          )}
+                        </For>
+                      </Row>
+                    )}
+                  </For>
                 </View>
               </Show>
 
               {/* Series */}
-              <Show when={results.latest?.series?.length}>
-                <View width={1100} height={400} forwardFocus={1}>
+              <Show when={seriesRows().length}>
+                <View
+                  width={RIGHT_PANEL_WIDTH}
+                  height={48 + seriesRows().length * RESULT_ROW_HEIGHT}
+                  forwardFocus={1}
+                >
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Séries (${results.latest!.series.length})`}
                   </Text>
-                  <Row y={40} width={1100} height={360} gap={15}>
-                    <For each={results.latest!.series.slice(0, 4)}>
-                      {(show: Series) => (
-                        <Card
-                          title={show.title || show.name || ""}
-                          imageUrl={pickPoster(show, 240)}
-                          subtitle={show.year?.toString()}
-                          width={200}
-                          height={300}
-                          onEnter={() => {
-                            navigate(`/series/${show.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
+                  <For each={seriesRows()}>
+                    {(row, rowIndex) => (
+                      <Row
+                        y={42 + rowIndex() * RESULT_ROW_HEIGHT}
+                        width={RIGHT_PANEL_WIDTH}
+                        height={RESULT_ROW_HEIGHT}
+                        gap={RESULT_CARD_GAP}
+                        scroll="none"
+                      >
+                        <For each={row}>
+                          {(show: Series) => (
+                            <Card
+                              title={show.title || show.name || ""}
+                              imageUrl={pickPoster(show, 240)}
+                              subtitle={show.year?.toString()}
+                              width={RESULT_CARD_WIDTH}
+                              height={RESULT_CARD_HEIGHT}
+                              onEnter={() => {
+                                navigate(`/series/${show.id}`);
+                                return true;
+                              }}
+                            />
+                          )}
+                        </For>
+                      </Row>
+                    )}
+                  </For>
                 </View>
               </Show>
 
               {/* Channels */}
-              <Show when={results.latest?.channels?.length}>
-                <View width={1100} height={180} forwardFocus={1}>
+              <Show when={channelRows().length}>
+                <View width={RIGHT_PANEL_WIDTH} height={48 + channelRows().length * 142} forwardFocus={1}>
                   <Text fontSize={24} color={0xffffffff} fontWeight={700}>
                     {`Canais (${results.latest!.channels.length})`}
                   </Text>
-                  <Row y={40} width={1100} height={140} gap={15}>
-                    <For each={results.latest!.channels.slice(0, 6)}>
-                      {(channel: Channel) => (
-                        <ChannelResult
-                          channel={channel}
-                          onSelect={() => {
-                            navigate(`/player/channel/${channel.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
+                  <For each={channelRows()}>
+                    {(row, rowIndex) => (
+                      <Row
+                        y={42 + rowIndex() * 142}
+                        width={RIGHT_PANEL_WIDTH}
+                        height={140}
+                        gap={15}
+                        scroll="none"
+                      >
+                        <For each={row}>
+                          {(channel: Channel) => (
+                            <ChannelResult
+                              channel={channel}
+                              onSelect={() => {
+                                navigate(`/player/channel/${channel.id}`);
+                                return true;
+                              }}
+                            />
+                          )}
+                        </For>
+                      </Row>
+                    )}
+                  </For>
                 </View>
               </Show>
             </Column>
