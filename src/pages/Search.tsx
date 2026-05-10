@@ -11,19 +11,10 @@ import {
   startTransition,
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card } from "../components";
+import { Card, VirtualKeyboard } from "../components";
 import api, { type Channel, type Movie, type Series } from "../lib/api";
 import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
-
-const KEYBOARD_ROWS = [
-  ["A", "B", "C", "D", "E", "F", "G"],
-  ["H", "I", "J", "K", "L", "M", "N"],
-  ["O", "P", "Q", "R", "S", "T", "U"],
-  ["V", "W", "X", "Y", "Z", "0", "1"],
-  ["2", "3", "4", "5", "6", "7", "8"],
-  ["9", " ", "DEL", "OK"],
-];
 
 const Search = () => {
   const navigate = useNavigate();
@@ -35,6 +26,7 @@ const Search = () => {
   let keyboardColumn: ElementNode | undefined;
   let suggestionsColumn: ElementNode | undefined;
   let resultsColumn: ElementNode | undefined;
+  const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
 
   // Live typeahead — fires ~180ms after the last keystroke so each press
   // doesn't hammer the API. Goes silent once OK is pressed (full results
@@ -71,25 +63,17 @@ const Search = () => {
     { initialValue: { query: "", movies: [], series: [], channels: [] } as const },
   );
 
-  const handleKey = (key: string) => {
-    // Wrap in startTransition so Solid treats the signal updates as a
-    // transition — resources transition through pending WITHOUT tripping the
-    // enclosing Suspense boundary (see createResource + startTransition
-    // pattern in Solid docs).
+  const handleKeyboardChange = (value: string) => {
     startTransition(() => {
-      if (key === "DEL") {
-        setQuery(q => q.slice(0, -1));
-        setSearchTriggered(false);
-      } else if (key === "OK") {
-        if (query().trim().length >= 2) {
-          setSearchTriggered(true);
-        }
-      } else if (key === " ") {
-        setQuery(q => q + " ");
-        setSearchTriggered(false);
-      } else {
-        setQuery(q => q + key);
-        setSearchTriggered(false);
+      setQuery(value);
+      setSearchTriggered(false);
+    });
+  };
+
+  const submitSearch = () => {
+    startTransition(() => {
+      if (query().trim().length >= 2) {
+        setSearchTriggered(true);
       }
     });
     return true;
@@ -127,13 +111,17 @@ const Search = () => {
     return false;
   };
 
+  const focusKeyboardHome = () => {
+    setKeyboardFocusRequest(value => value + 1);
+    return true;
+  };
+
   return (
     <View
       width={1700}
       height={1080}
       forwardFocus={() => {
-        keyboardColumn?.setFocus();
-        return true;
+        return focusKeyboardHome();
       }}
     >
       {/* Header — fixed band at the top, skipFocus so D-pad never lands here. */}
@@ -160,30 +148,18 @@ const Search = () => {
         <View x={query().length * 16 + 20} y={10} width={3} height={40} color={0xe50914ff} />
       </View>
 
-      {/* Keyboard — Column wraps Rows. Lightning's built-in Row nav handles
-           Left/Right between keys; we only care about the bubble that happens
-           when Row.onRight default says "no more kids that way". The Column's
-           onRight fires in that exact case and jumps to the results. */}
-      <Column
-        ref={keyboardColumn}
-        x={20}
-        y={200}
-        width={500}
-        height={320}
-        gap={10}
-        autofocus
-        forwardFocus={0}
-        plinko
-        onRight={focusResults}
-      >
-        <For each={KEYBOARD_ROWS}>
-          {row => (
-            <Row width={500} height={45} gap={8}>
-              <For each={row}>{key => <KeyboardKey key={key} onPress={() => handleKey(key)} />}</For>
-            </Row>
-          )}
-        </For>
-      </Column>
+      <View x={20} y={200} width={860}>
+        <VirtualKeyboard
+          ref={keyboardColumn}
+          value={query()}
+          autofocus
+          homeRow={2}
+          focusRequest={keyboardFocusRequest()}
+          onChange={handleKeyboardChange}
+          onSubmit={submitSearch}
+          onRight={focusResults}
+        />
+      </View>
 
       {/* Live typeahead — kept mounted across search state transitions and
            cross-faded via alpha. Mount/unmount was flashing the canvas
@@ -219,8 +195,7 @@ const Search = () => {
               transition={{ alpha: { duration: 180 } }}
               skipFocus={!showSuggestions()}
               onLeft={() => {
-                keyboardColumn?.setFocus();
-                return true;
+                return focusKeyboardHome();
               }}
             >
               {/* Pre-allocated slots — Index over a static [0..7] array so
@@ -360,8 +335,7 @@ const Search = () => {
               transition={{ alpha: { duration: 180 } }}
               skipFocus={!showResults()}
               onLeft={() => {
-                keyboardColumn?.setFocus();
-                return true;
+                return focusKeyboardHome();
               }}
             >
               {/* Movies */}
@@ -441,37 +415,6 @@ const Search = () => {
           </>
         );
       })()}
-    </View>
-  );
-};
-
-interface KeyboardKeyProps {
-  key: string;
-  onPress: () => boolean | void;
-}
-
-const KeyboardKey = (props: KeyboardKeyProps) => {
-  const [focused, setFocused] = createSignal(false);
-
-  const isSpecial = props.key === "DEL" || props.key === "OK" || props.key === " ";
-  const width = isSpecial ? 90 : 60;
-
-  return (
-    <View
-      width={width}
-      height={45}
-      color={focused() ? 0xe50914ff : 0x333333ff}
-      borderRadius={6}
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onEnter={props.onPress}
-    >
-      <Text fontSize={20} color={focused() ? 0xffffffff : 0xccccccff}>
-        {props.key === " " ? "SPC" : props.key}
-      </Text>
     </View>
   );
 };

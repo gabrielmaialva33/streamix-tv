@@ -117,10 +117,12 @@ interface FieldChipProps {
   active: boolean;
   onSelect: () => void;
   onRight?: () => boolean;
+  ref?: ElementNode;
 }
 
 const FieldChip = (props: FieldChipProps) => (
   <View
+    ref={props.ref}
     style={INPUT_STYLE}
     color={props.active ? theme.surfaceLight : theme.surface}
     border={{
@@ -156,6 +158,9 @@ const LoginPage = () => {
   const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
 
   let keyboardRef: ElementNode | undefined;
+  let nameFieldRef: ElementNode | undefined;
+  let emailFieldRef: ElementNode | undefined;
+  let passwordFieldRef: ElementNode | undefined;
 
   const fieldsInOrder = createMemo<FieldName[]>(() =>
     mode() === "register" ? ["name", "email", "password"] : ["email", "password"],
@@ -178,6 +183,13 @@ const LoginPage = () => {
 
   function focusKeyboardHome() {
     setKeyboardFocusRequest(value => value + 1);
+    return true;
+  }
+
+  function focusActiveField() {
+    const target =
+      activeField() === "name" ? nameFieldRef : activeField() === "email" ? emailFieldRef : passwordFieldRef;
+    target?.setFocus();
     return true;
   }
 
@@ -272,6 +284,7 @@ const LoginPage = () => {
         <Show when={mode() === "register"}>
           <View y={236}>
             <FieldChip
+              ref={nameFieldRef}
               label="Nome"
               value={form().name}
               placeholder="Use o teclado"
@@ -284,6 +297,7 @@ const LoginPage = () => {
 
         <View y={mode() === "register" ? 340 : 236}>
           <FieldChip
+            ref={emailFieldRef}
             label="E-mail"
             value={form().email}
             placeholder="Use o teclado"
@@ -295,6 +309,7 @@ const LoginPage = () => {
 
         <View y={mode() === "register" ? 444 : 340}>
           <FieldChip
+            ref={passwordFieldRef}
             label="Senha"
             value={maskPassword(form().password)}
             placeholder="Use o teclado"
@@ -352,6 +367,7 @@ const LoginPage = () => {
             homeRow={2}
             focusRequest={keyboardFocusRequest()}
             resetKey={`${mode()}:${activeField()}`}
+            onLeft={focusActiveField}
             onChange={setValue}
             onSubmit={handleOk}
           />

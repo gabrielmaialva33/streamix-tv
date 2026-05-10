@@ -49,6 +49,8 @@ export interface VirtualKeyboardProps {
   password?: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onLeft?: () => boolean;
+  onRight?: () => boolean;
   onUp?: () => boolean;
   autofocus?: boolean;
   homeRow?: number;
@@ -140,6 +142,8 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
       autofocus={props.autofocus}
       selected={props.homeRow ?? 0}
       plinko
+      onLeft={props.onLeft}
+      onRight={props.onRight}
       onUp={props.onUp}
     >
       <For each={layout()}>
