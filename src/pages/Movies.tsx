@@ -152,9 +152,9 @@ const Movies = () => {
         <Row
           ref={categoriesRow}
           x={20}
-          y={130}
+          y={128}
           width={1660}
-          height={50}
+          height={54}
           gap={12}
           scroll="center"
           autofocus
