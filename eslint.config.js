@@ -4,6 +4,16 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "android/.gradle/**",
+      "android/**/build/**",
+      "android/app/src/main/assets/**",
+      "android/capacitor-cordova-android-plugins/**",
+    ],
+  },
+  {
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
   },
   {

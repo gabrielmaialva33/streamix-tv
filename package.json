@@ -10,6 +10,11 @@
     "start:tizen": "TARGET_DEVICE=tizen vite --open --host --force",
     "build": "vite build --sourcemap=true",
     "build:tizen": "TARGET_DEVICE=tizen vite build --mode production",
+    "build:firetv": "TARGET_DEVICE=firetv vite build --mode production",
+    "firetv:sync": "pnpm build:firetv && npx cap sync android",
+    "firetv:apk": "pnpm firetv:sync && cd android && JAVA_HOME=${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk} ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk} ./gradlew assembleDebug",
+    "firetv:install": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "firetv:deploy": "pnpm firetv:apk && pnpm firetv:install",
     "tizen:package": "cd dist/tizen && tizen package -t wgt -s StreamixTV -- .",
     "tizen:install": "cd dist/tizen && tizen install -n Streamix.wgt -s 192.168.1.5:26101",
     "tizen:run": "tizen run -p EI8qhrd7xh.streamix -s 192.168.1.5:26101",
@@ -45,6 +50,9 @@
     "solid-js": "^1.9.12"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
     "@chromatic-com/storybook": "^5.1.2",
     "@eslint/js": "^10.0.1",
     "@lightningtv/vite-hex-transform": "^1.1.0",

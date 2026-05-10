@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Streamix TV</string>
+    <string name="title_activity_main">Streamix TV</string>
+    <string name="package_name">tv.streamix.app</string>
+    <string name="custom_url_scheme">tv.streamix.app</string>
+</resources>
