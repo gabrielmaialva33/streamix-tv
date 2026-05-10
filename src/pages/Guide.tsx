@@ -15,18 +15,18 @@ const ROW_HEIGHT = 80;
 // Styles
 const ChannelRowStyle = {
   height: ROW_HEIGHT,
-  color: 0x1a1a2eff,
+  color: theme.surface,
   transition: {
     color: { duration: 150 },
   },
   $focus: {
-    color: 0x2a2a3eff,
+    color: theme.surfaceHover,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const TimeHeaderStyle = {
   height: 50,
-  color: 0x111111ff,
+  color: theme.backgroundElevated,
 } satisfies IntrinsicNodeStyleProps;
 
 interface Program {
@@ -140,13 +140,13 @@ const Guide = () => {
   };
 
   return (
-    <Column width={1700} height={1080} scroll="none">
+    <Column width={1700} height={1080} color={theme.background} scroll="none">
       {/* Header */}
       <View width={1680} height={60} x={20} skipFocus>
         <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
           Guia de Programação
         </Text>
-        <Text x={1400} y={20} fontSize={24} color={0xaaaaaaff}>
+        <Text x={1400} y={20} fontSize={24} color={theme.textSecondary}>
           {currentTime().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
         </Text>
       </View>
@@ -154,8 +154,8 @@ const Guide = () => {
       {/* Time Header */}
       <View x={20} width={1660} style={TimeHeaderStyle} skipFocus>
         {/* Channel column header */}
-        <View width={CHANNEL_COLUMN_WIDTH} height={50} color={0x1a1a2eff}>
-          <Text x={10} y={12} fontSize={18} color={0x888888ff}>
+        <View width={CHANNEL_COLUMN_WIDTH} height={50} color={theme.surfaceMuted}>
+          <Text x={10} y={12} fontSize={18} color={theme.textMuted}>
             Canal
           </Text>
         </View>
@@ -166,7 +166,7 @@ const Guide = () => {
             <For each={timeSlots()}>
               {slot => (
                 <View width={TIME_SLOT_WIDTH} height={50}>
-                  <Text x={10} y={12} fontSize={16} color={0xaaaaaaff}>
+                  <Text x={10} y={12} fontSize={16} color={theme.textSecondary}>
                     {formatTime(slot)}
                   </Text>
                 </View>
@@ -187,7 +187,7 @@ const Guide = () => {
             alignItems="center"
             skipFocus
           >
-            <Text fontSize={28} color={0x888888ff}>
+            <Text fontSize={28} color={theme.textMuted}>
               Carregando guia...
             </Text>
           </View>
@@ -197,7 +197,7 @@ const Guide = () => {
           {({ channel, programs }) => (
             <View width={1660} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
               {/* Channel info */}
-              <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={0x1a1a2eff}>
+              <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.surfaceMuted}>
                 <Show when={channel.logo_url}>
                   <View
                     x={10}
@@ -219,11 +219,11 @@ const Guide = () => {
                   x={CHANNEL_COLUMN_WIDTH}
                   width={1660 - CHANNEL_COLUMN_WIDTH}
                   height={ROW_HEIGHT}
-                  color={0x1a1a2eff}
+                  color={theme.surfaceMuted}
                   transition={{ color: { duration: 150 } }}
                   onEnter={() => handleChannelSelect(channel)}
                 >
-                  <Text x={16} y={28} fontSize={14} color={0x666666ff}>
+                  <Text x={16} y={28} fontSize={14} color={theme.textMuted}>
                     Sem programacao disponivel — OK para assistir ao vivo
                   </Text>
                 </View>
@@ -244,8 +244,9 @@ const Guide = () => {
                       width={getProgramWidth(program) - 4}
                       height={ROW_HEIGHT - 4}
                       y={2}
-                      color={isNowPlaying(program) ? 0x333333ff : 0x222222ff}
-                      borderRadius={4}
+                      color={isNowPlaying(program) ? theme.surfaceActive : theme.surface}
+                      borderRadius={6}
+                      border={{ color: isNowPlaying(program) ? theme.primary : theme.borderSubtle, width: 1 }}
                       style={{
                         transition: { color: { duration: 150 }, scale: { duration: 150 } },
                         $focus: { color: theme.primary, scale: 1.02 },
@@ -278,7 +279,12 @@ const Guide = () => {
                         {program.title}
                       </Text>
 
-                      <Text x={isNowPlaying(program) ? 14 : 8} y={30} fontSize={12} color={0xaaaaaaff}>
+                      <Text
+                        x={isNowPlaying(program) ? 14 : 8}
+                        y={30}
+                        fontSize={12}
+                        color={theme.textSecondary}
+                      >
                         {formatTime(program.start)} - {formatTime(program.end)}
                       </Text>
                     </View>
@@ -294,12 +300,12 @@ const Guide = () => {
       <View x={20} y={1000} display="flex" gap={30} skipFocus>
         <View display="flex" gap={8}>
           <View width={16} height={16} color={theme.primary} borderRadius={2} y={2} />
-          <Text fontSize={14} color={0x888888ff}>
+          <Text fontSize={14} color={theme.textSecondary}>
             Ao vivo agora
           </Text>
         </View>
-        <Text fontSize={14} color={0x666666ff}>
-          ← → Navegar OK Assistir
+        <Text fontSize={14} color={theme.textMuted}>
+          Navegue pela grade • OK assistir
         </Text>
       </View>
     </Column>

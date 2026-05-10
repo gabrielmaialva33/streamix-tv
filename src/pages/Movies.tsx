@@ -6,6 +6,7 @@ import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "../componen
 import api, { type Category, type Movie } from "../lib/api";
 import { pickPoster } from "@/lib/imageUrl";
 import { navResetTick } from "@/shared/navReset";
+import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
@@ -138,15 +139,16 @@ const Movies = () => {
       }}
     >
       {/* Fixed Header - solid background hides content scrolling behind */}
-      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
+      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
         <View width={1660} height={100} x={20} skipFocus>
           <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
             Filmes
           </Text>
-          <Text y={64} fontSize={18} color={0xa7a7b3ff}>
+          <Text y={64} fontSize={18} color={theme.textSecondary}>
             Descubra títulos com mais contexto antes de dar play.
           </Text>
         </View>
+        <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
         {/* Category Filter - horizontal scrolling */}
         <Row
@@ -287,9 +289,10 @@ const Movies = () => {
               justifyContent="center"
               alignItems="center"
               style={{
-                color: 0x333333ff,
-                transition: { scale: { duration: 150 } },
-                $focus: { scale: 1.1, color: 0xe50914ff },
+                color: theme.surfaceLight,
+                border: { color: theme.border, width: 1 },
+                transition: { scale: { duration: 150 }, color: { duration: 150 } },
+                $focus: { scale: 1.05, color: theme.primary, border: { color: theme.primary, width: 1 } },
               }}
               onEnter={() => {
                 loadMore();

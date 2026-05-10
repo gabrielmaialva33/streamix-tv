@@ -130,7 +130,7 @@ const SeriesEpisodes = () => {
                     <View
                       width={Math.max(168, seasonLabel(season, index()).length * 12 + 34)}
                       style={SEASON_BUTTON_STYLE}
-                      color={selectedSeasonIdx() === index() ? 0x2b1015ff : theme.surface}
+                      color={selectedSeasonIdx() === index() ? theme.surfaceActive : theme.surface}
                       border={{
                         color: selectedSeasonIdx() === index() ? theme.primary : theme.border,
                         width: selectedSeasonIdx() === index() ? 2 : 1,
@@ -201,7 +201,7 @@ const SeriesEpisodes = () => {
                                 y={14}
                                 width={184}
                                 height={128}
-                                color={0x242431ff}
+                                color={theme.surfaceLight}
                                 borderRadius={14}
                               />
                             }

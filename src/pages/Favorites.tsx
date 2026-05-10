@@ -13,25 +13,28 @@ const ITEMS_PER_ROW = 6;
 // Tab styles
 const TabStyle = {
   height: 45,
-  borderRadius: 22,
+  borderRadius: 10,
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  color: 0x222222ff,
+  color: theme.surfaceMuted,
+  border: { color: theme.borderSubtle, width: 1 },
   transition: {
     color: { duration: 150 },
     scale: { duration: 150 },
   },
   scale: 1,
   $focus: {
-    color: theme.primary,
-    scale: 1.05,
+    color: theme.surfaceHover,
+    border: { color: theme.primary, width: 1 },
+    scale: 1.04,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const ActiveTabStyle = {
   ...TabStyle,
-  color: 0x444444ff,
+  color: theme.surfaceActive,
+  border: { color: theme.primary, width: 2 },
 } satisfies IntrinsicNodeStyleProps;
 
 type FilterType = "all" | "movie" | "series" | "channel";
@@ -102,7 +105,7 @@ const Favorites = () => {
   };
 
   return (
-    <Column width={1700} height={1080} scroll="none">
+    <Column width={1700} height={1080} color={theme.background} scroll="none">
       {/* Header */}
       <View width={1660} height={108} x={20} skipFocus>
         <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
@@ -116,18 +119,19 @@ const Favorites = () => {
           y={18}
           width={210}
           height={34}
-          color={theme.surface}
-          borderRadius={17}
-          border={{ color: theme.border, width: 1 }}
+          color={theme.surfaceMuted}
+          borderRadius={10}
+          border={{ color: theme.borderSubtle, width: 1 }}
         >
           <Text y={8} width={210} fontSize={15} color={theme.textPrimary} textAlign="center">
             Favoritos da sua conta
           </Text>
         </View>
-        <Text x={1450} y={25} fontSize={20} color={0x888888ff}>
+        <Text x={1450} y={25} fontSize={20} color={theme.textMuted}>
           {`${filteredItems().length} itens`}
         </Text>
       </View>
+      <View x={20} width={1640} height={1} color={theme.border} skipFocus />
 
       {/* Filter Tabs */}
       <Row
@@ -212,13 +216,13 @@ const Favorites = () => {
             gap={20}
             skipFocus
           >
-            <Text fontSize={48} color={0x444444ff}>
+            <Text fontSize={48} color={theme.surfaceLight}>
               ★
             </Text>
-            <Text fontSize={28} color={0x888888ff}>
+            <Text fontSize={28} color={theme.textSecondary}>
               Nenhum favorito ainda
             </Text>
-            <Text fontSize={18} color={0x666666ff}>
+            <Text fontSize={18} color={theme.textMuted}>
               {`Adicione filmes, séries ou canais para montar a sua seleção${authState.user()?.name ? `, ${authState.user()?.name}` : ""}`}
             </Text>
           </View>
@@ -248,7 +252,7 @@ const Favorites = () => {
 
       {/* Help text */}
       <View x={20} y={1000} skipFocus>
-        <Text fontSize={14} color={0x666666ff}>
+        <Text fontSize={14} color={theme.textMuted}>
           OK Abrir detalhes ou reprodução • Seus favoritos acompanham a conta
         </Text>
       </View>

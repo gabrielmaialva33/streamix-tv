@@ -126,7 +126,7 @@ const Series = () => {
       }}
     >
       {/* Fixed Header - solid background hides content scrolling behind */}
-      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
+      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
         <View width={1660} height={100} x={20} skipFocus>
           <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
             Séries
@@ -135,6 +135,7 @@ const Series = () => {
             Entre no universo da série antes de escolher temporada e episódio.
           </Text>
         </View>
+        <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
         {/* Category Filter - horizontal scrolling */}
         <Row
@@ -268,9 +269,10 @@ const Series = () => {
               justifyContent="center"
               alignItems="center"
               style={{
-                color: 0x333333ff,
-                transition: { scale: { duration: 150 } },
-                $focus: { scale: 1.1, color: 0xe50914ff },
+                color: theme.surfaceLight,
+                border: { color: theme.border, width: 1 },
+                transition: { scale: { duration: 150 }, color: { duration: 150 } },
+                $focus: { scale: 1.05, color: theme.primary, border: { color: theme.primary, width: 1 } },
               }}
               onEnter={() => {
                 loadMore();

@@ -6,6 +6,7 @@ import { CategoryChip, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { navResetTick } from "@/shared/navReset";
+import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 156;
@@ -15,17 +16,18 @@ const ROW_BUFFER = 2;
 const ChannelCardStyle = {
   width: 180,
   height: 130,
-  color: 0x1a1a2eff,
-  borderRadius: 12,
+  color: theme.surface,
+  borderRadius: 10,
+  border: { color: theme.border, width: 1 },
   scale: 1,
   transition: {
     scale: { duration: 150, easing: "ease-out" },
     color: { duration: 150, easing: "ease-out" },
   },
   $focus: {
-    scale: 1.1,
-    color: 0x2a2a3eff,
-    border: { color: 0xe50914ff, width: 3 },
+    scale: 1.06,
+    color: theme.surfaceHover,
+    border: { color: theme.primary, width: 2 },
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -148,12 +150,16 @@ const Channels = () => {
         return true;
       }}
     >
-      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={0x0a0a0fff}>
+      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
         <View width={1660} height={76} x={20} skipFocus>
           <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
             Canais ao Vivo
           </Text>
+          <Text y={62} fontSize={18} color={theme.textSecondary}>
+            Acesse canais rapidamente com logos e categorias organizadas.
+          </Text>
         </View>
+        <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
         <Row
           ref={categoriesRow}
@@ -246,7 +252,7 @@ const Channels = () => {
                         width={100}
                         height={65}
                         color={channelColorFromName(channel.name)}
-                        borderRadius={8}
+                        borderRadius={10}
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
@@ -273,7 +279,7 @@ const Channels = () => {
                         width={160}
                         height={30}
                         fontSize={14}
-                        color={0xccccccff}
+                        color={theme.textSecondary}
                         contain="both"
                         textOverflow="ellipsis"
                         textAlign="center"
@@ -300,9 +306,10 @@ const Channels = () => {
               justifyContent="center"
               alignItems="center"
               style={{
-                color: 0x333333ff,
-                transition: { scale: { duration: 150 } },
-                $focus: { scale: 1.1, color: 0xe50914ff },
+                color: theme.surfaceLight,
+                border: { color: theme.border, width: 1 },
+                transition: { scale: { duration: 150 }, color: { duration: 150 } },
+                $focus: { scale: 1.05, color: theme.primary, border: { color: theme.primary, width: 1 } },
               }}
               onEnter={() => {
                 setOffset(prev => prev + PAGE_SIZE);

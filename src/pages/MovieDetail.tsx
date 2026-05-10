@@ -15,9 +15,9 @@ const HERO_STYLE = {
 } satisfies IntrinsicNodeStyleProps;
 
 const PANEL_STYLE = {
-  color: 0x111118f4,
-  borderRadius: 24,
-  border: { color: 0x232330ff, width: 1 },
+  color: theme.panel,
+  borderRadius: 18,
+  border: { color: theme.panelBorder, width: 1 },
 } satisfies IntrinsicNodeStyleProps;
 
 const PRIMARY_BUTTON_STYLE = {
@@ -50,9 +50,9 @@ const SECONDARY_BUTTON_STYLE = {
 
 const META_CHIP_STYLE = {
   height: 34,
-  borderRadius: 17,
-  color: 0x181922ff,
-  border: { color: 0x2c2d38ff, width: 1 },
+  borderRadius: 8,
+  color: theme.surfaceMuted,
+  border: { color: theme.borderSubtle, width: 1 },
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -207,7 +207,7 @@ const MovieDetail = () => {
                   src={posterUrl}
                   color={0xffffffff}
                   borderRadius={22}
-                  border={{ color: 0x2d2d38ff, width: 2 }}
+                  border={{ color: theme.panelBorder, width: 2 }}
                   textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
                 />
               </Show>

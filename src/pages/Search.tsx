@@ -168,9 +168,9 @@ const Search = () => {
         y={SEARCH_INPUT_Y}
         width={LEFT_PANEL_WIDTH}
         height={60}
-        color={0x1a1a2eff}
+        color={theme.surfaceMuted}
         borderRadius={8}
-        border={{ color: query() ? 0x3a3b48ff : theme.border, width: 1 }}
+        border={{ color: query() ? theme.borderLight : theme.border, width: 1 }}
         skipFocus
       >
         <Text x={20} y={15} fontSize={28} color={query() ? 0xffffffff : 0x666666ff}>
@@ -244,9 +244,9 @@ const Search = () => {
                     <View
                       width={RIGHT_PANEL_WIDTH}
                       height={SUGGESTION_SLOT_HEIGHT}
-                      color={0x20202cff}
+                      color={theme.surface}
                       borderRadius={8}
-                      border={{ color: 0x323342ff, width: 1 }}
+                      border={{ color: theme.border, width: 1 }}
                       transition={{
                         color: { duration: 120 },
                         scale: { duration: 120 },
@@ -255,7 +255,7 @@ const Search = () => {
                       alpha={hasItem() ? 1 : 0}
                       skipFocus={!hasItem()}
                       $focus={{
-                        color: 0x303142ff,
+                        color: theme.surfaceHover,
                         border: { color: theme.primary, width: 2 },
                         scale: 1.01,
                       }}
