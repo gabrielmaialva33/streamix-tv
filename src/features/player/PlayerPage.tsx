@@ -12,6 +12,15 @@ import { createInitialPlayerState } from "./core/playerState";
 import { type PlayerType, resolvePlayerSource } from "./stream";
 
 const logger = createLogger("PlayerPage");
+const SEEK_BAR_WIDTH = 1800;
+const RESUME_MIN_SECONDS = 30;
+const RESUME_END_PADDING_SECONDS = 20;
+const STALLED_CHECK_INTERVAL_MS = 5000;
+const STALLED_CHECK_LIMIT = 3;
+const STALLED_RECOVERY_COOLDOWN_MS = 30000;
+const SEEK_COMMIT_DELAY_MS = 900;
+const SEEK_ACCELERATION_WINDOW_MS = 1400;
+const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
 
 const PlayerPage = () => {
   const params = useParams<{ type: PlayerType; id: string }>();
@@ -28,12 +37,21 @@ const PlayerPage = () => {
   let controlsTimeout: number | null = null;
   let seekFeedbackTimeout: number | null = null;
   let historyInterval: number | null = null;
+  let playbackWatchdogInterval: number | null = null;
   let syncMessageTimeout: number | null = null;
   let destroyed = false;
   let loadedUrl: string | null = null;
   let telemetryStarted = false;
   let lastTelemetryPosition = -1;
   let historySyncWarningShown = false;
+  let pendingResumePosition: number | null = null;
+  let lastWatchdogPosition = 0;
+  let stalledWatchdogChecks = 0;
+  let lastWatchdogRecoveryAt = 0;
+  let recoveryInFlight = false;
+  let seekDirection: -1 | 1 | null = null;
+  let seekStepIndex = 0;
+  let lastSeekInputAt = 0;
 
   const [streamData] = createResource(
     () => ({ type: params.type, id: params.id }),
@@ -57,6 +75,10 @@ const PlayerPage = () => {
     if (historyInterval) {
       clearInterval(historyInterval);
       historyInterval = null;
+    }
+    if (playbackWatchdogInterval) {
+      clearInterval(playbackWatchdogInterval);
+      playbackWatchdogInterval = null;
     }
     if (syncMessageTimeout) {
       clearTimeout(syncMessageTimeout);
@@ -211,10 +233,71 @@ const PlayerPage = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
+  function getSavedResumePosition() {
+    if (params.type === "channel") {
+      return null;
+    }
+
+    const saved = history.getProgress(
+      params.id,
+      params.type,
+      params.type === "series" ? params.id : undefined,
+    );
+    if (!saved || saved.duration <= 0 || saved.currentTime < RESUME_MIN_SECONDS || saved.progress >= 95) {
+      return null;
+    }
+
+    return Math.max(0, Math.min(saved.currentTime, saved.duration - RESUME_END_PADDING_SECONDS));
+  }
+
+  function applyPendingResume() {
+    const position = pendingResumePosition;
+    const current = state();
+    if (!position || !current.ready || current.duration <= 0) {
+      return;
+    }
+
+    pendingResumePosition = null;
+    PlayerManager.seekTo(position);
+    showSyncMessage(`Retomando de ${formatTime(position)}`);
+  }
+
   function handlePlayPause() {
     resetControlsTimeout();
     PlayerManager.togglePlayPause();
     sendTelemetry(state().playing ? "pause" : "resume");
+    return true;
+  }
+
+  function handlePrimaryAction() {
+    if (state().error && loadedUrl) {
+      return retryPlayback();
+    }
+
+    return handlePlayPause();
+  }
+
+  function retryPlayback() {
+    if (!loadedUrl || recoveryInFlight) {
+      return true;
+    }
+
+    recoveryInFlight = true;
+    resetControlsTimeout();
+    setState({ ...state(), error: null, buffering: true });
+    pendingResumePosition = state().currentTime > 5 ? state().currentTime : getSavedResumePosition();
+
+    void PlayerManager.load(loadedUrl)
+      .catch(error => {
+        logger.error("Failed to retry playback", error);
+        sendTelemetry("error", {
+          error_message: toErrorMessage(error),
+        });
+      })
+      .finally(() => {
+        recoveryInFlight = false;
+      });
+
     return true;
   }
 
@@ -232,22 +315,38 @@ const PlayerPage = () => {
     return true;
   }
 
-  function handleSeek(delta: number) {
+  function formatSeekDelta(seconds: number) {
+    const direction = seconds >= 0 ? "+" : "-";
+    const absolute = Math.abs(seconds);
+    const minutes = Math.floor(absolute / 60);
+    const remainingSeconds = absolute % 60;
+
+    if (minutes > 0) {
+      return `${direction}${minutes}m${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ""}`;
+    }
+
+    return `${direction}${remainingSeconds}s`;
+  }
+
+  function handleSeek(direction: -1 | 1, forcedStepSeconds?: number) {
     resetControlsTimeout();
 
-    const nextAccumulatedSeek = accumulatedSeek() + delta;
-    setAccumulatedSeek(nextAccumulatedSeek);
+    const now = Date.now();
+    const isSameBurst =
+      seekDirection === direction &&
+      seekFeedbackTimeout !== null &&
+      now - lastSeekInputAt <= SEEK_ACCELERATION_WINDOW_MS;
+    const stepSeconds =
+      forcedStepSeconds ??
+      SEEK_STEPS_SECONDS[isSameBurst ? Math.min(seekStepIndex + 1, SEEK_STEPS_SECONDS.length - 1) : 0];
 
-    const sign = nextAccumulatedSeek >= 0 ? "+" : "";
-    if (Math.abs(nextAccumulatedSeek) >= 60) {
-      const minutes = Math.floor(Math.abs(nextAccumulatedSeek) / 60);
-      const seconds = Math.abs(nextAccumulatedSeek) % 60;
-      setSeekFeedback(
-        `${sign}${nextAccumulatedSeek >= 0 ? "" : "-"}${minutes}m${seconds > 0 ? ` ${seconds}s` : ""}`,
-      );
-    } else {
-      setSeekFeedback(`${sign}${nextAccumulatedSeek}s`);
-    }
+    seekDirection = direction;
+    seekStepIndex = SEEK_STEPS_SECONDS.indexOf(stepSeconds as (typeof SEEK_STEPS_SECONDS)[number]);
+    lastSeekInputAt = now;
+
+    const nextAccumulatedSeek = accumulatedSeek() + direction * stepSeconds;
+    setAccumulatedSeek(nextAccumulatedSeek);
+    setSeekFeedback(formatSeekDelta(nextAccumulatedSeek));
 
     if (seekFeedbackTimeout) {
       clearTimeout(seekFeedbackTimeout);
@@ -257,13 +356,80 @@ const PlayerPage = () => {
       PlayerManager.seek(accumulatedSeek());
       setSeekFeedback(null);
       setAccumulatedSeek(0);
-    }, 800);
+      seekDirection = null;
+      seekStepIndex = 0;
+    }, SEEK_COMMIT_DELAY_MS);
   }
 
   const progress = () => {
     const { currentTime, duration } = state();
     return duration > 0 ? (currentTime / duration) * 100 : 0;
   };
+
+  const seekTarget = () => {
+    const current = state();
+    if (current.duration <= 0) {
+      return current.currentTime + accumulatedSeek();
+    }
+
+    return Math.max(0, Math.min(current.duration, current.currentTime + accumulatedSeek()));
+  };
+
+  const remainingTime = () => {
+    const current = state();
+    if (current.duration <= 0) {
+      return "Ao vivo";
+    }
+
+    return `Restam ${formatTime(Math.max(0, current.duration - current.currentTime))}`;
+  };
+
+  const primaryControlIcon = () =>
+    state().playing ? "/assets/icons/player-pause.svg" : "/assets/icons/player-play.svg";
+
+  function recoverIfPlaybackStalled() {
+    if (destroyed || recoveryInFlight || !loadedUrl) {
+      return;
+    }
+
+    const current = state();
+    if (!current.ready || current.error || current.buffering || !current.playing || current.duration <= 0) {
+      stalledWatchdogChecks = 0;
+      lastWatchdogPosition = current.currentTime;
+      return;
+    }
+
+    if (Math.abs(current.currentTime - lastWatchdogPosition) > 0.5) {
+      stalledWatchdogChecks = 0;
+      lastWatchdogPosition = current.currentTime;
+      return;
+    }
+
+    stalledWatchdogChecks += 1;
+    if (
+      stalledWatchdogChecks < STALLED_CHECK_LIMIT ||
+      Date.now() - lastWatchdogRecoveryAt < STALLED_RECOVERY_COOLDOWN_MS
+    ) {
+      return;
+    }
+
+    stalledWatchdogChecks = 0;
+    lastWatchdogRecoveryAt = Date.now();
+    recoveryInFlight = true;
+    pendingResumePosition = current.currentTime > 5 ? Math.max(0, current.currentTime - 2) : null;
+    showSyncMessage("A reprodução parece travada. Recarregando...");
+
+    void PlayerManager.load(loadedUrl)
+      .catch(error => {
+        logger.error("Failed to recover stalled playback", error);
+        sendTelemetry("error", {
+          error_message: toErrorMessage(error),
+        });
+      })
+      .finally(() => {
+        recoveryInFlight = false;
+      });
+  }
 
   createEffect(() => {
     const source = streamData();
@@ -272,6 +438,7 @@ const PlayerPage = () => {
     }
 
     loadedUrl = source.streamUrl;
+    pendingResumePosition = getSavedResumePosition();
     void PlayerManager.init({
       onStateChange: nextState => {
         if (!destroyed) {
@@ -308,6 +475,8 @@ const PlayerPage = () => {
       });
   });
 
+  createEffect(applyPendingResume);
+
   createEffect(() => {
     const current = state();
     const position = Math.floor(current.currentTime);
@@ -331,6 +500,7 @@ const PlayerPage = () => {
   onMount(() => {
     resetControlsTimeout();
     historyInterval = window.setInterval(saveHistory, 10000);
+    playbackWatchdogInterval = window.setInterval(recoverIfPlaybackStalled, STALLED_CHECK_INTERVAL_MS);
 
     let wasHidden = false;
     const onVisibilityChange = () => {
@@ -376,7 +546,7 @@ const PlayerPage = () => {
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
       color={0x00000000}
-      onEnter={handlePlayPause}
+      onEnter={handlePrimaryAction}
       onLast={handleClose}
       onBack={handleClose}
       onLeft={() => {
@@ -435,13 +605,13 @@ const PlayerPage = () => {
           gap={20}
         >
           <Text fontSize={32} color={0xe50914ff}>
-            Erro de Reproducao
+            Erro de Reprodução
           </Text>
-          <Text fontSize={24} color={0x888888ff}>
+          <Text fontSize={24} color={0xd0d0dcff} textAlign="center" contain="width" width={1200} maxLines={2}>
             {state().error ?? ""}
           </Text>
-          <Text fontSize={20} color={0x666666ff} y={40}>
-            Pressione Voltar para sair
+          <Text fontSize={20} color={0x9999aaff} y={40}>
+            OK tenta novamente · Voltar sai do player
           </Text>
         </View>
       </Show>
@@ -456,16 +626,22 @@ const PlayerPage = () => {
           zIndex={100}
         >
           <View
-            width={200}
-            height={100}
-            color={0x000000aa}
-            borderRadius={16}
+            width={300}
+            height={134}
+            color={0x101018ee}
+            border={{ color: 0xffffff26, width: 1 }}
+            borderRadius={8}
             display="flex"
+            flexDirection="column"
             justifyContent="center"
             alignItems="center"
+            gap={10}
           >
             <Text fontSize={42} fontWeight={700} color={theme.primary}>
               {seekFeedback() ?? ""}
+            </Text>
+            <Text fontSize={22} color={0xffffffff}>
+              {formatTime(seekTarget())}
             </Text>
           </View>
         </View>
@@ -539,21 +715,21 @@ const PlayerPage = () => {
           }}
         >
           {/* Scrub bar — tall, with hover track + filled portion */}
-          <View x={60} y={130} width={1800} height={6} color={0x3a3a44cc} borderRadius={3}>
+          <View x={60} y={126} width={SEEK_BAR_WIDTH} height={10} color={0x3a3a44cc} borderRadius={5}>
             <View
-              width={Math.max(0, (1800 * progress()) / 100)}
-              height={6}
+              width={Math.max(0, (SEEK_BAR_WIDTH * progress()) / 100)}
+              height={10}
               color={0xe50914ff}
-              borderRadius={3}
+              borderRadius={5}
             />
-            {/* Scrub head */}
             <View
-              x={Math.max(0, (1800 * progress()) / 100) - 10}
+              x={Math.max(0, (SEEK_BAR_WIDTH * progress()) / 100) - 12}
               y={-7}
-              width={20}
-              height={20}
-              color={0xe50914ff}
-              borderRadius={10}
+              width={24}
+              height={24}
+              color={0xffffffff}
+              border={{ color: theme.primary, width: 5 }}
+              borderRadius={12}
             />
           </View>
 
@@ -573,26 +749,58 @@ const PlayerPage = () => {
             {formatTime(state().duration)}
           </Text>
 
-          {/* Playback status pill */}
           <View
             x={60}
-            y={208}
-            width={200}
-            height={48}
-            color={0x1a1a24ee}
-            borderRadius={24}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
+            y={202}
+            width={56}
+            height={56}
+            color={0x15151dee}
+            border={{ color: 0xffffff1f, width: 1 }}
+            borderRadius={28}
           >
-            <Text fontSize={18} fontWeight={700} color={0xffffffff}>
-              {state().playing ? "OK para pausar" : "OK para tocar"}
-            </Text>
+            <View
+              x={12}
+              y={12}
+              width={32}
+              height={32}
+              src="/assets/icons/player-back.svg"
+              color={0xffffffff}
+            />
           </View>
 
-          {/* Remote hints — arrows use ASCII so the MSDF font can render them */}
-          <Text x={280} y={218} fontSize={16} color={0x9999aaff}>
-            {"<<  -10s     >>  +10s     ^  +1min     v  -1min     Voltar: sair"}
+          <View
+            x={136}
+            y={192}
+            width={76}
+            height={76}
+            color={state().playing ? 0x24242fee : theme.primary}
+            border={{ color: state().playing ? 0xffffff26 : 0xff5a5aff, width: 1 }}
+            borderRadius={38}
+          >
+            <View x={18} y={18} width={40} height={40} src={primaryControlIcon()} color={0xffffffff} />
+          </View>
+
+          <View
+            x={232}
+            y={202}
+            width={56}
+            height={56}
+            color={0x15151dee}
+            border={{ color: 0xffffff1f, width: 1 }}
+            borderRadius={28}
+          >
+            <View
+              x={12}
+              y={12}
+              width={32}
+              height={32}
+              src="/assets/icons/player-forward.svg"
+              color={0xffffffff}
+            />
+          </View>
+
+          <Text x={320} y={218} fontSize={18} color={0xc6c6d6ff}>
+            {remainingTime()}
           </Text>
         </View>
       </Show>
