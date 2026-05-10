@@ -8,21 +8,24 @@ import { theme } from "../styles";
 const CardStyle = {
   width: 320,
   height: 180,
-  color: 0x1a1a2eff,
-  borderRadius: 12,
+  color: theme.surface,
+  borderRadius: 10,
+  border: { color: theme.border, width: 1 },
   scale: 1,
   transition: {
     scale: { duration: 150, easing: "ease-out" },
+    color: { duration: 150, easing: "ease-out" },
   },
   $focus: {
-    scale: 1.05,
-    border: { color: theme.primary, width: 3 },
+    scale: 1.04,
+    color: theme.surfaceHover,
+    border: { color: theme.primary, width: 2 },
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const ProgressBarStyle = {
   height: 4,
-  color: 0x444444ff,
+  color: theme.borderLight,
   borderRadius: 2,
 } satisfies IntrinsicNodeStyleProps;
 
@@ -69,13 +72,14 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
           y={50}
           width={320}
           height={180}
-          color={0x1a1a2eff}
-          borderRadius={12}
+          color={theme.surface}
+          borderRadius={10}
+          border={{ color: theme.border, width: 1 }}
           display="flex"
           justifyContent="center"
           alignItems="center"
         >
-          <Text fontSize={16} color={0x666666ff}>
+          <Text fontSize={16} color={theme.textMuted}>
             Nenhum conteúdo em andamento
           </Text>
         </View>
@@ -88,10 +92,10 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
               <View style={CardStyle} onEnter={() => handleSelect(item)} forwardStates>
                 {/* Thumbnail/Poster */}
                 <Show when={item.posterUrl}>
-                  <View width={120} height={180} src={item.posterUrl} color={0xffffffff} borderRadius={12} />
+                  <View width={120} height={180} src={item.posterUrl} color={0xffffffff} borderRadius={10} />
                 </Show>
                 <Show when={!item.posterUrl}>
-                  <View width={120} height={180} color={0x2a2a3eff} borderRadius={12} />
+                  <View width={120} height={180} color={theme.surfaceLight} borderRadius={10} />
                 </Show>
 
                 {/* Info */}
@@ -99,7 +103,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                   <Text
                     fontSize={16}
                     fontWeight={700}
-                    color={0xffffffff}
+                    color={theme.textPrimary}
                     contain="width"
                     width={180}
                     maxLines={2}
@@ -109,13 +113,20 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
 
                   {/* Episode info for series */}
                   <Show when={item.type === "series" && item.episodeTitle}>
-                    <Text y={45} fontSize={13} color={0xaaaaaaff} contain="width" width={180} maxLines={1}>
+                    <Text
+                      y={45}
+                      fontSize={13}
+                      color={theme.textSecondary}
+                      contain="width"
+                      width={180}
+                      maxLines={1}
+                    >
                       {`S${item.seasonNumber}E${item.episodeNumber}`}
                     </Text>
                   </Show>
 
                   {/* Time remaining */}
-                  <Text y={item.type === "series" ? 70 : 50} fontSize={12} color={0x888888ff}>
+                  <Text y={item.type === "series" ? 70 : 50} fontSize={12} color={theme.textMuted}>
                     {formatTime(item.duration - item.currentTime)}
                   </Text>
                 </View>

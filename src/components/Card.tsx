@@ -11,30 +11,30 @@ import { theme } from "@/styles";
 // Card image container - subtle border that highlights on focus
 const CardImageStyle = {
   borderRadius: 8,
-  color: 0x101116ff,
-  border: { color: 0x343545ff, width: 1 },
+  color: theme.surfaceMuted,
+  border: { color: theme.panelBorder, width: 1 },
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.035,
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 // Placeholder style for missing images
 const PlaceholderStyle = {
   borderRadius: 8,
-  color: 0x15161eff,
-  border: { color: 0x343545ff, width: 1 },
+  color: theme.surfaceMuted,
+  border: { color: theme.panelBorder, width: 1 },
   transition: {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.035,
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -53,6 +53,8 @@ const CardTitleStyle = {
 const SubtitleStyle = {
   fontSize: 14,
   color: theme.textMuted,
+  contain: "width",
+  maxLines: 1,
   $focus: {
     color: theme.textMuted,
   },
@@ -77,6 +79,7 @@ const Card = (props: CardProps) => {
   const width = props.width || 240;
   const height = props.height || 360;
   const infoHeight = props.subtitle ? 56 : 44;
+  const placeholderInitial = () => (props.title.trim().charAt(0).toUpperCase() || "?").slice(0, 1);
 
   // Track image errors only
   const [imageError, _setImageError] = createSignal(false);
@@ -88,7 +91,14 @@ const Card = (props: CardProps) => {
     <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
       {/* Card Image with border - show when image URL exists and no error */}
       <Show when={props.imageUrl && !imageError()}>
-        <View src={props.imageUrl} width={width} height={height} color={0xffffffff} style={CardImageStyle} />
+        <View
+          src={props.imageUrl}
+          width={width}
+          height={height}
+          color={0xffffffff}
+          style={CardImageStyle}
+          textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
+        />
         <View
           y={height - 104}
           width={width}
@@ -106,15 +116,21 @@ const Card = (props: CardProps) => {
       {/* Placeholder - shown when no image, loading, or error */}
       <Show when={showPlaceholder()}>
         <View width={width} height={height} style={PlaceholderStyle}>
-          {/* Icon placeholder */}
           <View
-            x={width / 2 - 30}
-            y={height / 2 - 30}
-            width={60}
-            height={60}
+            x={width / 2 - 38}
+            y={height / 2 - 38}
+            width={76}
+            height={76}
             color={theme.surfaceLight}
-            borderRadius={30}
-          />
+            borderRadius={38}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Text fontSize={34} fontWeight={700} color={theme.textMuted}>
+              {placeholderInitial()}
+            </Text>
+          </View>
         </View>
       </Show>
 

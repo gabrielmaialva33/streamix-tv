@@ -28,8 +28,8 @@ const PlayButtonStyle = {
   },
   scale: 1,
   $focus: {
-    color: 0xffffffff,
-    border: { color: 0xffffffff, width: 2 },
+    color: theme.primaryLight,
+    border: { color: theme.primaryLight, width: 2 },
     scale: 1.04,
   },
 } satisfies IntrinsicNodeStyleProps;
@@ -37,7 +37,7 @@ const PlayButtonStyle = {
 const InfoButtonStyle = {
   width: 160,
   height: 50,
-  color: 0x555555ff,
+  color: theme.surfaceLight,
   borderRadius: 8,
   border: { color: theme.border, width: 2 },
   display: "flex",
@@ -49,7 +49,7 @@ const InfoButtonStyle = {
   },
   scale: 1,
   $focus: {
-    color: 0xffffffff,
+    color: theme.surfaceHover,
     border: { color: theme.primaryLight, width: 2 },
     scale: 1.04,
   },
@@ -60,7 +60,7 @@ const PlayButtonTextStyle = {
   fontWeight: 700,
   color: 0xffffffff,
   $focus: {
-    color: 0x000000ff,
+    color: 0xffffffff,
   },
 } satisfies IntrinsicTextNodeStyleProps;
 
@@ -69,7 +69,7 @@ const InfoButtonTextStyle = {
   fontWeight: 700,
   color: 0xffffffff,
   $focus: {
-    color: 0x000000ff,
+    color: 0xffffffff,
   },
 } satisfies IntrinsicTextNodeStyleProps;
 
@@ -238,9 +238,9 @@ const Hero = (props: HeroProps) => {
         y={168}
         width={820}
         height={336}
-        color={0x0b0c12d8}
-        borderRadius={24}
-        border={{ color: 0x20232eff, width: 1 }}
+        color={theme.panel}
+        borderRadius={18}
+        border={{ color: theme.panelBorder, width: 1 }}
         zIndex={2}
         skipFocus
       />

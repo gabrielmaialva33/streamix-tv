@@ -1,5 +1,6 @@
 import { type NodeProps, View } from "@lightningtv/solid";
 import { createSignal, onCleanup, onMount } from "solid-js";
+import { theme } from "@/styles";
 
 export interface SkeletonLoaderProps extends NodeProps {
   width?: number;
@@ -12,7 +13,7 @@ export interface SkeletonLoaderProps extends NodeProps {
  * Uses alpha pulse animation for visual feedback
  */
 const SkeletonLoader = (props: SkeletonLoaderProps) => {
-  const [alpha, setAlpha] = createSignal(0.3);
+  const [alpha, setAlpha] = createSignal(0.26);
   let animationFrame: number;
   let startTime: number;
 
@@ -21,9 +22,8 @@ const SkeletonLoader = (props: SkeletonLoaderProps) => {
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
-      // Pulse between 0.2 and 0.5 alpha over 1.5 seconds
       const progress = (Math.sin(elapsed / 750) + 1) / 2;
-      setAlpha(0.2 + progress * 0.3);
+      setAlpha(0.24 + progress * 0.22);
       animationFrame = requestAnimationFrame(animate);
     };
 
@@ -41,7 +41,7 @@ const SkeletonLoader = (props: SkeletonLoaderProps) => {
       {...props}
       width={props.width || 240}
       height={props.height || 360}
-      color={0x2a2a3eff}
+      color={theme.surfaceLight}
       alpha={alpha()}
       borderRadius={props.borderRadius || 12}
     />

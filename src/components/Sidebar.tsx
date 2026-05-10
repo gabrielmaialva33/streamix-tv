@@ -31,8 +31,13 @@ const NavButtonStyle = {
   width: 180,
   borderRadius: 8,
   color: 0x00000000,
+  border: { color: 0x00000000, width: 1 },
+  transition: { color: { duration: 120 }, scale: { duration: 120 } },
+  scale: 1,
   $focus: {
-    color: 0x242631ff,
+    color: theme.surfaceLight,
+    border: { color: theme.borderLight, width: 1 },
+    scale: 1.02,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -41,9 +46,14 @@ const NavButtonActiveStyle = {
   height: 52,
   width: 180,
   borderRadius: 8,
-  color: 0x1a1b24ff,
+  color: theme.surfaceMuted,
+  border: { color: theme.border, width: 1 },
+  transition: { color: { duration: 120 }, scale: { duration: 120 } },
+  scale: 1,
   $focus: {
-    color: 0x242631ff,
+    color: theme.surfaceLight,
+    border: { color: theme.primary, width: 1 },
+    scale: 1.02,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -70,7 +80,7 @@ const NavButtonActiveTextStyle = {
 } satisfies IntrinsicTextNodeStyleProps;
 
 const ActiveIndicatorStyle = {
-  width: 3,
+  width: 4,
   height: 24,
   x: 0,
   y: 14,
@@ -155,13 +165,13 @@ const Sidebar = (props: SidebarProps) => {
   return (
     <>
       {/* Sidebar background and divider. */}
-      <View skipFocus zIndex={100} width={220} height={1080} color={0x07080dff} />
-      <View skipFocus zIndex={101} x={218} width={1} height={1080} color={0x2d2e3aff} />
+      <View skipFocus zIndex={100} width={220} height={1080} color={0x07080df8} />
+      <View skipFocus zIndex={101} x={218} width={1} height={1080} color={theme.border} />
 
       {/* The logo image already ships with the final colors, so avoid tinting it. */}
       <View skipFocus y={40} x={20} width={180} height={48} zIndex={105}>
         <View src="assets/streamix-logo.png" x={0} y={0} width={44} height={44} />
-        <Text x={56} y={8} fontSize={24} fontWeight={700} color={theme.primary}>
+        <Text x={56} y={8} fontSize={24} fontWeight={700} color={theme.textPrimary}>
           STREAMIX
         </Text>
       </View>

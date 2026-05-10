@@ -17,7 +17,7 @@ const CHIP_STYLE = {
     scale: { duration: 150, easing: "ease-out" },
   },
   $focus: {
-    color: 0x2a0f14ff,
+    color: theme.surfaceActive,
     scale: 1.04,
   },
 } satisfies IntrinsicNodeStyleProps;
@@ -46,10 +46,10 @@ const CategoryChip = (props: CategoryChipProps) => {
     <View
       width={width()}
       style={CHIP_STYLE}
-      color={props.active ? theme.primary : 0x1b1c24ee}
+      color={props.active ? theme.surfaceActive : theme.surfaceMuted}
       border={{
-        color: props.active ? 0xff454dff : 0xffffff12,
-        width: 1,
+        color: props.active ? theme.primary : theme.borderSubtle,
+        width: props.active ? 2 : 1,
       }}
       onEnter={() => {
         props.onSelect();
