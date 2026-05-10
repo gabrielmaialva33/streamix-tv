@@ -14,3 +14,4 @@ environments/.env.production
 .playwright-mcp
 *storybook.log
 streamix.log
+tmp
