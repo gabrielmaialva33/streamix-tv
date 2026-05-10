@@ -467,13 +467,13 @@ const PlayerPage = () => {
     state().playing ? "/assets/icons/player-pause.svg" : "/assets/icons/player-play.svg";
 
   const controlColor = (control: PlayerControl, activeColor = 0x15151dee) =>
-    selectedControl() === control ? 0xffffffff : activeColor;
+    selectedControl() === control ? 0x2a0f14ee : activeColor;
 
   const controlIconColor = (control: PlayerControl) =>
-    selectedControl() === control ? 0x050508ff : 0xffffffff;
+    selectedControl() === control ? 0xffffffff : 0xd8d8e6ff;
 
   const controlBorder = (control: PlayerControl) => ({
-    color: selectedControl() === control ? theme.primary : 0xffffff1f,
+    color: selectedControl() === control ? theme.primary : 0xffffff1a,
     width: selectedControl() === control ? 3 : 1,
   });
 
@@ -840,7 +840,7 @@ const PlayerPage = () => {
             y={202}
             width={56}
             height={56}
-            color={controlColor("back")}
+            color={controlColor("back", 0x0f1018cc)}
             border={controlBorder("back")}
             borderRadius={28}
           >
@@ -859,7 +859,7 @@ const PlayerPage = () => {
             y={192}
             width={76}
             height={76}
-            color={controlColor("play", state().playing ? 0x24242fee : theme.primary)}
+            color={controlColor("play", state().playing ? 0x181923dd : 0x2a0f14ee)}
             border={controlBorder("play")}
             borderRadius={38}
           >
@@ -878,7 +878,7 @@ const PlayerPage = () => {
             y={202}
             width={56}
             height={56}
-            color={controlColor("forward")}
+            color={controlColor("forward", 0x0f1018cc)}
             border={controlBorder("forward")}
             borderRadius={28}
           >
