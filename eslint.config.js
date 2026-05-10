@@ -6,6 +6,7 @@ export default [
   {
     ignores: [
       "dist/**",
+      "tmp/**",
       "node_modules/**",
       "android/.gradle/**",
       "android/**/build/**",
