@@ -280,11 +280,22 @@ That pipeline runs `build:tizen` → `tizen:package` → `tizen:install` → `ti
 ### 5. Live device logs
 
 ```bash
-# Tizen kernel log
+# Tizen device logs. Set TIZEN_DEVICE_IP or TIZEN_TARGET when needed.
 pnpm tizen:logs
+
+# Restart the app in Tizen Web Inspector mode and open DevTools.
+pnpm tizen:debug
 
 # WebSocket log relay from the TV into your terminal
 pnpm logs
+```
+
+Useful Tizen debug variables:
+
+```bash
+TIZEN_DEVICE_IP=192.168.1.6 pnpm tizen:debug
+TIZEN_TARGET=emulator-26101 pnpm tizen:logs
+TIZEN_APP_ID=EI8qhrd7xh.streamix pnpm tizen:inspect:restart
 ```
 
 <details>
@@ -313,6 +324,8 @@ pnpm build:analyze      # bundle visualizer
 
 pnpm tizen:install      # install last .wgt
 pnpm tizen:run          # launch app on TV
+pnpm tizen:debug        # restart app in Web Inspector mode
+pnpm tizen:logs         # stream Tizen dlog filters
 pnpm tizen:kill         # kill app on TV
 pnpm tizen:uninstall    # remove app from TV
 ```
