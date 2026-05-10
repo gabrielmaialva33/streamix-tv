@@ -33,10 +33,10 @@ export default defineConfig(({ mode }) => {
       }),
       legacy({
         targets: ["defaults", "Chrome >= 49"],
-        // For Tizen: disable modern chunks since file:// protocol causes both to run
-        renderModernChunks: process.env.TARGET_DEVICE !== "tizen",
+        // For Tizen/FireTV: disable modern chunks since file:// protocol causes both to run
+        renderModernChunks: process.env.TARGET_DEVICE !== "tizen" && process.env.TARGET_DEVICE !== "firetv",
         modernPolyfills:
-          process.env.TARGET_DEVICE === "tizen"
+          process.env.TARGET_DEVICE === "tizen" || process.env.TARGET_DEVICE === "firetv"
             ? false
             : [
                 // Safari 11 has modules, but throws > ReferenceError: Can't find variable: globalThis

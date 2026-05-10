@@ -14,8 +14,8 @@ export default (device: string): Plugin => ({
     config.build = config.build ?? {};
     const devicePath = `${device ?? "common"}`;
     config.build.outDir ??= `dist/${devicePath}`;
-    // Use relative paths for embedded devices (tizen, lg), absolute for browser (common)
-    const isEmbedded = device === "tizen" || device === "lg";
+    // Use relative paths for embedded devices (tizen, lg, firetv), absolute for browser (common)
+    const isEmbedded = device === "tizen" || device === "lg" || device === "firetv";
     config.base ??= isEmbedded ? "./" : `/${devicePath}/`;
   },
 });

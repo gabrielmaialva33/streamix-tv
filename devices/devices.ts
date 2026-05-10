@@ -24,6 +24,7 @@ export enum EDeviceType {
   LG_3 = "LG_3",
   LG_4 = "LG_4",
   TIZEN = "TIZEN",
+  FIRETV = "FIRETV",
 }
 
 export interface QualityConfig {
