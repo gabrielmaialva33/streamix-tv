@@ -34,6 +34,7 @@ const Series = () => {
   const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
   const [accumulatedSeries, setAccumulatedSeries] = createSignal<SeriesType[]>([]);
   const [totalItems, setTotalItems] = createSignal(0);
+  const [pendingFocusIndex, setPendingFocusIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
   const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
 
@@ -95,9 +96,12 @@ const Series = () => {
           const allLoaded = accumulatedSeries().length >= totalItems();
           if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
+          } else if (pendingFocusIndex() !== null) {
+            focusSeriesAt(Math.min(pendingFocusIndex() ?? 0, accumulatedSeries().length - 1));
           } else {
             contentGrid?.setFocus();
           }
+          setPendingFocusIndex(null);
         });
       }
     }
@@ -113,11 +117,18 @@ const Series = () => {
     return rows;
   });
 
+  const focusSeriesAt = (index: number) => {
+    const row = contentGrid?.children[Math.floor(index / ITEMS_PER_ROW)];
+    const card = row?.children[index % ITEMS_PER_ROW];
+    card?.setFocus();
+  };
+
   // Handle loading more
   const loadMore = () => {
     const total = totalItems();
     const currentCount = accumulatedSeries().length;
     if (currentCount < total) {
+      setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
     }

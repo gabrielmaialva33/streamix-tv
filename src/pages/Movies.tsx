@@ -32,7 +32,7 @@ const Movies = () => {
   const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
   const [accumulatedMovies, setAccumulatedMovies] = createSignal<Movie[]>([]);
   const [totalItems, setTotalItems] = createSignal(0);
-  const [_lastFocusedIndex, setLastFocusedIndex] = createSignal<number | null>(null);
+  const [pendingFocusIndex, setPendingFocusIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
   const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
 
@@ -97,9 +97,12 @@ const Movies = () => {
           const allLoaded = accumulatedMovies().length >= totalItems();
           if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
+          } else if (pendingFocusIndex() !== null) {
+            focusMovieAt(Math.min(pendingFocusIndex() ?? 0, accumulatedMovies().length - 1));
           } else {
             contentGrid?.setFocus();
           }
+          setPendingFocusIndex(null);
         });
       }
     }
@@ -115,12 +118,18 @@ const Movies = () => {
     return rows;
   });
 
+  const focusMovieAt = (index: number) => {
+    const row = contentGrid?.children[Math.floor(index / ITEMS_PER_ROW)];
+    const card = row?.children[index % ITEMS_PER_ROW];
+    card?.setFocus();
+  };
+
   // Handle loading more - save current position
   const loadMore = () => {
     const total = totalItems();
     const currentCount = accumulatedMovies().length;
     if (currentCount < total) {
-      setLastFocusedIndex(currentCount - 1);
+      setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
     }
