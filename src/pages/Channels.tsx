@@ -143,7 +143,7 @@ const Channels = () => {
       // wrapper unmounts the load-more button when there is no next page;
       // setFocus() on the disposed ref would be a silent no-op and the D-pad
       // would hang. Fall back to the grid in that case.
-      queueMicrotask(() => {
+      setTimeout(() => {
         if (more && loadMoreButton?.parent) {
           loadMoreButton.setFocus();
         } else {
@@ -166,6 +166,12 @@ const Channels = () => {
   // Navigate to channel player
   const handleChannelSelect = (channel: Channel) => {
     navigate(`/player/channel/${channel.id}`);
+  };
+
+  const loadMore = () => {
+    if (!channels.loading && hasMore()) {
+      setOffset(prev => prev + PAGE_SIZE);
+    }
   };
 
   return (
@@ -343,7 +349,7 @@ const Channels = () => {
                 $focus: { scale: 1.05, color: theme.primary, border: { color: theme.primary, width: 1 } },
               }}
               onEnter={() => {
-                setOffset(prev => prev + PAGE_SIZE);
+                loadMore();
                 return true;
               }}
             >
