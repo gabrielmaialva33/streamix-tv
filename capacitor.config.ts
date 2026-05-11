@@ -7,6 +7,16 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
   },
+  plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
+    SystemBars: {
+      hidden: true,
+      insetsHandling: "disable",
+      style: "DARK",
+    },
+  },
   server: {
     androidScheme: "https",
   },
