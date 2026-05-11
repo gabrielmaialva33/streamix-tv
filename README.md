@@ -66,8 +66,8 @@
 ### Cross-Device Builds
 
 - **Samsung Tizen** (`.wgt` packaging with certificate signing + `sdb` deploy)
-- **LG webOS** build target
-- **Android TV and Fire TV** via legacy-browser friendly Vite build
+- **LG webOS** (`.ipk` packaging through the webOS TV CLI)
+- **Android TV and Fire TV** through a Capacitor Android shell fed by the Fire TV Vite target
 - **Device config plugin** that swaps polyfills and feature flags per target
 - **Log server** over WebSocket for live debugging on TV hardware
 
@@ -228,9 +228,9 @@ sequenceDiagram
 | Platform      | Status    | Notes                                                     |
 | ------------- | --------- | --------------------------------------------------------- |
 | Samsung Tizen | supported | `.wgt` packaging, `sdb` install, certificate `StreamixTV` |
-| LG webOS      | supported | `TARGET_DEVICE=lg` build                                  |
-| Android TV    | supported | Chromium-based, legacy polyfills                          |
-| Fire TV       | supported | Silk / WebView target                                     |
+| LG webOS      | supported | `TARGET_DEVICE=lg` build, `appinfo.json`, `.ipk` package  |
+| Android TV    | supported | Capacitor Android shell, Chromium WebView                 |
+| Fire TV       | supported | Fire TV Vite target copied into the Android shell         |
 | Browser       | dev only  | Used for iteration via `pnpm start`                       |
 
 ## :package: Quick Start
@@ -241,6 +241,8 @@ sequenceDiagram
 - pnpm 9+
 - A running Streamix backend (see [Streamix repo](https://github.com/gabrielmaialva33/streamix))
 - For Tizen: Tizen Studio CLI + certificate profile `StreamixTV`
+- For webOS: webOS TV CLI (`ares-package`, `ares-install`) when packaging or deploying
+- For Fire TV / Android TV: Android SDK, Java 21, Capacitor CLI, and `adb`
 
 ### 1. Install
 
@@ -265,19 +267,36 @@ pnpm start
 
 Opens on [http://localhost:5173](http://localhost:5173) with hot reload. Arrow keys + Enter behave like a remote.
 
-### 4. Deploy to Tizen (TV or emulator)
+### 4. Build and package targets
 
 ```bash
-# Physical TV at 192.168.1.6
+pnpm build:tizen      # dist/tizen/ + Tizen config.xml
+pnpm build:webos      # dist/lg/ + webOS appinfo.json
+pnpm build:firetv     # dist/firetv/ for Capacitor Android
+
+pnpm tizen:package    # creates a .wgt from dist/tizen/
+pnpm webos:package    # creates an .ipk from dist/lg/
+pnpm firetv:apk       # syncs dist/firetv/ into android/ and builds debug APK
+```
+
+Target orchestration lives in `scripts/platform.mjs`. Platform manifests live under `platforms/` and are copied into the
+matching `dist/` folder after Vite builds, so Tizen/webOS metadata does not leak into generic web or Android packages.
+For Tizen, packaging follows the Samsung TV CLI flow: Vite build -> copy `config.xml` -> `tizen build-web` ->
+`tizen package` from `.buildResult`.
+
+### 5. Deploy to Tizen (TV or emulator)
+
+```bash
+# Physical TV. Override TIZEN_DEVICE_IP or TIZEN_TARGET when needed.
 pnpm tizen:deploy
 
 # Samsung emulator
 pnpm tizen:deploy:emu
 ```
 
-That pipeline runs `build:tizen` → `tizen:package` → `tizen:install` → `tizen:run`.
+That pipeline runs `build:tizen` -> `tizen:package` -> `tizen:install` -> `tizen:run`.
 
-### 5. Live device logs
+### 6. Live device logs
 
 ```bash
 # Tizen device logs. Set TIZEN_DEVICE_IP or TIZEN_TARGET when needed.
@@ -301,11 +320,12 @@ TIZEN_APP_ID=EI8qhrd7xh.streamix pnpm tizen:inspect:restart
 <details>
 <summary><strong>Device build matrix</strong></summary>
 
-| Command                       | Target        | Output        |
-| ----------------------------- | ------------- | ------------- |
-| `pnpm build`                  | generic web   | `dist/`       |
-| `pnpm build:tizen`            | Samsung Tizen | `dist/tizen/` |
-| `TARGET_DEVICE=lg pnpm build` | LG webOS      | `dist/lg/`    |
+| Command             | Target               | Output         | Package source                     |
+| ------------------- | -------------------- | -------------- | ---------------------------------- |
+| `pnpm build`        | generic web          | `dist/`        | none                               |
+| `pnpm build:tizen`  | Samsung Tizen        | `dist/tizen/`  | `platforms/tizen/config.xml`       |
+| `pnpm build:webos`  | LG webOS             | `dist/lg/`     | `platforms/webos/appinfo.json`     |
+| `pnpm build:firetv` | Fire TV / Android TV | `dist/firetv/` | `capacitor.config.ts` + `android/` |
 
 </details>
 
@@ -314,6 +334,9 @@ TIZEN_APP_ID=EI8qhrd7xh.streamix pnpm tizen:inspect:restart
 ```bash
 pnpm start              # dev server, browser
 pnpm start:tizen        # dev server with Tizen polyfills
+pnpm platform -- build tizen
+pnpm platform -- build webos
+pnpm platform -- build firetv
 pnpm test               # vitest
 pnpm tsc                # type-check only
 pnpm lint               # eslint
@@ -328,6 +351,8 @@ pnpm tizen:debug        # restart app in Web Inspector mode
 pnpm tizen:logs         # stream Tizen dlog filters
 pnpm tizen:kill         # kill app on TV
 pnpm tizen:uninstall    # remove app from TV
+pnpm webos:package      # package dist/lg/ with ares-package
+pnpm firetv:apk         # build Android debug APK from dist/firetv/
 ```
 
 ## :memo: Project Notes
