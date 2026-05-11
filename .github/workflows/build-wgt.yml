@@ -92,7 +92,7 @@ jobs:
             TV-samsung-Public_10.0_NativeAppDevelopment-CLI \
             TV-samsung-Public_10.0_WebAppDevelopment-CLI || true
 
-      - name: Decode + re-keystore p12 with neutral password
+      - name: Decode + re-keystore p12 with 27-char alpha password
         env:
           AUTHOR_B64: ${{ secrets.TIZEN_AUTHOR_P12 }}
           DIST_B64: ${{ secrets.TIZEN_DISTRIBUTOR_P12 }}
@@ -105,35 +105,52 @@ jobs:
 
           printf '%s' "$AUTHOR_B64" | base64 -d > "$TMP/author-old.p12"
           printf '%s' "$DIST_B64"   | base64 -d > "$TMP/distributor-old.p12"
-          echo "--- p12 originais (esperado author=4313 dist=4473) ---"
           wc -c "$TMP"/*.p12
 
-          # Senha neutra (sem caracteres especiais, evita problemas de escape no CLI)
-          NEW_PW="tizenpwd"
+          # 27 chars alpha — requisito escondido do Tizen CLI (sourcetoad action README)
+          NEW_PW="streamixtvcipipelinepassword"
+          echo "::add-mask::$NEW_PW"
           echo "NEW_PW=$NEW_PW" >> "$GITHUB_ENV"
 
-          # Mantém formato legacy (RC2-40-CBC + SHA1) que Java do Tizen aceita,
-          # só troca a senha pra evitar problemas de escape no CLI.
+          # Mantém cifra legacy (RC2-40-CBC) que Java do Tizen aceita
           for kind in author distributor; do
             openssl pkcs12 -in "$TMP/${kind}-old.p12" -legacy -nodes \
               -passin "pass:$CERT_PW" -out "$TMP/${kind}.pem"
             openssl pkcs12 -export -legacy -in "$TMP/${kind}.pem" \
               -passout "pass:$NEW_PW" -out "$CERT_DIR/${kind}.p12"
             openssl pkcs12 -in "$CERT_DIR/${kind}.p12" -legacy -passin "pass:$NEW_PW" \
-              -nokeys -noout && echo "$kind validates OK (legacy + new pw)"
+              -nokeys -noout && echo "$kind OK"
           done
 
           rm -rf "$TMP"
           ls -la "$CERT_DIR"
 
-      - name: Register security profile
+      - name: Write profiles.xml directly (bypass gnome-keyring)
         run: |
+          # GitHub Actions runner não tem gnome-keyring → `tizen security-profiles add`
+          # salva senha no vazio. Workaround: escrever XML com senha em plaintext,
+          # padrão usado pela sourcetoad/tizen-build-action.
+          PROFILES_DIR="$HOME/tizen-studio-data/profile"
+          mkdir -p "$PROFILES_DIR"
+          CERT_DIR="$HOME/SamsungCertificate/${{ env.TIZEN_PROFILE }}"
+
+          cat > "$PROFILES_DIR/profiles.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <profiles active="${{ env.TIZEN_PROFILE }}" version="3.1">
+            <profile name="${{ env.TIZEN_PROFILE }}">
+              <profileitem ca="" distributor="0" key="$CERT_DIR/author.p12" password="$NEW_PW" rootca=""/>
+              <profileitem ca="" distributor="1" key="$CERT_DIR/distributor.p12" password="$NEW_PW" rootca=""/>
+              <profileitem ca="" distributor="2" key="" password="" rootca=""/>
+            </profile>
+          </profiles>
+          EOF
+
           export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
-          tizen security-profiles add -n ${{ env.TIZEN_PROFILE }} \
-            -a ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 -p "$NEW_PW" \
-            -d ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 -dp "$NEW_PW"
-          tizen security-profiles set-active -n ${{ env.TIZEN_PROFILE }}
-          tizen cli-config "profiles.path=$HOME/tizen-studio-data/profile/profiles.xml"
+          tizen cli-config "profiles.path=$PROFILES_DIR/profiles.xml"
+          tizen cli-config "default.profiles.path=$PROFILES_DIR/profiles.xml"
+          echo "--- profiles.xml ---"
+          sed 's/password="[^"]*"/password="***"/g' "$PROFILES_DIR/profiles.xml"
+          echo "--- list ---"
           tizen security-profiles list
 
       - name: Package WGT
