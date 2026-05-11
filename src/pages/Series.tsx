@@ -12,7 +12,7 @@ const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
-const GRID_Y = 236;
+const GRID_Y = 210;
 const GRID_HEIGHT = 1080 - GRID_Y - 10;
 
 // Style constants following demo app patterns

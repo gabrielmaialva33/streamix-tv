@@ -30,11 +30,13 @@ const EPISODE_CARD_STYLE = {
   color: theme.surface,
   border: { color: theme.border, width: 1 },
   scale: 1,
+  zIndex: 1,
   transition: { scale: { duration: 150 } },
   $focus: {
     color: theme.surfaceHover,
     border: { color: theme.primary, width: 2 },
-    scale: 1.02,
+    scale: 1.01,
+    zIndex: 30,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -154,9 +156,9 @@ const SeriesEpisodes = () => {
             <Column
               ref={episodesGrid}
               x={0}
-              y={156}
+              y={136}
               width={1620}
-              height={900}
+              height={920}
               gap={20}
               scroll="auto"
               plinko

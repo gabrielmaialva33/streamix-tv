@@ -11,7 +11,7 @@ import { theme } from "@/styles";
 const ITEMS_PER_ROW = 8;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
-const GRID_Y = 218;
+const GRID_Y = 204;
 const GRID_HEIGHT = 1080 - GRID_Y;
 const ROW_BUFFER = 2;
 
