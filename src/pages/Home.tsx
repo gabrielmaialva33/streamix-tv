@@ -173,14 +173,7 @@ const Home = () => {
       >
         <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
         <Show when={recommendedMovies()?.recommendations?.length}>
-          <ContentRow
-            title="Para você"
-            onSelectedChanged={index => {
-              const movie = recommendedMovies()?.recommendations?.[index];
-              if (movie) api.prefetchMovie(String(movie.id));
-            }}
-            onItemSelected={item => navigate(item.href)}
-          >
+          <ContentRow title="Para você" onItemSelected={item => navigate(item.href)}>
             <For each={recommendedMovies()?.recommendations || []}>
               {(movie: RecommendationItem) => (
                 <Card
@@ -195,14 +188,7 @@ const Home = () => {
         </Show>
 
         <Show when={trendingMovies()?.length}>
-          <ContentRow
-            title="Em alta"
-            onSelectedChanged={index => {
-              const movie = trendingMovies()?.[index];
-              if (movie) api.prefetchMovie(String(movie.id));
-            }}
-            onItemSelected={item => navigate(item.href)}
-          >
+          <ContentRow title="Em alta" onItemSelected={item => navigate(item.href)}>
             <For each={trendingMovies()}>
               {(movie: Movie) => (
                 <Card
@@ -217,14 +203,7 @@ const Home = () => {
         </Show>
 
         <Show when={railTick() >= 1 && recentMovies()?.length}>
-          <ContentRow
-            title="Chegaram agora"
-            onSelectedChanged={index => {
-              const movie = recentMovies()?.[index];
-              if (movie) api.prefetchMovie(String(movie.id));
-            }}
-            onItemSelected={item => navigate(item.href)}
-          >
+          <ContentRow title="Chegaram agora" onItemSelected={item => navigate(item.href)}>
             <For each={recentMovies()}>
               {(movie: Movie) => (
                 <Card
@@ -239,14 +218,7 @@ const Home = () => {
         </Show>
 
         <Show when={railTick() >= 2 && topRatedMovies()?.length}>
-          <ContentRow
-            title="Mais elogiados"
-            onSelectedChanged={index => {
-              const movie = topRatedMovies()?.[index];
-              if (movie) api.prefetchMovie(String(movie.id));
-            }}
-            onItemSelected={item => navigate(item.href)}
-          >
+          <ContentRow title="Mais elogiados" onItemSelected={item => navigate(item.href)}>
             <For each={topRatedMovies()}>
               {(movie: Movie) => (
                 <Card
@@ -261,14 +233,7 @@ const Home = () => {
         </Show>
 
         <Show when={railTick() >= 3 && trendingSeries()?.length}>
-          <ContentRow
-            title="Séries em alta"
-            onSelectedChanged={index => {
-              const show = trendingSeries()?.[index];
-              if (show) api.prefetchSeries(String(show.id));
-            }}
-            onItemSelected={item => navigate(item.href)}
-          >
+          <ContentRow title="Séries em alta" onItemSelected={item => navigate(item.href)}>
             <For each={trendingSeries()}>
               {(show: Series) => (
                 <Card

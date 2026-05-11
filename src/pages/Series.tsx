@@ -92,7 +92,7 @@ const Series = () => {
         // Once everything is loaded the <Show> unmounts the load-more button;
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
         // would hang on a real TV. Fall back to the grid in that case.
-        queueMicrotask(() => {
+        setTimeout(() => {
           const allLoaded = accumulatedSeries().length >= totalItems();
           if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
@@ -127,7 +127,7 @@ const Series = () => {
   const loadMore = () => {
     const total = totalItems();
     const currentCount = accumulatedSeries().length;
-    if (currentCount < total) {
+    if (!seriesResource.loading && currentCount < total) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
@@ -270,7 +270,6 @@ const Series = () => {
                       imageUrl={pickPoster(show, 240)}
                       imageDelay={imageDelayFor(rowIndex() * ITEMS_PER_ROW + itemIndex())}
                       subtitle={seriesCaption(show)}
-                      onFocus={() => api.prefetchSeries(String(show.id))}
                       onEnter={() => {
                         handleSeriesSelect(show);
                         return true;

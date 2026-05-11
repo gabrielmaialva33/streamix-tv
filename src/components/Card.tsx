@@ -87,7 +87,7 @@ const Card = (props: CardProps) => {
   const placeholderInitial = () => (props.title.trim().charAt(0).toUpperCase() || "?").slice(0, 1);
 
   // Track image errors only
-  const [imageError, _setImageError] = createSignal(false);
+  const [imageError, setImageError] = createSignal(false);
   const [imageReady, setImageReady] = createSignal(!props.imageUrl || !props.imageDelay);
 
   // Show placeholder only if no image or error
@@ -96,6 +96,7 @@ const Card = (props: CardProps) => {
   createEffect(() => {
     const imageUrl = props.imageUrl;
     const delay = props.imageDelay || 0;
+    setImageError(false);
     if (!imageUrl || delay <= 0) {
       setImageReady(!!imageUrl);
       return;
@@ -117,6 +118,10 @@ const Card = (props: CardProps) => {
           color={0xffffffff}
           style={CardImageStyle}
           textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
+          onEvent={{
+            failed: () => setImageError(true),
+            loaded: () => setImageError(false),
+          }}
         />
       </Show>
 

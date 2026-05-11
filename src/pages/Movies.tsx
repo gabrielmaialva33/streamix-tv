@@ -93,7 +93,7 @@ const Movies = () => {
         // If everything is loaded the <Show> unmounts the load-more button;
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
         // would hang on a real TV. Fall back to the grid when that happens.
-        queueMicrotask(() => {
+        setTimeout(() => {
           const allLoaded = accumulatedMovies().length >= totalItems();
           if (!allLoaded && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
@@ -128,7 +128,7 @@ const Movies = () => {
   const loadMore = () => {
     const total = totalItems();
     const currentCount = accumulatedMovies().length;
-    if (currentCount < total) {
+    if (!moviesResource.loading && currentCount < total) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
@@ -272,7 +272,6 @@ const Movies = () => {
                       imageUrl={pickPoster(movie, 240)}
                       imageDelay={imageDelayFor(rowIndex() * ITEMS_PER_ROW + itemIndex())}
                       subtitle={movieCaption(movie)}
-                      onFocus={() => api.prefetchMovie(String(movie.id))}
                       onEnter={() => {
                         handleMovieSelect(movie);
                         return true;
