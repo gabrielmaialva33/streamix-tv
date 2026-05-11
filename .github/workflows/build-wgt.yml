@@ -92,15 +92,26 @@ jobs:
             TV-samsung-Public_10.0_NativeAppDevelopment-CLI \
             TV-samsung-Public_10.0_WebAppDevelopment-CLI || true
 
-      - name: Decode certificates
+      - name: Decode + validate certificates
         env:
           AUTHOR_B64: ${{ secrets.TIZEN_AUTHOR_P12 }}
           DIST_B64: ${{ secrets.TIZEN_DISTRIBUTOR_P12 }}
+          CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
         run: |
+          set -e
           mkdir -p ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}
-          echo -n "$AUTHOR_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12
-          echo -n "$DIST_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12
-          ls -la ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/
+          # base64 -d tolerates whitespace; remove explicit padding edge cases
+          printf '%s' "$AUTHOR_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12
+          printf '%s' "$DIST_B64"   | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12
+          echo "--- p12 sizes (expected: author=4313 dist=4473) ---"
+          wc -c ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/*.p12
+          echo "--- password length (only length, never value) ---"
+          printf '%s' "$CERT_PW" | wc -c
+          echo "--- openssl validate (legacy provider for RC2-40 ciphers) ---"
+          openssl pkcs12 -in ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 \
+            -nokeys -noout -legacy -passin "pass:$CERT_PW" && echo "author OK" || { echo "author FAIL"; exit 1; }
+          openssl pkcs12 -in ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 \
+            -nokeys -noout -legacy -passin "pass:$CERT_PW" && echo "dist OK" || { echo "dist FAIL"; exit 1; }
 
       - name: Register security profile
         env:
