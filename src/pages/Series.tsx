@@ -14,6 +14,7 @@ const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 210;
 const GRID_HEIGHT = 1080 - GRID_Y - 10;
+const IMAGE_REVEAL_ROW_DELAY = 70;
 
 // Style constants following demo app patterns
 function seriesCaption(show: SeriesType) {
@@ -34,6 +35,7 @@ const Series = () => {
   const [accumulatedSeries, setAccumulatedSeries] = createSignal<SeriesType[]>([]);
   const [totalItems, setTotalItems] = createSignal(0);
   const [scrollPosition, setScrollPosition] = createSignal(0);
+  const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
 
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
@@ -116,8 +118,14 @@ const Series = () => {
     const total = totalItems();
     const currentCount = accumulatedSeries().length;
     if (currentCount < total) {
+      setRevealFromIndex(currentCount);
       setOffset(currentCount);
     }
+  };
+
+  const imageDelayFor = (index: number) => {
+    const start = revealFromIndex();
+    return index >= start ? Math.floor((index - start) / ITEMS_PER_ROW) * IMAGE_REVEAL_ROW_DELAY : 0;
   };
 
   // Navigate to series on Enter
@@ -165,6 +173,7 @@ const Series = () => {
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
               setAccumulatedSeries([]);
+              setRevealFromIndex(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
@@ -178,6 +187,7 @@ const Series = () => {
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
                   setAccumulatedSeries([]);
+                  setRevealFromIndex(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
@@ -239,14 +249,15 @@ const Series = () => {
         </Show>
 
         <For each={seriesRows()}>
-          {row => {
+          {(row, rowIndex) => {
             return (
               <Row width={1640} height={420} gap={16} scroll="none">
                 <For each={row}>
-                  {(show: SeriesType) => (
+                  {(show: SeriesType, itemIndex) => (
                     <Card
                       title={show.title || show.name || ""}
                       imageUrl={pickPoster(show, 240)}
+                      imageDelay={imageDelayFor(rowIndex() * ITEMS_PER_ROW + itemIndex())}
                       subtitle={seriesCaption(show)}
                       onFocus={() => api.prefetchSeries(String(show.id))}
                       onEnter={() => {

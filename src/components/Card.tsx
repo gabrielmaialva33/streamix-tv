@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from "@lightningtv/solid";
-import { createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { theme } from "@/styles";
 
 // Card image container - subtle border that highlights on focus
@@ -76,6 +76,7 @@ export interface CardProps extends NodeProps {
   subtitle?: string;
   width?: number;
   height?: number;
+  imageDelay?: number;
   item?: CardItem;
 }
 
@@ -87,14 +88,28 @@ const Card = (props: CardProps) => {
 
   // Track image errors only
   const [imageError, _setImageError] = createSignal(false);
+  const [imageReady, setImageReady] = createSignal(!props.imageUrl || !props.imageDelay);
 
   // Show placeholder only if no image or error
-  const showPlaceholder = () => !props.imageUrl || imageError();
+  const showPlaceholder = () => !props.imageUrl || !imageReady() || imageError();
+
+  createEffect(() => {
+    const imageUrl = props.imageUrl;
+    const delay = props.imageDelay || 0;
+    if (!imageUrl || delay <= 0) {
+      setImageReady(!!imageUrl);
+      return;
+    }
+
+    setImageReady(false);
+    const timer = setTimeout(() => setImageReady(true), delay);
+    onCleanup(() => clearTimeout(timer));
+  });
 
   return (
     <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
       {/* Card Image with border - show when image URL exists and no error */}
-      <Show when={props.imageUrl && !imageError()}>
+      <Show when={props.imageUrl && imageReady() && !imageError()}>
         <View
           src={props.imageUrl}
           width={width}

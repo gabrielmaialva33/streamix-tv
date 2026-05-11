@@ -1,6 +1,6 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
@@ -9,6 +9,8 @@ import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
+const PAGE_SIZE = 48;
+const LOGO_REVEAL_ROW_DELAY = 55;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 204;
@@ -78,9 +80,26 @@ const Channels = () => {
     categoriesRow?.setFocus();
   });
 
-  const PAGE_SIZE = 100;
   const [offset, setOffset] = createSignal(0);
   const [hasMore, setHasMore] = createSignal(false);
+  const [revealedLogoCount, setRevealedLogoCount] = createSignal(Number.POSITIVE_INFINITY);
+  const logoRevealTimers: ReturnType<typeof setTimeout>[] = [];
+
+  onCleanup(() => {
+    logoRevealTimers.forEach(timer => clearTimeout(timer));
+  });
+
+  const revealLogos = (fromIndex: number, toIndex: number) => {
+    logoRevealTimers.forEach(timer => clearTimeout(timer));
+    logoRevealTimers.length = 0;
+    setRevealedLogoCount(fromIndex);
+
+    for (let next = fromIndex + ITEMS_PER_ROW; next < toIndex + ITEMS_PER_ROW; next += ITEMS_PER_ROW) {
+      const target = Math.min(next, toIndex);
+      const delay = Math.floor((next - fromIndex) / ITEMS_PER_ROW) * LOGO_REVEAL_ROW_DELAY;
+      logoRevealTimers.push(setTimeout(() => setRevealedLogoCount(target), delay));
+    }
+  };
 
   // Fetch categories
   const [categories] = createResource(() => api.getCategories("live"));
@@ -105,11 +124,15 @@ const Channels = () => {
     if (!result) return;
     if (offset() === 0) {
       setChannelsData(result.data);
+      setRevealedLogoCount(Number.POSITIVE_INFINITY);
     } else {
       setChannelsData(prev => {
         const seen = new Set(prev.map(channel => channel.id));
         const fresh = result.data.filter(channel => !seen.has(channel.id));
-        return fresh.length ? [...prev, ...fresh] : prev;
+        if (!fresh.length) return prev;
+        const next = [...prev, ...fresh];
+        revealLogos(prev.length, next.length);
+        return next;
       });
     }
     // Backend may return has_more=true with empty page when offset >= total — trust both signals.
@@ -183,6 +206,7 @@ const Channels = () => {
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
               setChannelsData([]);
+              setRevealedLogoCount(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
@@ -197,6 +221,7 @@ const Channels = () => {
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
                   setChannelsData([]);
+                  setRevealedLogoCount(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
@@ -242,11 +267,11 @@ const Channels = () => {
         </Show>
 
         <For each={channelRows()}>
-          {row => {
+          {(row, rowIndex) => {
             return (
               <Row width={1640} height={150} gap={12} scroll="none">
                 <For each={row}>
-                  {(channel: Channel) => (
+                  {(channel: Channel, itemIndex) => (
                     <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
                       <View
                         x={40}
@@ -264,7 +289,11 @@ const Channels = () => {
                           {channelInitial(channel.name)}
                         </Text>
                       </View>
-                      <Show when={channel.logo_url}>
+                      <Show
+                        when={
+                          channel.logo_url && rowIndex() * ITEMS_PER_ROW + itemIndex() < revealedLogoCount()
+                        }
+                      >
                         <View
                           x={40}
                           y={15}

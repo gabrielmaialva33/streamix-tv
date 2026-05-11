@@ -14,6 +14,7 @@ const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 210;
 const GRID_HEIGHT = 1080 - GRID_Y - 10;
+const IMAGE_REVEAL_ROW_DELAY = 70;
 
 // Style constants following demo app patterns
 function movieCaption(movie: Movie) {
@@ -33,6 +34,7 @@ const Movies = () => {
   const [totalItems, setTotalItems] = createSignal(0);
   const [_lastFocusedIndex, setLastFocusedIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
+  const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
 
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
@@ -119,8 +121,14 @@ const Movies = () => {
     const currentCount = accumulatedMovies().length;
     if (currentCount < total) {
       setLastFocusedIndex(currentCount - 1);
+      setRevealFromIndex(currentCount);
       setOffset(currentCount);
     }
+  };
+
+  const imageDelayFor = (index: number) => {
+    const start = revealFromIndex();
+    return index >= start ? Math.floor((index - start) / ITEMS_PER_ROW) * IMAGE_REVEAL_ROW_DELAY : 0;
   };
 
   // Navigate to movie on Enter
@@ -169,6 +177,7 @@ const Movies = () => {
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
               setAccumulatedMovies([]);
+              setRevealFromIndex(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
               setOffset(0);
@@ -182,6 +191,7 @@ const Movies = () => {
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
                   setAccumulatedMovies([]);
+                  setRevealFromIndex(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
                   setOffset(0);
@@ -243,14 +253,15 @@ const Movies = () => {
         </Show>
 
         <For each={movieRows()}>
-          {row => {
+          {(row, rowIndex) => {
             return (
               <Row width={1640} height={420} gap={16} scroll="none">
                 <For each={row}>
-                  {(movie: Movie) => (
+                  {(movie: Movie, itemIndex) => (
                     <Card
                       title={movie.title || movie.name || ""}
                       imageUrl={pickPoster(movie, 240)}
+                      imageDelay={imageDelayFor(rowIndex() * ITEMS_PER_ROW + itemIndex())}
                       subtitle={movieCaption(movie)}
                       onFocus={() => api.prefetchMovie(String(movie.id))}
                       onEnter={() => {
