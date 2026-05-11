@@ -26,6 +26,9 @@ env:
   PACKAGE_ID: EI8qhrd7xh.streamix
   NODE_VERSION: "24"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
