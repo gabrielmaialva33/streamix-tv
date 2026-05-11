@@ -1,0 +1,12 @@
+{
+  "id": "tv.streamix.app",
+  "version": "1.0.0",
+  "vendor": "Streamix",
+  "type": "web",
+  "main": "index.html",
+  "title": "Streamix",
+  "icon": "icon.png",
+  "largeIcon": "icon.png",
+  "appDescription": "Entretenimento pronto para sua TV",
+  "resolution": "1920x1080"
+}
