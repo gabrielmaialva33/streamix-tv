@@ -8,6 +8,7 @@
  */
 
 import { createLogger } from "@/shared/logging/logger";
+import { Capacitor, CapacitorHttp, type HttpResponse } from "@capacitor/core";
 import { authSession } from "./storage";
 
 const logger = createLogger("API");
@@ -109,6 +110,80 @@ function parseErrorPayload(status: number, statusText: string, payload: unknown)
   return new ApiError(status, `HTTP ${status}: ${statusText}`, undefined, payload);
 }
 
+interface ApiTransportResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  contentType: string;
+  payload: unknown;
+}
+
+function getHeader(headers: Record<string, string> | undefined, name: string): string {
+  const wanted = name.toLowerCase();
+  const entry = Object.entries(headers ?? {}).find(([key]) => key.toLowerCase() === wanted);
+  return entry?.[1] ?? "";
+}
+
+function normalizeNativePayload(response: HttpResponse): unknown {
+  if (typeof response.data !== "string") return response.data;
+
+  const contentType = getHeader(response.headers, "content-type");
+  if (!contentType.includes("application/json")) return response.data;
+
+  try {
+    return JSON.parse(response.data);
+  } catch {
+    return response.data;
+  }
+}
+
+function shouldUseNativeHttp(url: string): boolean {
+  return (
+    Capacitor.isNativePlatform() &&
+    /^https?:\/\//.test(url) &&
+    !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/.test(url)
+  );
+}
+
+async function sendRequest(
+  url: string,
+  method: RequestOpts["method"],
+  headers: Record<string, string>,
+  body: unknown,
+): Promise<ApiTransportResponse> {
+  if (shouldUseNativeHttp(url)) {
+    const response = await CapacitorHttp.request({
+      url,
+      method,
+      headers,
+      data: body,
+    });
+
+    return {
+      ok: response.status >= 200 && response.status < 300,
+      status: response.status,
+      statusText: String(response.status),
+      contentType: getHeader(response.headers, "content-type"),
+      payload: normalizeNativePayload(response),
+    };
+  }
+
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) init.body = JSON.stringify(body);
+
+  const response = await fetch(url, init);
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+    contentType,
+    payload: isJson ? await response.json().catch(() => null) : undefined,
+  };
+}
+
 async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
   const { ttl = DEFAULT_TTL, method = "GET", body, noCache = false, bearer, auth = true } = opts;
   const cacheKey = `${method} ${url}`;
@@ -126,24 +201,21 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
   const sessionToken = auth ? (bearer === undefined ? authSession.getToken() : bearer) : null;
   if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
 
-  const init: RequestInit = { method, headers };
-  if (body !== undefined) init.body = JSON.stringify(body);
+  const promise = sendRequest(url, method, headers, body)
+    .then(response => {
+      const isJson =
+        response.contentType.includes("application/json") ||
+        (response.payload !== null && typeof response.payload === "object");
 
-  const promise = fetch(url, init)
-    .then(async r => {
-      const contentType = r.headers.get("content-type") || "";
-      const isJson = contentType.includes("application/json");
-
-      if (!r.ok) {
-        const payload = isJson ? await r.json().catch(() => null) : null;
-        throw parseErrorPayload(r.status, r.statusText, payload);
+      if (!response.ok) {
+        throw parseErrorPayload(response.status, response.statusText, isJson ? response.payload : null);
       }
 
-      if (r.status === 204 || !isJson) {
+      if (response.status === 204 || (!isJson && response.payload === undefined)) {
         return undefined as T;
       }
 
-      return r.json() as Promise<T>;
+      return response.payload as T;
     })
     .then(data => {
       if (!noCache && method === "GET") cache.set(cacheKey, { data, timestamp: Date.now() });

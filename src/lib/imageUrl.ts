@@ -65,7 +65,12 @@ interface BackdropVariants {
 }
 
 function isTmdb(url?: string | null): boolean {
-  return !!url && /\/t\/p\/[^/]+\//.test(url);
+  if (!url || !/\/t\/p\/[^/]+\//.test(url)) return false;
+  try {
+    return new URL(url).hostname === "tmdb.mahina.cloud";
+  } catch {
+    return false;
+  }
 }
 
 // Pre-sized variants from the backend point at /catalog/images/resize without
