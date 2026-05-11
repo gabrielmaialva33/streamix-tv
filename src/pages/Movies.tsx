@@ -31,7 +31,7 @@ const Movies = () => {
   const [offset, setOffset] = createSignal(0);
   const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
   const [accumulatedMovies, setAccumulatedMovies] = createSignal<Movie[]>([]);
-  const [totalItems, setTotalItems] = createSignal(0);
+  const [hasMore, setHasMore] = createSignal(false);
   const [pendingFocusIndex, setPendingFocusIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
   const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
@@ -72,7 +72,7 @@ const Movies = () => {
     if (result) {
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
-        setTotalItems(result.total);
+        setHasMore(result.has_more && result.data.length > 0);
         setAccumulatedMovies(result.data);
       } else {
         // Backend occasionally reports bogus totals/has_more (e.g. categoria
@@ -84,9 +84,10 @@ const Movies = () => {
           const fresh = result.data.filter(m => !seen.has(m.id));
           if (fresh.length === 0) {
             // No new rows to add -> stop pagination so "Carregar Mais" hides.
-            setTotalItems(prev.length);
+            setHasMore(false);
             return prev;
           }
+          setHasMore(result.has_more);
           return [...prev, ...fresh];
         });
 
@@ -94,8 +95,7 @@ const Movies = () => {
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
         // would hang on a real TV. Fall back to the grid when that happens.
         setTimeout(() => {
-          const allLoaded = accumulatedMovies().length >= totalItems();
-          if (!allLoaded && loadMoreButton?.parent) {
+          if (hasMore() && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
           } else if (pendingFocusIndex() !== null) {
             focusMovieAt(Math.min(pendingFocusIndex() ?? 0, accumulatedMovies().length - 1));
@@ -126,9 +126,8 @@ const Movies = () => {
 
   // Handle loading more - save current position
   const loadMore = () => {
-    const total = totalItems();
     const currentCount = accumulatedMovies().length;
-    if (!moviesResource.loading && currentCount < total) {
+    if (!moviesResource.loading && hasMore()) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
@@ -186,6 +185,7 @@ const Movies = () => {
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
               setAccumulatedMovies([]);
+              setHasMore(false);
               setRevealFromIndex(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
@@ -200,6 +200,7 @@ const Movies = () => {
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
                   setAccumulatedMovies([]);
+                  setHasMore(false);
                   setRevealFromIndex(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
@@ -286,7 +287,7 @@ const Movies = () => {
         </For>
 
         {/* Load More Button */}
-        <Show when={accumulatedMovies().length > 0 && accumulatedMovies().length < totalItems()}>
+        <Show when={accumulatedMovies().length > 0 && hasMore()}>
           <Row width={1640} height={60} justifyContent="center">
             <View
               ref={loadMoreButton}

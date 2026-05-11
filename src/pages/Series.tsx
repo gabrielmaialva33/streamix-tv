@@ -33,7 +33,7 @@ const Series = () => {
   const [offset, setOffset] = createSignal(0);
   const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
   const [accumulatedSeries, setAccumulatedSeries] = createSignal<SeriesType[]>([]);
-  const [totalItems, setTotalItems] = createSignal(0);
+  const [hasMore, setHasMore] = createSignal(false);
   const [pendingFocusIndex, setPendingFocusIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
   const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
@@ -74,7 +74,7 @@ const Series = () => {
     if (result) {
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
-        setTotalItems(result.total);
+        setHasMore(result.has_more && result.data.length > 0);
         setAccumulatedSeries(result.data);
       } else {
         // Load more - append data and restore focus
@@ -82,10 +82,10 @@ const Series = () => {
           const seen = new Set(prev.map(show => show.id));
           const fresh = result.data.filter(show => !seen.has(show.id));
           if (fresh.length === 0) {
-            setTotalItems(prev.length);
+            setHasMore(false);
             return prev;
           }
-          setTotalItems(result.total);
+          setHasMore(result.has_more);
           return [...prev, ...fresh];
         });
 
@@ -93,8 +93,7 @@ const Series = () => {
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
         // would hang on a real TV. Fall back to the grid in that case.
         setTimeout(() => {
-          const allLoaded = accumulatedSeries().length >= totalItems();
-          if (!allLoaded && loadMoreButton?.parent) {
+          if (hasMore() && loadMoreButton?.parent) {
             loadMoreButton.setFocus();
           } else if (pendingFocusIndex() !== null) {
             focusSeriesAt(Math.min(pendingFocusIndex() ?? 0, accumulatedSeries().length - 1));
@@ -125,9 +124,8 @@ const Series = () => {
 
   // Handle loading more
   const loadMore = () => {
-    const total = totalItems();
     const currentCount = accumulatedSeries().length;
-    if (!seriesResource.loading && currentCount < total) {
+    if (!seriesResource.loading && hasMore()) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
       setOffset(currentCount);
@@ -184,6 +182,7 @@ const Series = () => {
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
               setAccumulatedSeries([]);
+              setHasMore(false);
               setRevealFromIndex(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
@@ -198,6 +197,7 @@ const Series = () => {
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
                   setAccumulatedSeries([]);
+                  setHasMore(false);
                   setRevealFromIndex(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
@@ -284,7 +284,7 @@ const Series = () => {
         </For>
 
         {/* Load More Button */}
-        <Show when={accumulatedSeries().length > 0 && accumulatedSeries().length < totalItems()}>
+        <Show when={accumulatedSeries().length > 0 && hasMore()}>
           <Row width={1640} height={60} justifyContent="center">
             <View
               ref={loadMoreButton}
