@@ -1,0 +1,154 @@
+name: Build Tizen WGT
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Attach .wgt to a GitHub Release"
+        type: boolean
+        default: false
+
+# Secrets required (Settings -> Secrets and variables -> Actions):
+#   TIZEN_AUTHOR_P12        base64 -w0 < ~/SamsungCertificate/StreamixTV/author.p12
+#   TIZEN_DISTRIBUTOR_P12   base64 -w0 < ~/SamsungCertificate/StreamixTV/distributor.p12
+#   TIZEN_CERT_PASSWORD     senha dos dois p12 (mesma)
+
+env:
+  TIZEN_STUDIO_VERSION: "5.6"
+  TIZEN_PROFILE: StreamixTV
+  PACKAGE_ID: EI8qhrd7xh.streamix
+  NODE_VERSION: "24"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.4.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm tsc --noEmit
+
+      - name: Build (Tizen target)
+        run: pnpm build:tizen
+
+      - name: Setup Java 17 (Tizen CLI requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Tizen Studio installer
+        id: cache-installer
+        uses: actions/cache@v4
+        with:
+          path: ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin
+          key: tizen-studio-installer-${{ env.TIZEN_STUDIO_VERSION }}
+
+      - name: Cache Tizen Studio install
+        id: cache-studio
+        uses: actions/cache@v4
+        with:
+          path: ~/tizen-studio
+          key: tizen-studio-${{ env.TIZEN_STUDIO_VERSION }}-tv-samsung-10
+
+      - name: Download Tizen Studio
+        if: steps.cache-installer.outputs.cache-hit != 'true'
+        run: |
+          wget -nv -O ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin \
+            http://download.tizen.org/sdk/Installer/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}/web-cli_Tizen_Studio_${{ env.TIZEN_STUDIO_VERSION }}_ubuntu-64.bin
+
+      - name: Install Tizen Studio + TV Samsung packages
+        if: steps.cache-studio.outputs.cache-hit != 'true'
+        run: |
+          chmod +x ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin
+          ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin --accept-license ~/tizen-studio
+          export PATH=$HOME/tizen-studio/tools/ide/bin:$HOME/tizen-studio/tools:$HOME/tizen-studio/package-manager:$PATH
+          # Instala packages necessários: cert-add-on + TV web AppDev
+          ~/tizen-studio/package-manager/package-manager-cli.bin install \
+            cert-add-on \
+            TV-Samsung-Public-Cert-Add-on \
+            WEB-CLI \
+            NativeIDE-CLI \
+            certificate-manager \
+            TV-samsung-Public_10.0_NativeAppDevelopment-CLI \
+            TV-samsung-Public_10.0_WebAppDevelopment-CLI || true
+
+      - name: Decode certificates
+        env:
+          AUTHOR_B64: ${{ secrets.TIZEN_AUTHOR_P12 }}
+          DIST_B64: ${{ secrets.TIZEN_DISTRIBUTOR_P12 }}
+        run: |
+          mkdir -p ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}
+          echo -n "$AUTHOR_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12
+          echo -n "$DIST_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12
+          ls -la ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/
+
+      - name: Register security profile
+        env:
+          CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
+        run: |
+          export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
+          tizen security-profiles add -n ${{ env.TIZEN_PROFILE }} \
+            -a ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 -p "$CERT_PW" \
+            -d ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 -dp "$CERT_PW"
+          tizen security-profiles set-active -n ${{ env.TIZEN_PROFILE }}
+          tizen security-profiles list
+
+      - name: Package WGT
+        run: |
+          export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
+          cd dist/tizen
+          tizen package -t wgt -s ${{ env.TIZEN_PROFILE }} -- .
+          ls -la *.wgt
+
+      - name: Compute artifact name
+        id: artifact
+        run: |
+          SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          REF="${{ github.ref_name }}"
+          NAME="Streamix-${REF//\//-}-${SHORT}"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          cp dist/tizen/Streamix.wgt "dist/tizen/$NAME.wgt"
+
+      - name: Upload .wgt artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: dist/tizen/Streamix.wgt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to Release (only on tag or manual release)
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/tizen/${{ steps.artifact.outputs.name }}.wgt
+          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
+
+      - name: Cleanup secrets
+        if: always()
+        run: |
+          rm -rf ~/SamsungCertificate
+          rm -f ~/tizen-studio-data/profile/profiles.xml || true
