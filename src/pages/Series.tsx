@@ -11,6 +11,9 @@ import { theme } from "@/styles";
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
 const HEADER_HEIGHT = 196;
+const CATEGORY_ROW_Y = 136;
+const GRID_Y = 236;
+const GRID_HEIGHT = 1080 - GRID_Y - 10;
 
 // Style constants following demo app patterns
 function seriesCaption(show: SeriesType) {
@@ -131,7 +134,7 @@ const Series = () => {
           <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
             Séries
           </Text>
-          <Text y={64} fontSize={18} color={theme.textSecondary}>
+          <Text y={70} fontSize={18} color={theme.textSecondary}>
             Entre no universo da série antes de escolher temporada e episódio.
           </Text>
         </View>
@@ -141,7 +144,7 @@ const Series = () => {
         <Row
           ref={categoriesRow}
           x={20}
-          y={130}
+          y={CATEGORY_ROW_Y}
           width={1660}
           height={50}
           gap={12}
@@ -183,9 +186,9 @@ const Series = () => {
       <Column
         ref={contentGrid}
         x={20}
-        y={HEADER_HEIGHT}
+        y={GRID_Y}
         width={1640}
-        height={1080 - HEADER_HEIGHT - 10}
+        height={GRID_HEIGHT}
         gap={24}
         scroll="auto"
         plinko
@@ -197,7 +200,7 @@ const Series = () => {
         onScrolled={(ref, pos, isInitial) => {
           if (!isInitial && ref.children.length > 0) {
             const totalContentHeight = ref.children.length * (420 + 24);
-            const viewportHeight = 1080 - HEADER_HEIGHT - 10;
+            const viewportHeight = GRID_HEIGHT;
             const maxScroll = Math.max(1, totalContentHeight - viewportHeight);
             setScrollPosition(Math.abs(pos) / maxScroll);
           }
@@ -290,9 +293,9 @@ const Series = () => {
       {/* Scroll Indicator */}
       <ScrollIndicator
         x={1680}
-        y={160}
+        y={GRID_Y + 12}
         scrollPosition={scrollPosition()}
-        trackHeight={880}
+        trackHeight={1080 - GRID_Y - 56}
         autoHideDelay={1500}
       />
     </View>

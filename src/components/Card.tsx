@@ -17,9 +17,11 @@ const CardImageStyle = {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
+  zIndex: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.03,
+    scale: 1.015,
+    zIndex: 30,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -32,9 +34,11 @@ const PlaceholderStyle = {
     scale: { duration: 150, easing: "ease-out" },
   },
   scale: 1,
+  zIndex: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.03,
+    scale: 1.015,
+    zIndex: 30,
   },
 } satisfies IntrinsicNodeStyleProps;
 

@@ -9,7 +9,10 @@ import { navResetTick } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
-const HEADER_HEIGHT = 156;
+const HEADER_HEIGHT = 196;
+const CATEGORY_ROW_Y = 136;
+const GRID_Y = 218;
+const GRID_HEIGHT = 1080 - GRID_Y;
 const ROW_BUFFER = 2;
 
 // Style constants
@@ -152,10 +155,10 @@ const Channels = () => {
     >
       <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
         <View width={1660} height={76} x={20} skipFocus>
-          <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
+          <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
             Canais ao Vivo
           </Text>
-          <Text y={62} fontSize={18} color={theme.textSecondary}>
+          <Text y={70} fontSize={18} color={theme.textSecondary}>
             Acesse canais rapidamente com logos e categorias organizadas.
           </Text>
         </View>
@@ -164,7 +167,7 @@ const Channels = () => {
         <Row
           ref={categoriesRow}
           x={20}
-          y={98}
+          y={CATEGORY_ROW_Y}
           width={1660}
           height={50}
           gap={12}
@@ -201,9 +204,9 @@ const Channels = () => {
       <Column
         ref={contentGrid}
         x={20}
-        y={HEADER_HEIGHT}
+        y={GRID_Y}
         width={1660}
-        height={1080 - HEADER_HEIGHT}
+        height={GRID_HEIGHT}
         gap={16}
         scroll="auto"
         plinko
