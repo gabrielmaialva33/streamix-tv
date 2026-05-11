@@ -26,7 +26,8 @@ const KEYBOARD_Y = 226;
 const SIDE_PANEL_TITLE_Y = SEARCH_INPUT_Y + 8;
 const SIDE_PANEL_CONTENT_Y = 212;
 const SIDE_PANEL_CONTENT_HEIGHT = 820;
-const SUGGESTION_SLOT_HEIGHT = 64;
+const SUGGESTION_PANEL_HEIGHT = 650;
+const SUGGESTION_SLOT_HEIGHT = 68;
 const RESULT_GRID_COLUMNS = 3;
 const RESULT_CARD_WIDTH = 185;
 const RESULT_CARD_HEIGHT = 278;
@@ -56,6 +57,7 @@ const Search = () => {
   let suggestionsColumn: ElementNode | undefined;
   let resultsColumn: ElementNode | undefined;
   const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
+  const [focusedSuggestionSlot, setFocusedSuggestionSlot] = createSignal(-1);
 
   // Live typeahead — fires ~180ms after the last keystroke so each press
   // doesn't hammer the API. Goes silent once OK is pressed (full results
@@ -205,6 +207,18 @@ const Search = () => {
         return (
           <>
             <View
+              x={RIGHT_PANEL_X - 18}
+              y={SIDE_PANEL_TITLE_Y - 16}
+              width={RIGHT_PANEL_WIDTH + 36}
+              height={SUGGESTION_PANEL_HEIGHT}
+              color={theme.panel}
+              borderRadius={8}
+              border={{ color: theme.borderSubtle, width: 1 }}
+              alpha={showSuggestions() ? 1 : 0}
+              transition={{ alpha: { duration: 80 } }}
+              skipFocus
+            />
+            <View
               x={RIGHT_PANEL_X}
               y={SIDE_PANEL_TITLE_Y}
               width={RIGHT_PANEL_WIDTH}
@@ -213,8 +227,11 @@ const Search = () => {
               transition={{ alpha: { duration: 80 } }}
               skipFocus
             >
-              <Text fontSize={16} color={theme.textMuted}>
-                Sugestões (aperte OK para ver tudo)
+              <Text fontSize={20} fontWeight={700} color={theme.textPrimary}>
+                Sugestões
+              </Text>
+              <Text x={520} y={4} width={220} fontSize={15} color={theme.textMuted} textAlign="right">
+                OK abre todos
               </Text>
             </View>
             <Column
@@ -242,21 +259,27 @@ const Search = () => {
                 {slotIndex => {
                   const item = () => suggestionItems()[slotIndex()];
                   const hasItem = () => !!item();
+                  const isFocused = () => focusedSuggestionSlot() === slotIndex();
                   return (
                     <View
                       width={RIGHT_PANEL_WIDTH}
                       height={SUGGESTION_SLOT_HEIGHT}
-                      color={theme.surface}
+                      color={isFocused() ? theme.surfaceHover : theme.surface}
                       borderRadius={8}
-                      border={{ color: theme.borderSubtle, width: 1 }}
+                      border={{
+                        color: isFocused() ? theme.primary : theme.borderSubtle,
+                        width: isFocused() ? 2 : 1,
+                      }}
                       transition={{
                         color: { duration: 120 },
                       }}
                       alpha={hasItem() ? 1 : 0}
                       skipFocus={!hasItem()}
-                      $focus={{
-                        color: theme.surfaceHover,
-                        border: { color: theme.primary, width: 2 },
+                      onFocus={() => {
+                        setFocusedSuggestionSlot(slotIndex());
+                      }}
+                      onBlur={() => {
+                        setFocusedSuggestionSlot(value => (value === slotIndex() ? -1 : value));
                       }}
                       onEnter={() => {
                         const picked = item();
@@ -269,9 +292,18 @@ const Search = () => {
                         return true;
                       }}
                     >
+                      <View
+                        x={0}
+                        y={12}
+                        width={4}
+                        height={SUGGESTION_SLOT_HEIGHT - 24}
+                        color={theme.primary}
+                        alpha={isFocused() ? 1 : 0}
+                        borderRadius={4}
+                      />
                       <Text
-                        x={20}
-                        y={19}
+                        x={22}
+                        y={20}
                         fontSize={20}
                         fontWeight={700}
                         color={theme.textPrimary}
@@ -281,16 +313,9 @@ const Search = () => {
                       >
                         {item()?.title ?? ""}
                       </Text>
-                      <View
-                        x={20}
-                        y={SUGGESTION_SLOT_HEIGHT - 1}
-                        width={RIGHT_PANEL_WIDTH - 40}
-                        height={1}
-                        color={theme.border}
-                      />
                       <Text
                         x={540}
-                        y={22}
+                        y={23}
                         width={180}
                         fontSize={16}
                         color={theme.textMuted}
