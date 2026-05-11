@@ -26,8 +26,8 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:banner="@drawable/tv_banner"
             android:theme="@style/AppTheme.NoActionBarLaunch"
-            android:screenOrientation="landscape"
             android:launchMode="singleTask"
+            android:screenOrientation="landscape"
             android:exported="true">
 
             <intent-filter>
