@@ -12,7 +12,7 @@ import {
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, VirtualKeyboard } from "../components";
-import api, { type Channel, type Movie, type Series } from "../lib/api";
+import api, { type Channel, type Movie, type Series, type SuggestItem } from "../lib/api";
 import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
 import { theme } from "@/styles";
 
@@ -124,6 +124,8 @@ const Search = () => {
   // undefined while refetching). `latest` falls back to the last non-empty
   // response we saw.
   const latestSuggestions = () => suggestions.latest ?? null;
+  const suggestionItems = (): SuggestItem[] =>
+    (latestSuggestions()?.items ?? []).filter((item): item is SuggestItem => !!item).slice(0, 8);
   const searchAccentWidth = () =>
     query() ? Math.min(LEFT_PANEL_WIDTH - 40, Math.max(88, query().length * 18)) : 0;
 
@@ -131,7 +133,7 @@ const Search = () => {
   // out of the keyboard to the right. Prefers suggestion items first (if
   // showing), otherwise jumps into the results grid.
   const focusResults = () => {
-    if (!searchTriggered() && latestSuggestions()?.items?.length) {
+    if (!searchTriggered() && suggestionItems().length) {
       suggestionsColumn?.setFocus();
       return true;
     }
@@ -199,7 +201,7 @@ const Search = () => {
            because Lightning needed a frame to settle the new subtree; fading
            in/out lets the scene graph stay stable. */}
       {(() => {
-        const showSuggestions = () => !searchTriggered() && (latestSuggestions()?.items?.length ?? 0) > 0;
+        const showSuggestions = () => !searchTriggered() && suggestionItems().length > 0;
         return (
           <>
             <View
@@ -238,7 +240,7 @@ const Search = () => {
               skipFocus. */}
               <Index each={[0, 1, 2, 3, 4, 5, 6, 7]}>
                 {slotIndex => {
-                  const item = () => latestSuggestions()?.items?.[slotIndex()];
+                  const item = () => suggestionItems()[slotIndex()];
                   const hasItem = () => !!item();
                   return (
                     <View
@@ -249,15 +251,12 @@ const Search = () => {
                       border={{ color: theme.border, width: 1 }}
                       transition={{
                         color: { duration: 120 },
-                        scale: { duration: 120 },
                       }}
-                      scale={1}
                       alpha={hasItem() ? 1 : 0}
                       skipFocus={!hasItem()}
                       $focus={{
                         color: theme.surfaceHover,
                         border: { color: theme.primary, width: 2 },
-                        scale: 1.01,
                       }}
                       onEnter={() => {
                         const picked = item();

@@ -10,6 +10,7 @@ import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
+const MAX_RENDERED_ITEMS = 90;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 210;
@@ -41,6 +42,7 @@ const Series = () => {
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
+  let seenSeriesIds = new Set<SeriesType["id"]>();
 
   // Reset to categories when the user re-clicks "Séries" in the sidebar.
   let navResetSeen = 0;
@@ -74,19 +76,26 @@ const Series = () => {
     if (result) {
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
+        seenSeriesIds = new Set(result.data.map(show => show.id));
         setHasMore(result.has_more && result.data.length > 0);
         setAccumulatedSeries(result.data);
       } else {
         // Load more - append data and restore focus
         setAccumulatedSeries(prev => {
-          const seen = new Set(prev.map(show => show.id));
-          const fresh = result.data.filter(show => !seen.has(show.id));
+          const fresh = result.data.filter(show => !seenSeriesIds.has(show.id));
           if (fresh.length === 0) {
             setHasMore(false);
             return prev;
           }
+          fresh.forEach(show => seenSeriesIds.add(show.id));
+          const combined = [...prev, ...fresh];
+          const trimStart = Math.max(0, combined.length - MAX_RENDERED_ITEMS);
+          const next = combined.slice(trimStart);
+          const focusIndex = Math.max(0, prev.length - trimStart);
+          setPendingFocusIndex(focusIndex);
+          setRevealFromIndex(focusIndex);
           setHasMore(result.has_more);
-          return [...prev, ...fresh];
+          return next;
         });
 
         // Once everything is loaded the <Show> unmounts the load-more button;
@@ -128,7 +137,7 @@ const Series = () => {
     if (!seriesResource.loading && hasMore()) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
-      setOffset(currentCount);
+      setOffset(prev => prev + ITEMS_PER_PAGE);
     }
   };
 
@@ -181,6 +190,7 @@ const Series = () => {
             active={selectedCategory() === undefined && !searchQuery()}
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
+              seenSeriesIds = new Set();
               setAccumulatedSeries([]);
               setHasMore(false);
               setRevealFromIndex(Number.POSITIVE_INFINITY);
@@ -196,6 +206,7 @@ const Series = () => {
                 active={selectedCategory() === category.id && !searchQuery()}
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
+                  seenSeriesIds = new Set();
                   setAccumulatedSeries([]);
                   setHasMore(false);
                   setRevealFromIndex(Number.POSITIVE_INFINITY);

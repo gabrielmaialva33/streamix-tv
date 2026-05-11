@@ -10,6 +10,7 @@ import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
 const PAGE_SIZE = 48;
+const MAX_RENDERED_ITEMS = 144;
 const LOGO_REVEAL_ROW_DELAY = 55;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
@@ -67,6 +68,7 @@ const Channels = () => {
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
+  let seenChannelIds = new Set<Channel["id"]>();
 
   // Reset to categories when the user re-clicks "Canais" in the sidebar.
   let navResetSeen = 0;
@@ -123,15 +125,19 @@ const Channels = () => {
     const result = channels();
     if (!result) return;
     if (offset() === 0) {
+      seenChannelIds = new Set(result.data.map(channel => channel.id));
       setChannelsData(result.data);
       setRevealedLogoCount(Number.POSITIVE_INFINITY);
     } else {
       setChannelsData(prev => {
-        const seen = new Set(prev.map(channel => channel.id));
-        const fresh = result.data.filter(channel => !seen.has(channel.id));
+        const fresh = result.data.filter(channel => !seenChannelIds.has(channel.id));
         if (!fresh.length) return prev;
-        const next = [...prev, ...fresh];
-        revealLogos(prev.length, next.length);
+        fresh.forEach(channel => seenChannelIds.add(channel.id));
+        const combined = [...prev, ...fresh];
+        const trimStart = Math.max(0, combined.length - MAX_RENDERED_ITEMS);
+        const next = combined.slice(trimStart);
+        const logoStart = Math.max(0, prev.length - trimStart);
+        revealLogos(logoStart, next.length);
         return next;
       });
     }
@@ -211,6 +217,7 @@ const Channels = () => {
             active={selectedCategory() === undefined && !searchQuery()}
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
+              seenChannelIds = new Set();
               setChannelsData([]);
               setRevealedLogoCount(Number.POSITIVE_INFINITY);
               setSelectedCategory(undefined);
@@ -226,6 +233,7 @@ const Channels = () => {
                 active={selectedCategory() === category.id && !searchQuery()}
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
+                  seenChannelIds = new Set();
                   setChannelsData([]);
                   setRevealedLogoCount(Number.POSITIVE_INFINITY);
                   setSelectedCategory(category.id);

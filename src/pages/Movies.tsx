@@ -10,6 +10,7 @@ import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
+const MAX_RENDERED_ITEMS = 90;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 210;
@@ -39,6 +40,7 @@ const Movies = () => {
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let loadMoreButton: ElementNode | undefined;
+  let seenMovieIds = new Set<Movie["id"]>();
 
   // Reset to categories when the user re-clicks "Filmes" in the sidebar.
   let navResetSeen = 0;
@@ -72,23 +74,26 @@ const Movies = () => {
     if (result) {
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
+        seenMovieIds = new Set(result.data.map(movie => movie.id));
         setHasMore(result.has_more && result.data.length > 0);
         setAccumulatedMovies(result.data);
       } else {
-        // Backend occasionally reports bogus totals/has_more (e.g. categoria
-        // Documentarios devolve total do catálogo inteiro). Guard against that
-        // by dedupping by id and clamping total when the page comes back empty
-        // or only with duplicates.
         setAccumulatedMovies(prev => {
-          const seen = new Set(prev.map(m => m.id));
-          const fresh = result.data.filter(m => !seen.has(m.id));
+          const fresh = result.data.filter(movie => !seenMovieIds.has(movie.id));
           if (fresh.length === 0) {
             // No new rows to add -> stop pagination so "Carregar Mais" hides.
             setHasMore(false);
             return prev;
           }
+          fresh.forEach(movie => seenMovieIds.add(movie.id));
+          const combined = [...prev, ...fresh];
+          const trimStart = Math.max(0, combined.length - MAX_RENDERED_ITEMS);
+          const next = combined.slice(trimStart);
+          const focusIndex = Math.max(0, prev.length - trimStart);
+          setPendingFocusIndex(focusIndex);
+          setRevealFromIndex(focusIndex);
           setHasMore(result.has_more);
-          return [...prev, ...fresh];
+          return next;
         });
 
         // If everything is loaded the <Show> unmounts the load-more button;
@@ -130,7 +135,7 @@ const Movies = () => {
     if (!moviesResource.loading && hasMore()) {
       setPendingFocusIndex(currentCount);
       setRevealFromIndex(currentCount);
-      setOffset(currentCount);
+      setOffset(prev => prev + ITEMS_PER_PAGE);
     }
   };
 
@@ -184,6 +189,7 @@ const Movies = () => {
             active={selectedCategory() === undefined && !searchQuery()}
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
+              seenMovieIds = new Set();
               setAccumulatedMovies([]);
               setHasMore(false);
               setRevealFromIndex(Number.POSITIVE_INFINITY);
@@ -199,6 +205,7 @@ const Movies = () => {
                 active={selectedCategory() === category.id && !searchQuery()}
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
+                  seenMovieIds = new Set();
                   setAccumulatedMovies([]);
                   setHasMore(false);
                   setRevealFromIndex(Number.POSITIVE_INFINITY);
