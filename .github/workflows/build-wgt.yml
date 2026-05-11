@@ -112,14 +112,15 @@ jobs:
           NEW_PW="tizenpwd"
           echo "NEW_PW=$NEW_PW" >> "$GITHUB_ENV"
 
-          # Re-encrypt: legacy IN (RC2-40-CBC da Samsung) -> AES OUT com senha nova
+          # Mantém formato legacy (RC2-40-CBC + SHA1) que Java do Tizen aceita,
+          # só troca a senha pra evitar problemas de escape no CLI.
           for kind in author distributor; do
             openssl pkcs12 -in "$TMP/${kind}-old.p12" -legacy -nodes \
               -passin "pass:$CERT_PW" -out "$TMP/${kind}.pem"
-            openssl pkcs12 -export -in "$TMP/${kind}.pem" \
+            openssl pkcs12 -export -legacy -in "$TMP/${kind}.pem" \
               -passout "pass:$NEW_PW" -out "$CERT_DIR/${kind}.p12"
-            openssl pkcs12 -in "$CERT_DIR/${kind}.p12" -passin "pass:$NEW_PW" \
-              -nokeys -noout && echo "$kind validates OK with new pw"
+            openssl pkcs12 -in "$CERT_DIR/${kind}.p12" -legacy -passin "pass:$NEW_PW" \
+              -nokeys -noout && echo "$kind validates OK (legacy + new pw)"
           done
 
           rm -rf "$TMP"

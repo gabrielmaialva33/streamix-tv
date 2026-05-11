@@ -1,11 +1,10 @@
 import { ElementNode, View } from "@lightningtv/solid";
 import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
-import { lazy, onCleanup, onMount, Show } from "solid-js";
+import { lazy, Show } from "solid-js";
 import { Suspense } from "@lightningtv/solid/primitives";
 import { preferences } from "@/lib/storage";
 import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
 import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";
-import { installNavigationFeedback } from "@/shared/audio/navigationFeedback";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 
 const DebugOverlay = lazy(() => import("../components/DebugOverlay"));
@@ -27,11 +26,6 @@ const AppShell = (props: AppShellProps) => {
   const announcer = useAnnouncer();
   announcer.debug = false;
   announcer.enabled = preferences.get().announcer;
-
-  onMount(() => {
-    const uninstallNavigationFeedback = installNavigationFeedback();
-    onCleanup(uninstallNavigationFeedback);
-  });
 
   return (
     <View
