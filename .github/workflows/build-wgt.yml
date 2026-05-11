@@ -92,35 +92,45 @@ jobs:
             TV-samsung-Public_10.0_NativeAppDevelopment-CLI \
             TV-samsung-Public_10.0_WebAppDevelopment-CLI || true
 
-      - name: Decode + validate certificates
+      - name: Decode + re-keystore p12 with neutral password
         env:
           AUTHOR_B64: ${{ secrets.TIZEN_AUTHOR_P12 }}
           DIST_B64: ${{ secrets.TIZEN_DISTRIBUTOR_P12 }}
           CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
         run: |
           set -e
-          mkdir -p ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}
-          # base64 -d tolerates whitespace; remove explicit padding edge cases
-          printf '%s' "$AUTHOR_B64" | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12
-          printf '%s' "$DIST_B64"   | base64 -d > ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12
-          echo "--- p12 sizes (expected: author=4313 dist=4473) ---"
-          wc -c ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/*.p12
-          echo "--- password length (only length, never value) ---"
-          printf '%s' "$CERT_PW" | wc -c
-          echo "--- openssl validate (legacy provider for RC2-40 ciphers) ---"
-          openssl pkcs12 -in ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 \
-            -nokeys -noout -legacy -passin "pass:$CERT_PW" && echo "author OK" || { echo "author FAIL"; exit 1; }
-          openssl pkcs12 -in ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 \
-            -nokeys -noout -legacy -passin "pass:$CERT_PW" && echo "dist OK" || { echo "dist FAIL"; exit 1; }
+          CERT_DIR="$HOME/SamsungCertificate/${{ env.TIZEN_PROFILE }}"
+          TMP=$(mktemp -d)
+          mkdir -p "$CERT_DIR"
+
+          printf '%s' "$AUTHOR_B64" | base64 -d > "$TMP/author-old.p12"
+          printf '%s' "$DIST_B64"   | base64 -d > "$TMP/distributor-old.p12"
+          echo "--- p12 originais (esperado author=4313 dist=4473) ---"
+          wc -c "$TMP"/*.p12
+
+          # Senha neutra (sem caracteres especiais, evita problemas de escape no CLI)
+          NEW_PW="tizenpwd"
+          echo "NEW_PW=$NEW_PW" >> "$GITHUB_ENV"
+
+          # Re-encrypt: legacy IN (RC2-40-CBC da Samsung) -> AES OUT com senha nova
+          for kind in author distributor; do
+            openssl pkcs12 -in "$TMP/${kind}-old.p12" -legacy -nodes \
+              -passin "pass:$CERT_PW" -out "$TMP/${kind}.pem"
+            openssl pkcs12 -export -in "$TMP/${kind}.pem" \
+              -passout "pass:$NEW_PW" -out "$CERT_DIR/${kind}.p12"
+            openssl pkcs12 -in "$CERT_DIR/${kind}.p12" -passin "pass:$NEW_PW" \
+              -nokeys -noout && echo "$kind validates OK with new pw"
+          done
+
+          rm -rf "$TMP"
+          ls -la "$CERT_DIR"
 
       - name: Register security profile
-        env:
-          CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
         run: |
           export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
           tizen security-profiles add -n ${{ env.TIZEN_PROFILE }} \
-            -a ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 -p "$CERT_PW" \
-            -d ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 -dp "$CERT_PW"
+            -a ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 -p "$NEW_PW" \
+            -d ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 -dp "$NEW_PW"
           tizen security-profiles set-active -n ${{ env.TIZEN_PROFILE }}
           tizen cli-config "profiles.path=$HOME/tizen-studio-data/profile/profiles.xml"
           tizen security-profiles list
