@@ -50,7 +50,14 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "#devices": path.resolve(__dirname, "./devices"),
       },
-      dedupe: ["solid-js", "@lightningtv/solid", "@lightningjs/renderer"],
+      dedupe: [
+        "solid-js",
+        "solid-js/universal",
+        "@solidjs/router",
+        "@lightningtv/solid",
+        "@lightningtv/solid/primitives",
+        "@lightningjs/renderer",
+      ],
     },
     build: {
       // Tizen 3.0+ runs Chromium 47; the legacy plugin still produces the
@@ -59,7 +66,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
     },
     optimizeDeps: {
-      exclude: ["@lightningtv/solid", "@lightningjs/renderer"],
+      exclude: ["@lightningtv/solid", "@lightningtv/solid/primitives", "@lightningjs/renderer"],
     },
     server: {
       hmr: true,
