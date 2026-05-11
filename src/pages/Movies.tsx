@@ -24,8 +24,6 @@ function movieCaption(movie: Movie) {
 
 // Only load textures for rows within this distance from the user's focused
 // row. Keeps VRAM bounded when the user loads several pages of 30 items each.
-const ROW_RENDER_BUFFER = 1;
-
 const Movies = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
@@ -35,7 +33,6 @@ const Movies = () => {
   const [totalItems, setTotalItems] = createSignal(0);
   const [_lastFocusedIndex, setLastFocusedIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
-  const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
@@ -207,13 +204,6 @@ const Movies = () => {
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
-        onSelectedChanged={index => {
-          // Skeleton/empty only render when movieRows is empty, so once the
-          // grid is populated the row indices line up 1:1 with Column children.
-          // Load-more sits after the last row and doesn't matter for texture
-          // gating, so it's fine to clamp.
-          if (index < movieRows().length) setSelectedRowIndex(index);
-        }}
         onScrolled={(ref, pos, isInitial) => {
           if (!isInitial && ref.children.length > 0) {
             const totalContentHeight = ref.children.length * (420 + 24); // row height + gap
@@ -253,27 +243,24 @@ const Movies = () => {
         </Show>
 
         <For each={movieRows()}>
-          {(row, rowIndex) => {
-            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
+          {row => {
             return (
-              <Row width={1640} height={420} gap={16} scroll="none" skipFocus={!renderRow()}>
-                <Show when={renderRow()}>
-                  <For each={row}>
-                    {(movie: Movie) => (
-                      <Card
-                        title={movie.title || movie.name || ""}
-                        imageUrl={pickPoster(movie, 240)}
-                        subtitle={movieCaption(movie)}
-                        onFocus={() => api.prefetchMovie(String(movie.id))}
-                        onEnter={() => {
-                          handleMovieSelect(movie);
-                          return true;
-                        }}
-                        item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                      />
-                    )}
-                  </For>
-                </Show>
+              <Row width={1640} height={420} gap={16} scroll="none">
+                <For each={row}>
+                  {(movie: Movie) => (
+                    <Card
+                      title={movie.title || movie.name || ""}
+                      imageUrl={pickPoster(movie, 240)}
+                      subtitle={movieCaption(movie)}
+                      onFocus={() => api.prefetchMovie(String(movie.id))}
+                      onEnter={() => {
+                        handleMovieSelect(movie);
+                        return true;
+                      }}
+                      item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                    />
+                  )}
+                </For>
               </Row>
             );
           }}

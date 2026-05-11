@@ -13,8 +13,6 @@ const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 204;
 const GRID_HEIGHT = 1080 - GRID_Y;
-const ROW_RENDER_BUFFER = 1;
-
 // Style constants
 const ChannelCardStyle = {
   width: 180,
@@ -101,7 +99,6 @@ const Channels = () => {
   // Accumulator keeps Column children stable across refetches; appends on
   // pagination, replaces on filter change.
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
-  const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
   createEffect(() => {
     const result = channels();
@@ -109,7 +106,11 @@ const Channels = () => {
     if (offset() === 0) {
       setChannelsData(result.data);
     } else {
-      setChannelsData(prev => [...prev, ...result.data]);
+      setChannelsData(prev => {
+        const seen = new Set(prev.map(channel => channel.id));
+        const fresh = result.data.filter(channel => !seen.has(channel.id));
+        return fresh.length ? [...prev, ...fresh] : prev;
+      });
     }
     // Backend may return has_more=true with empty page when offset >= total — trust both signals.
     const more = result.has_more && result.data.length > 0;
@@ -181,8 +182,11 @@ const Channels = () => {
             active={selectedCategory() === undefined && !searchQuery()}
             onSelect={() => {
               if (selectedCategory() === undefined && !searchQuery()) return;
+              setChannelsData([]);
               setSelectedCategory(undefined);
               setSearchQuery(undefined);
+              setOffset(0);
+              setHasMore(false);
             }}
           />
           <For each={categories()}>
@@ -192,8 +196,11 @@ const Channels = () => {
                 active={selectedCategory() === category.id && !searchQuery()}
                 onSelect={() => {
                   if (selectedCategory() === category.id && !searchQuery()) return;
+                  setChannelsData([]);
                   setSelectedCategory(category.id);
                   setSearchQuery(undefined);
+                  setOffset(0);
+                  setHasMore(false);
                 }}
               />
             )}
@@ -212,9 +219,6 @@ const Channels = () => {
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
-        onSelectedChanged={index => {
-          if (index < channelRows().length) setSelectedRowIndex(index);
-        }}
       >
         <Show when={channels.loading && channelsData().length === 0}>
           <Row width={1640} height={150} gap={12} scroll="none" skipFocus>
@@ -238,59 +242,56 @@ const Channels = () => {
         </Show>
 
         <For each={channelRows()}>
-          {(row, rowIndex) => {
-            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
+          {row => {
             return (
-              <Row width={1640} height={150} gap={12} scroll="none" skipFocus={!renderRow()}>
-                <Show when={renderRow()}>
-                  <For each={row}>
-                    {(channel: Channel) => (
-                      <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
+              <Row width={1640} height={150} gap={12} scroll="none">
+                <For each={row}>
+                  {(channel: Channel) => (
+                    <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
+                      <View
+                        x={40}
+                        y={15}
+                        width={100}
+                        height={65}
+                        color={channelColorFromName(channel.name)}
+                        borderRadius={10}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        skipFocus
+                      >
+                        <Text fontSize={36} fontWeight={700} color={0xffffffff}>
+                          {channelInitial(channel.name)}
+                        </Text>
+                      </View>
+                      <Show when={channel.logo_url}>
                         <View
                           x={40}
                           y={15}
                           width={100}
                           height={65}
-                          color={channelColorFromName(channel.name)}
-                          borderRadius={10}
-                          display="flex"
-                          justifyContent="center"
-                          alignItems="center"
-                          skipFocus
-                        >
-                          <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                            {channelInitial(channel.name)}
-                          </Text>
-                        </View>
-                        <Show when={channel.logo_url}>
-                          <View
-                            x={40}
-                            y={15}
-                            width={100}
-                            height={65}
-                            src={proxyImageUrl(channel.logo_url, 120)}
-                            color={0xffffffff}
-                          />
-                        </Show>
+                          src={proxyImageUrl(channel.logo_url, 120)}
+                          color={0xffffffff}
+                        />
+                      </Show>
 
-                        <Text
-                          x={10}
-                          y={90}
-                          width={160}
-                          height={30}
-                          fontSize={14}
-                          color={theme.textSecondary}
-                          contain="both"
-                          textOverflow="ellipsis"
-                          textAlign="center"
-                          maxLines={1}
-                        >
-                          {channel.name}
-                        </Text>
-                      </View>
-                    )}
-                  </For>
-                </Show>
+                      <Text
+                        x={10}
+                        y={90}
+                        width={160}
+                        height={30}
+                        fontSize={14}
+                        color={theme.textSecondary}
+                        contain="both"
+                        textOverflow="ellipsis"
+                        textAlign="center"
+                        maxLines={1}
+                      >
+                        {channel.name}
+                      </Text>
+                    </View>
+                  )}
+                </For>
               </Row>
             );
           }}

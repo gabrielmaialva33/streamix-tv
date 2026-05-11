@@ -26,8 +26,6 @@ function seriesCaption(show: SeriesType) {
     .join(" • ");
 }
 
-const ROW_RENDER_BUFFER = 1;
-
 const Series = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
@@ -36,7 +34,6 @@ const Series = () => {
   const [accumulatedSeries, setAccumulatedSeries] = createSignal<SeriesType[]>([]);
   const [totalItems, setTotalItems] = createSignal(0);
   const [scrollPosition, setScrollPosition] = createSignal(0);
-  const [selectedRowIndex, setSelectedRowIndex] = createSignal(0);
 
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
@@ -72,13 +69,22 @@ const Series = () => {
   createEffect(() => {
     const result = seriesResource();
     if (result) {
-      setTotalItems(result.total);
       if (offset() === 0) {
         // Fresh load (category change, search, etc) - replace data
+        setTotalItems(result.total);
         setAccumulatedSeries(result.data);
       } else {
         // Load more - append data and restore focus
-        setAccumulatedSeries(prev => [...prev, ...result.data]);
+        setAccumulatedSeries(prev => {
+          const seen = new Set(prev.map(show => show.id));
+          const fresh = result.data.filter(show => !seen.has(show.id));
+          if (fresh.length === 0) {
+            setTotalItems(prev.length);
+            return prev;
+          }
+          setTotalItems(result.total);
+          return [...prev, ...fresh];
+        });
 
         // Once everything is loaded the <Show> unmounts the load-more button;
         // setFocus() on the disposed ref would be a silent no-op and the D-pad
@@ -194,9 +200,6 @@ const Series = () => {
         plinko
         clipping
         onUp={() => categoriesRow?.setFocus()}
-        onSelectedChanged={index => {
-          if (index < seriesRows().length) setSelectedRowIndex(index);
-        }}
         onScrolled={(ref, pos, isInitial) => {
           if (!isInitial && ref.children.length > 0) {
             const totalContentHeight = ref.children.length * (420 + 24);
@@ -236,27 +239,24 @@ const Series = () => {
         </Show>
 
         <For each={seriesRows()}>
-          {(row, rowIndex) => {
-            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
+          {row => {
             return (
-              <Row width={1640} height={420} gap={16} scroll="none" skipFocus={!renderRow()}>
-                <Show when={renderRow()}>
-                  <For each={row}>
-                    {(show: SeriesType) => (
-                      <Card
-                        title={show.title || show.name || ""}
-                        imageUrl={pickPoster(show, 240)}
-                        subtitle={seriesCaption(show)}
-                        onFocus={() => api.prefetchSeries(String(show.id))}
-                        onEnter={() => {
-                          handleSeriesSelect(show);
-                          return true;
-                        }}
-                        item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
-                      />
-                    )}
-                  </For>
-                </Show>
+              <Row width={1640} height={420} gap={16} scroll="none">
+                <For each={row}>
+                  {(show: SeriesType) => (
+                    <Card
+                      title={show.title || show.name || ""}
+                      imageUrl={pickPoster(show, 240)}
+                      subtitle={seriesCaption(show)}
+                      onFocus={() => api.prefetchSeries(String(show.id))}
+                      onEnter={() => {
+                        handleSeriesSelect(show);
+                        return true;
+                      }}
+                      item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
+                    />
+                  )}
+                </For>
               </Row>
             );
           }}
