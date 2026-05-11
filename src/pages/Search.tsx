@@ -248,7 +248,7 @@ const Search = () => {
                       height={SUGGESTION_SLOT_HEIGHT}
                       color={theme.surface}
                       borderRadius={8}
-                      border={{ color: theme.border, width: 1 }}
+                      border={{ color: theme.borderSubtle, width: 1 }}
                       transition={{
                         color: { duration: 120 },
                       }}
@@ -281,6 +281,13 @@ const Search = () => {
                       >
                         {item()?.title ?? ""}
                       </Text>
+                      <View
+                        x={20}
+                        y={SUGGESTION_SLOT_HEIGHT - 1}
+                        width={RIGHT_PANEL_WIDTH - 40}
+                        height={1}
+                        color={theme.border}
+                      />
                       <Text
                         x={540}
                         y={22}
