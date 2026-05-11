@@ -6,6 +6,7 @@ import AppShell from "./AppShell";
 import AppRoutes from "./routes";
 import { createLogger } from "@/shared/logging/logger";
 import { focusRuntimeWindow, isTizenRuntime } from "@/platform/runtime";
+import { installNativeImageXhrBridge } from "@/platform/nativeImageXhr";
 
 const logger = createLogger("AppBootstrap");
 
@@ -17,6 +18,7 @@ export async function bootstrapApp() {
 
   try {
     await config.initialize();
+    installNativeImageXhrBridge();
     logger.debug("Device initialized", { tizen: isTizenRuntime() });
     if (isTizenRuntime()) {
       focusRuntimeWindow();
