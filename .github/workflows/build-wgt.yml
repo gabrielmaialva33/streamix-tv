@@ -111,13 +111,25 @@ jobs:
             -a ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/author.p12 -p "$CERT_PW" \
             -d ~/SamsungCertificate/${{ env.TIZEN_PROFILE }}/distributor.p12 -dp "$CERT_PW"
           tizen security-profiles set-active -n ${{ env.TIZEN_PROFILE }}
+          tizen cli-config "profiles.path=$HOME/tizen-studio-data/profile/profiles.xml"
           tizen security-profiles list
 
       - name: Package WGT
         run: |
           export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
+          echo "--- dist/tizen ---"
+          ls -la dist/tizen/
+          echo "--- config.xml ---"
+          cat dist/tizen/config.xml 2>&1 | head -30 || echo "no config.xml"
+          echo "--- cli-config ---"
+          tizen cli-config -l
+          echo "--- package ---"
           cd dist/tizen
-          tizen package -t wgt -s ${{ env.TIZEN_PROFILE }} -- .
+          tizen package -t wgt -s ${{ env.TIZEN_PROFILE }} -- . || {
+            echo "::error::Package failed. Dumping cli.log..."
+            tail -100 $HOME/tizen-studio-data/cli/logs/cli.log || true
+            exit 1
+          }
           ls -la *.wgt
 
       - name: Compute artifact name
