@@ -28,107 +28,153 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(1200px 800px at 50% 40%, #2a0b14 0%, #0a0a0f 60%), #0a0a0f;
+        background:
+          linear-gradient(135deg, rgba(229, 9, 20, 0.12), transparent 38%),
+          linear-gradient(180deg, #0f1017 0%, #090a10 100%);
         opacity: 1;
         transition: opacity 420ms ease-out;
         pointer-events: none;
       }
+
+      #splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 72px 72px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
+      }
+
       body.app-ready #splash {
         opacity: 0;
       }
 
-      #splash .logo-wrap {
+      #splash .splash-shell {
         position: relative;
-        width: 320px;
-        height: 320px;
+        width: 560px;
+        min-height: 300px;
+        padding: 42px;
+        border-radius: 8px;
+        background: rgba(17, 18, 25, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow:
+          0 30px 90px rgba(0, 0, 0, 0.44),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        animation: splash-fade-in 520ms ease-out both;
+      }
+
+      #splash .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+
+      #splash .logo-tile {
+        width: 96px;
+        height: 96px;
         display: flex;
         align-items: center;
         justify-content: center;
-        animation: splash-breathe 3s ease-in-out infinite;
-      }
-
-      #splash .pulse {
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        border: 2px solid rgba(229, 9, 20, 0.35);
-        animation: splash-pulse 2.4s cubic-bezier(0.2, 0.6, 0.2, 1) infinite;
-      }
-      #splash .pulse.b2 {
-        animation-delay: 0.8s;
-      }
-      #splash .pulse.b3 {
-        animation-delay: 1.6s;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(229, 9, 20, 0.2), rgba(229, 9, 20, 0.08));
+        border: 1px solid rgba(229, 9, 20, 0.28);
       }
 
       #splash .logo {
-        position: relative;
-        width: 180px;
-        height: 180px;
-        filter: drop-shadow(0 0 28px rgba(229, 9, 20, 0.55));
-        animation: splash-fade-in 800ms ease-out both;
+        width: 62px;
+        height: 62px;
+        filter: drop-shadow(0 12px 24px rgba(229, 9, 20, 0.38));
       }
 
       #splash .wordmark {
-        position: absolute;
-        bottom: 220px;
-        left: 0;
-        right: 0;
-        text-align: center;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 54px;
-        letter-spacing: 18px;
+        font-size: 46px;
+        line-height: 1;
+        letter-spacing: 0;
         font-weight: 700;
-        color: #fff;
-        text-shadow: 0 0 24px rgba(229, 9, 20, 0.35);
-        animation: splash-fade-in 1000ms 200ms ease-out both;
+        color: #ffffff;
       }
 
       #splash .tagline {
-        position: absolute;
-        bottom: 160px;
-        left: 0;
-        right: 0;
-        text-align: center;
+        margin-top: 10px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-size: 18px;
-        letter-spacing: 6px;
-        color: rgba(255, 255, 255, 0.55);
-        animation: splash-fade-in 1200ms 400ms ease-out both;
+        letter-spacing: 0;
+        color: rgba(255, 255, 255, 0.58);
       }
 
-      @keyframes splash-pulse {
-        0% {
-          transform: scale(0.6);
-          opacity: 0;
-        }
-        20% {
-          opacity: 0.9;
-        }
-        100% {
-          transform: scale(1.6);
-          opacity: 0;
-        }
+      #splash .splash-divider {
+        height: 1px;
+        margin: 34px 0 28px;
+        background: linear-gradient(90deg, rgba(229, 9, 20, 0.62), rgba(255, 255, 255, 0.08), transparent);
       }
 
-      @keyframes splash-breathe {
-        0%,
-        100% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.04);
-        }
+      #splash .splash-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      #splash .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #e50914;
+        box-shadow: 0 0 18px rgba(229, 9, 20, 0.72);
+        animation: splash-dot 1.4s ease-in-out infinite;
+      }
+
+      #splash .splash-track {
+        position: relative;
+        height: 6px;
+        margin-top: 22px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #splash .splash-bar {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 46%;
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgba(229, 9, 20, 0.32), #e50914, #ff4a53);
+        animation: splash-progress 1.65s ease-in-out infinite;
       }
 
       @keyframes splash-fade-in {
         from {
           opacity: 0;
-          transform: translateY(6px);
+          transform: translateY(10px);
         }
         to {
           opacity: 1;
           transform: translateY(0);
+        }
+      }
+
+      @keyframes splash-dot {
+        0%,
+        100% {
+          opacity: 0.42;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes splash-progress {
+        0% {
+          transform: translateX(-120%);
+        }
+        55%,
+        100% {
+          transform: translateX(240%);
         }
       }
     </style>
@@ -137,14 +183,25 @@
   <body tabindex="0">
     <div id="app"></div>
     <div id="splash" aria-hidden="true">
-      <div class="wordmark">STREAMIX</div>
-      <div class="logo-wrap">
-        <div class="pulse"></div>
-        <div class="pulse b2"></div>
-        <div class="pulse b3"></div>
-        <img class="logo" src="assets/streamix-logo.png" alt="" />
+      <div class="splash-shell">
+        <div class="brand-row">
+          <div class="logo-tile">
+            <img class="logo" src="assets/streamix-logo.png" alt="" />
+          </div>
+          <div>
+            <div class="wordmark">Streamix</div>
+            <div class="tagline">Entretenimento pronto para sua TV</div>
+          </div>
+        </div>
+        <div class="splash-divider"></div>
+        <div class="splash-status">
+          <span class="status-dot"></span>
+          <span>Preparando sua sessão</span>
+        </div>
+        <div class="splash-track">
+          <div class="splash-bar"></div>
+        </div>
       </div>
-      <div class="tagline">PREPARANDO SUA SESSÃO</div>
     </div>
     <!-- Debug overlay visible on TV when devtools are not available.
  Captures JS errors and console.error/console.warn, then renders on top. -->
