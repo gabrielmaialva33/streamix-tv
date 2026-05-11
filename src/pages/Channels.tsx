@@ -1,6 +1,6 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SkeletonLoader } from "../components";
 import api, { type Category, type Channel } from "../lib/api";
@@ -13,7 +13,7 @@ const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 204;
 const GRID_HEIGHT = 1080 - GRID_Y;
-const ROW_BUFFER = 1;
+const ROW_RENDER_BUFFER = 1;
 
 // Style constants
 const ChannelCardStyle = {
@@ -130,14 +130,14 @@ const Channels = () => {
   });
 
   // Chunk channels into rows
-  const channelRows = () => {
+  const channelRows = createMemo(() => {
     const data = channelsData();
     const rows: Channel[][] = [];
     for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
       rows.push(data.slice(i, i + ITEMS_PER_ROW));
     }
     return rows;
-  };
+  });
 
   // Navigate to channel player
   const handleChannelSelect = (channel: Channel) => {
@@ -239,60 +239,58 @@ const Channels = () => {
 
         <For each={channelRows()}>
           {(row, rowIndex) => {
-            const loadLogos = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_BUFFER;
+            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
             return (
-              <Row width={1640} height={150} gap={12} scroll="none">
-                <For each={row}>
-                  {(channel: Channel) => (
-                    <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
-                      {/* Placeholder is always rendered as a background layer
-                          so broken/404 logo_urls don't leave the card blank.
-                          The logo <View> on top replaces it visually when
-                          the texture actually loads. */}
-                      <View
-                        x={40}
-                        y={15}
-                        width={100}
-                        height={65}
-                        color={channelColorFromName(channel.name)}
-                        borderRadius={10}
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        skipFocus
-                      >
-                        <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                          {channelInitial(channel.name)}
-                        </Text>
-                      </View>
-                      <Show when={loadLogos() && channel.logo_url}>
+              <Row width={1640} height={150} gap={12} scroll="none" skipFocus={!renderRow()}>
+                <Show when={renderRow()}>
+                  <For each={row}>
+                    {(channel: Channel) => (
+                      <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
                         <View
                           x={40}
                           y={15}
                           width={100}
                           height={65}
-                          src={proxyImageUrl(channel.logo_url, 120)}
-                          color={0xffffffff}
-                        />
-                      </Show>
+                          color={channelColorFromName(channel.name)}
+                          borderRadius={10}
+                          display="flex"
+                          justifyContent="center"
+                          alignItems="center"
+                          skipFocus
+                        >
+                          <Text fontSize={36} fontWeight={700} color={0xffffffff}>
+                            {channelInitial(channel.name)}
+                          </Text>
+                        </View>
+                        <Show when={channel.logo_url}>
+                          <View
+                            x={40}
+                            y={15}
+                            width={100}
+                            height={65}
+                            src={proxyImageUrl(channel.logo_url, 120)}
+                            color={0xffffffff}
+                          />
+                        </Show>
 
-                      <Text
-                        x={10}
-                        y={90}
-                        width={160}
-                        height={30}
-                        fontSize={14}
-                        color={theme.textSecondary}
-                        contain="both"
-                        textOverflow="ellipsis"
-                        textAlign="center"
-                        maxLines={1}
-                      >
-                        {channel.name}
-                      </Text>
-                    </View>
-                  )}
-                </For>
+                        <Text
+                          x={10}
+                          y={90}
+                          width={160}
+                          height={30}
+                          fontSize={14}
+                          color={theme.textSecondary}
+                          contain="both"
+                          textOverflow="ellipsis"
+                          textAlign="center"
+                          maxLines={1}
+                        >
+                          {channel.name}
+                        </Text>
+                      </View>
+                    )}
+                  </For>
+                </Show>
               </Row>
             );
           }}

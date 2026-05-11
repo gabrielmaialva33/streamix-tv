@@ -32,6 +32,8 @@ interface CacheEntry<T> {
 
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
+let pendingPrefetchTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingPrefetchIdleId: number | undefined;
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 min
 const SHORT_TTL = 30 * 1000; // 30s for volatile data such as EPG now and stream URLs.
 
@@ -910,13 +912,30 @@ export const api = {
   prefetch: (path: string) => {
     const url = path.startsWith("http") ? path : `${CATALOG_URL}${path}`;
     const cacheKey = `GET ${url}`;
+    if (pendingPrefetchTimer) {
+      clearTimeout(pendingPrefetchTimer);
+      pendingPrefetchTimer = undefined;
+    }
+    if (pendingPrefetchIdleId !== undefined && typeof window !== "undefined" && window.cancelIdleCallback) {
+      window.cancelIdleCallback(pendingPrefetchIdleId);
+      pendingPrefetchIdleId = undefined;
+    }
     if (cache.has(cacheKey) || inFlight.has(cacheKey)) return;
 
     const run = () => request(url).catch(() => {});
     if (typeof window !== "undefined" && window.requestIdleCallback) {
-      window.requestIdleCallback(() => run(), { timeout: 2000 });
+      pendingPrefetchIdleId = window.requestIdleCallback(
+        () => {
+          pendingPrefetchIdleId = undefined;
+          run();
+        },
+        { timeout: 1200 },
+      );
     } else {
-      setTimeout(run, 100);
+      pendingPrefetchTimer = setTimeout(() => {
+        pendingPrefetchTimer = undefined;
+        run();
+      }, 180);
     }
   },
 

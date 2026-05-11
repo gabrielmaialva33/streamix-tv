@@ -1,6 +1,6 @@
 import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "../components";
 import api, { type Category, type Movie } from "../lib/api";
@@ -24,7 +24,7 @@ function movieCaption(movie: Movie) {
 
 // Only load textures for rows within this distance from the user's focused
 // row. Keeps VRAM bounded when the user loads several pages of 30 items each.
-const ROW_BUFFER = 1;
+const ROW_RENDER_BUFFER = 1;
 
 const Movies = () => {
   const navigate = useNavigate();
@@ -107,14 +107,14 @@ const Movies = () => {
   });
 
   // Chunk movies into rows
-  const movieRows = () => {
+  const movieRows = createMemo(() => {
     const data = accumulatedMovies();
     const rows: Movie[][] = [];
     for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
       rows.push(data.slice(i, i + ITEMS_PER_ROW));
     }
     return rows;
-  };
+  });
 
   // Handle loading more - save current position
   const loadMore = () => {
@@ -254,27 +254,26 @@ const Movies = () => {
 
         <For each={movieRows()}>
           {(row, rowIndex) => {
-            // Only load poster textures for rows near the focused one.
-            // Card keeps its placeholder when imageUrl is undefined, so the
-            // focus tree stays identical regardless of visibility.
-            const loadImages = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_BUFFER;
+            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
             return (
-              <Row width={1640} height={420} gap={16} scroll="none">
-                <For each={row}>
-                  {(movie: Movie) => (
-                    <Card
-                      title={movie.title || movie.name || ""}
-                      imageUrl={loadImages() ? pickPoster(movie, 240) : undefined}
-                      subtitle={movieCaption(movie)}
-                      onFocus={() => api.prefetchMovie(String(movie.id))}
-                      onEnter={() => {
-                        handleMovieSelect(movie);
-                        return true;
-                      }}
-                      item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                    />
-                  )}
-                </For>
+              <Row width={1640} height={420} gap={16} scroll="none" skipFocus={!renderRow()}>
+                <Show when={renderRow()}>
+                  <For each={row}>
+                    {(movie: Movie) => (
+                      <Card
+                        title={movie.title || movie.name || ""}
+                        imageUrl={pickPoster(movie, 240)}
+                        subtitle={movieCaption(movie)}
+                        onFocus={() => api.prefetchMovie(String(movie.id))}
+                        onEnter={() => {
+                          handleMovieSelect(movie);
+                          return true;
+                        }}
+                        item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
+                      />
+                    )}
+                  </For>
+                </Show>
               </Row>
             );
           }}

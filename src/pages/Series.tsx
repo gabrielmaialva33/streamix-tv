@@ -1,6 +1,6 @@
 import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "../components";
 import api, { type Category, type Series as SeriesType } from "../lib/api";
@@ -26,7 +26,7 @@ function seriesCaption(show: SeriesType) {
     .join(" • ");
 }
 
-const ROW_BUFFER = 1;
+const ROW_RENDER_BUFFER = 1;
 
 const Series = () => {
   const navigate = useNavigate();
@@ -96,14 +96,14 @@ const Series = () => {
   });
 
   // Chunk series into rows
-  const seriesRows = () => {
+  const seriesRows = createMemo(() => {
     const data = accumulatedSeries();
     const rows: SeriesType[][] = [];
     for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
       rows.push(data.slice(i, i + ITEMS_PER_ROW));
     }
     return rows;
-  };
+  });
 
   // Handle loading more
   const loadMore = () => {
@@ -237,24 +237,26 @@ const Series = () => {
 
         <For each={seriesRows()}>
           {(row, rowIndex) => {
-            const loadImages = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_BUFFER;
+            const renderRow = () => Math.abs(rowIndex() - selectedRowIndex()) <= ROW_RENDER_BUFFER;
             return (
-              <Row width={1640} height={420} gap={16} scroll="none">
-                <For each={row}>
-                  {(show: SeriesType) => (
-                    <Card
-                      title={show.title || show.name || ""}
-                      imageUrl={loadImages() ? pickPoster(show, 240) : undefined}
-                      subtitle={seriesCaption(show)}
-                      onFocus={() => api.prefetchSeries(String(show.id))}
-                      onEnter={() => {
-                        handleSeriesSelect(show);
-                        return true;
-                      }}
-                      item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
-                    />
-                  )}
-                </For>
+              <Row width={1640} height={420} gap={16} scroll="none" skipFocus={!renderRow()}>
+                <Show when={renderRow()}>
+                  <For each={row}>
+                    {(show: SeriesType) => (
+                      <Card
+                        title={show.title || show.name || ""}
+                        imageUrl={pickPoster(show, 240)}
+                        subtitle={seriesCaption(show)}
+                        onFocus={() => api.prefetchSeries(String(show.id))}
+                        onEnter={() => {
+                          handleSeriesSelect(show);
+                          return true;
+                        }}
+                        item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
+                      />
+                    )}
+                  </For>
+                </Show>
               </Row>
             );
           }}
