@@ -14,6 +14,14 @@ export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
   lightning: {
     rendererOptions: {
       numImageWorkers: 0,
+      boundsMargin: 180,
+      textureMemory: {
+        criticalThreshold: 80e6,
+        targetThresholdLevel: 0.55,
+        cleanupInterval: 30000,
+        doNotExceedCriticalThreshold: true,
+        debugLogging: import.meta.env.DEV,
+      },
     },
   },
   keys: {

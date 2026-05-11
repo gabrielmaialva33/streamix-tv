@@ -13,7 +13,7 @@ const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 204;
 const GRID_HEIGHT = 1080 - GRID_Y;
-const ROW_BUFFER = 2;
+const ROW_BUFFER = 1;
 
 // Style constants
 const ChannelCardStyle = {
@@ -271,7 +271,7 @@ const Channels = () => {
                           y={15}
                           width={100}
                           height={65}
-                          src={proxyImageUrl(channel.logo_url, 200)}
+                          src={proxyImageUrl(channel.logo_url, 120)}
                           color={0xffffffff}
                         />
                       </Show>

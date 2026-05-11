@@ -37,8 +37,8 @@ export const config = {
       // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2
       deviceLogicalPixelRatio: 1,
       devicePhysicalPixelRatio: 1,
-      // Increase to preload images coming from offscreen
-      boundsMargin: 500,
+      // Keep offscreen preloading modest so low-end TVs do not decode too many textures ahead.
+      boundsMargin: 240,
       // Transparent background for video playback (allows HTML5 video to show through)
       clearColor: 0x00000000,
       // Texture Memory Manager settings for TV devices

@@ -26,7 +26,7 @@ function seriesCaption(show: SeriesType) {
     .join(" • ");
 }
 
-const ROW_BUFFER = 2;
+const ROW_BUFFER = 1;
 
 const Series = () => {
   const navigate = useNavigate();

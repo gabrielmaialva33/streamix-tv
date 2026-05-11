@@ -213,7 +213,7 @@ const SeriesEpisodes = () => {
                               y={14}
                               width={184}
                               height={128}
-                              src={proxyImageUrl(episode.thumbnail_url, 400)}
+                              src={proxyImageUrl(episode.thumbnail_url, 240)}
                               color={0xffffffff}
                               borderRadius={14}
                               textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.5 } }}

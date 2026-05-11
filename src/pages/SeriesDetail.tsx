@@ -75,7 +75,8 @@ function buildMeta(show?: Series) {
 }
 
 function relatedPoster(item: RelatedSeries) {
-  return item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  return pickPoster({ poster: raw }, 240);
 }
 
 function relatedSubtitle(item: RelatedSeries) {
@@ -155,7 +156,7 @@ const SeriesDetail = () => {
       <Show when={series()}>
         {currentSeries => {
           const metaItems = buildMeta(currentSeries());
-          const posterUrl = pickPoster(currentSeries(), 480);
+          const posterUrl = pickPoster(currentSeries(), 240);
           const backdropUrl = pickBackdrop(currentSeries(), 1280);
 
           return (

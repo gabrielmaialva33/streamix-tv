@@ -24,7 +24,7 @@ function movieCaption(movie: Movie) {
 
 // Only load textures for rows within this distance from the user's focused
 // row. Keeps VRAM bounded when the user loads several pages of 30 items each.
-const ROW_BUFFER = 2;
+const ROW_BUFFER = 1;
 
 const Movies = () => {
   const navigate = useNavigate();

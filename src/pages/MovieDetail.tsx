@@ -75,7 +75,8 @@ function buildMeta(movie?: Movie) {
 type RelatedMovie = SimilarContentItem | RecommendationItem;
 
 function relatedPoster(item: RelatedMovie) {
-  return item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
+  return pickPoster({ poster: raw }, 240);
 }
 
 function relatedSubtitle(item: RelatedMovie) {
@@ -141,7 +142,7 @@ const MovieDetail = () => {
       <Show when={movie()}>
         {currentMovie => {
           const metaItems = buildMeta(currentMovie());
-          const posterUrl = pickPoster(currentMovie(), 480);
+          const posterUrl = pickPoster(currentMovie(), 240);
           const backdropUrl = pickBackdrop(currentMovie(), 1280);
 
           return (

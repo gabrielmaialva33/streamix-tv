@@ -103,18 +103,6 @@ const Card = (props: CardProps) => {
           style={CardImageStyle}
           textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
         />
-        <View
-          y={height - 104}
-          width={width}
-          height={104}
-          borderRadius={8}
-          shader={{
-            type: "linearGradient",
-            colors: [0x00000000, 0x04050999, 0x040509ee],
-            angle: 180,
-          }}
-          skipFocus
-        />
       </Show>
 
       {/* Placeholder - shown when no image, loading, or error */}

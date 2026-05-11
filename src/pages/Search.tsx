@@ -517,7 +517,7 @@ const ChannelResult = (props: ChannelResultProps) => {
           y={15}
           width={100}
           height={60}
-          src={proxyImageUrl(props.channel.logo_url, 200)}
+          src={proxyImageUrl(props.channel.logo_url, 120)}
           color={0xffffffff}
         />
       </Show>
