@@ -1,16 +1,19 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "../lib/api";
 import { proxyImageUrl } from "../lib/imageUrl";
 import { navResetTick } from "../shared/navReset";
 import { theme } from "@/styles";
 
-// Time slot width (30 min = 200px)
+const EPG_WINDOW_HOURS = 8;
 const TIME_SLOT_WIDTH = 200;
-const CHANNEL_COLUMN_WIDTH = 200;
-const ROW_HEIGHT = 80;
+const CHANNEL_COLUMN_WIDTH = 220;
+const ROW_HEIGHT = 82;
+const GUIDE_WIDTH = 1660;
+const PROGRAM_AREA_WIDTH = GUIDE_WIDTH - CHANNEL_COLUMN_WIDTH;
+const EMPTY_ROWS_AFTER = 28;
 
 // Styles
 const ChannelRowStyle = {
@@ -35,12 +38,18 @@ interface Program {
   start: Date;
   end: Date;
   description?: string;
+  width: number;
 }
 
 interface ChannelWithPrograms {
   channel: Channel;
   programs: Program[];
 }
+
+const programWidthFromDates = (start: Date, end: Date) => {
+  const durationMinutes = Math.max(15, (end.getTime() - start.getTime()) / (1000 * 60));
+  return Math.max(120, (durationMinutes / 30) * TIME_SLOT_WIDTH);
+};
 
 // Convert EPG payload strings into date objects.
 const toProgram = (p: EpgProgram): Program => ({
@@ -49,6 +58,7 @@ const toProgram = (p: EpgProgram): Program => ({
   start: new Date(p.start),
   end: new Date(p.end),
   description: p.description ?? undefined,
+  width: programWidthFromDates(new Date(p.start), new Date(p.end)),
 });
 
 const Guide = () => {
@@ -78,8 +88,7 @@ const Guide = () => {
     () => channels()?.data?.map(c => c.id),
     async (ids): Promise<Record<string, Program[]>> => {
       if (!ids?.length) return {};
-      // The backend accepts a future-hours window, default 6 and max 12.
-      const raw = await api.getEpgPrograms(ids, 12);
+      const raw = await api.getEpgPrograms(ids, EPG_WINDOW_HOURS);
       const byChannel: Record<string, Program[]> = {};
       for (const [cid, programs] of Object.entries(raw)) {
         byChannel[cid] = programs.map(toProgram).sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -88,14 +97,18 @@ const Guide = () => {
     },
   );
 
-  const channelsWithPrograms = (): ChannelWithPrograms[] => {
+  const channelsWithPrograms = createMemo<ChannelWithPrograms[]>(() => {
     const data = channels()?.data || [];
     const epgMap = epg() || {};
-    return data.map(channel => ({
+    const rows = data.map((channel, index) => ({
       channel,
+      index,
       programs: epgMap[String(channel.id)] || [],
     }));
-  };
+    const withPrograms = rows.filter(row => row.programs.length > 0);
+    const emptyRows = rows.filter(row => row.programs.length === 0).slice(0, EMPTY_ROWS_AFTER);
+    return [...withPrograms, ...emptyRows].map(({ channel, programs }) => ({ channel, programs }));
+  });
 
   // Update current time every minute
   onMount(() => {
@@ -122,16 +135,17 @@ const Guide = () => {
     return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Calculate program width based on duration
-  const getProgramWidth = (program: Program) => {
-    const durationMinutes = (program.end.getTime() - program.start.getTime()) / (1000 * 60);
-    return (durationMinutes / 30) * TIME_SLOT_WIDTH;
-  };
-
   // Check if program is currently playing
   const isNowPlaying = (program: Program) => {
     const now = currentTime();
     return program.start <= now && program.end > now;
+  };
+
+  const getProgramProgressWidth = (program: Program) => {
+    const now = currentTime().getTime();
+    const total = Math.max(1, program.end.getTime() - program.start.getTime());
+    const elapsed = Math.min(total, Math.max(0, now - program.start.getTime()));
+    return Math.max(8, Math.floor(((program.width - 18) * elapsed) / total));
   };
 
   // Handle channel selection
@@ -142,31 +156,31 @@ const Guide = () => {
   return (
     <Column width={1700} height={1080} color={theme.background} scroll="none">
       {/* Header */}
-      <View width={1680} height={60} x={20} skipFocus>
+      <View width={1680} height={70} x={20} skipFocus>
         <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
           Guia de Programação
         </Text>
-        <Text x={1400} y={20} fontSize={24} color={theme.textSecondary}>
+        <Text x={1030} y={19} width={630} fontSize={24} color={theme.textSecondary} textAlign="right">
           {currentTime().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
         </Text>
       </View>
 
       {/* Time Header */}
-      <View x={20} width={1660} style={TimeHeaderStyle} skipFocus>
+      <View x={20} width={GUIDE_WIDTH} style={TimeHeaderStyle} skipFocus>
         {/* Channel column header */}
-        <View width={CHANNEL_COLUMN_WIDTH} height={50} color={theme.surfaceMuted}>
-          <Text x={10} y={12} fontSize={18} color={theme.textMuted}>
+        <View width={CHANNEL_COLUMN_WIDTH} height={50} color={theme.panel} borderRadius={8}>
+          <Text x={16} y={13} fontSize={18} color={theme.textMuted}>
             Canal
           </Text>
         </View>
 
         {/* Time slots */}
-        <View x={CHANNEL_COLUMN_WIDTH} width={1660 - CHANNEL_COLUMN_WIDTH} clipping>
+        <View x={CHANNEL_COLUMN_WIDTH} width={PROGRAM_AREA_WIDTH} clipping>
           <Row x={-timelineOffset()} width={timeSlots().length * TIME_SLOT_WIDTH} height={50} gap={0}>
             <For each={timeSlots()}>
               {slot => (
                 <View width={TIME_SLOT_WIDTH} height={50}>
-                  <Text x={10} y={12} fontSize={16} color={theme.textSecondary}>
+                  <Text x={16} y={13} fontSize={16} color={theme.textSecondary}>
                     {formatTime(slot)}
                   </Text>
                 </View>
@@ -177,7 +191,7 @@ const Guide = () => {
       </View>
 
       {/* EPG Grid */}
-      <Column ref={guideGrid} x={20} width={1660} height={920} gap={2} scroll="auto" autofocus>
+      <Column ref={guideGrid} x={20} width={GUIDE_WIDTH} height={910} gap={3} scroll="auto" autofocus>
         <Show when={channels.loading}>
           <View
             width={1640}
@@ -195,20 +209,20 @@ const Guide = () => {
 
         <For each={channelsWithPrograms()}>
           {({ channel, programs }) => (
-            <View width={1660} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
+            <View width={GUIDE_WIDTH} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
               {/* Channel info */}
-              <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.surfaceMuted}>
+              <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.panel}>
                 <Show when={channel.logo_url}>
                   <View
-                    x={10}
-                    y={10}
+                    x={12}
+                    y={13}
                     width={60}
                     height={40}
                     src={proxyImageUrl(channel.logo_url, 120)}
                     color={0xffffffff}
                   />
                 </Show>
-                <Text x={80} y={25} fontSize={14} color={0xffffffff} contain="width" width={110} maxLines={2}>
+                <Text x={84} y={24} fontSize={15} color={0xffffffff} contain="width" width={120} maxLines={2}>
                   {channel.name}
                 </Text>
               </View>
@@ -217,14 +231,17 @@ const Guide = () => {
               <Show when={programs.length === 0}>
                 <View
                   x={CHANNEL_COLUMN_WIDTH}
-                  width={1660 - CHANNEL_COLUMN_WIDTH}
+                  width={PROGRAM_AREA_WIDTH}
                   height={ROW_HEIGHT}
-                  color={theme.surfaceMuted}
+                  color={theme.surface}
+                  borderRadius={6}
+                  border={{ color: theme.borderSubtle, width: 1 }}
                   transition={{ color: { duration: 150 } }}
+                  $focus={{ color: theme.surfaceHover, border: { color: theme.primary, width: 2 } }}
                   onEnter={() => handleChannelSelect(channel)}
                 >
-                  <Text x={16} y={28} fontSize={14} color={theme.textMuted}>
-                    Sem programacao disponivel — OK para assistir ao vivo
+                  <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
+                    Sem programação disponível · OK para assistir ao vivo
                   </Text>
                 </View>
               </Show>
@@ -232,24 +249,28 @@ const Guide = () => {
               {/* Programs */}
               <Row
                 x={CHANNEL_COLUMN_WIDTH}
-                width={1660 - CHANNEL_COLUMN_WIDTH}
+                width={PROGRAM_AREA_WIDTH}
                 height={ROW_HEIGHT}
-                gap={2}
+                gap={4}
                 scroll="auto"
                 clipping
               >
                 <For each={programs}>
                   {program => (
                     <View
-                      width={getProgramWidth(program) - 4}
+                      width={program.width - 4}
                       height={ROW_HEIGHT - 4}
                       y={2}
                       color={isNowPlaying(program) ? theme.surfaceActive : theme.surface}
                       borderRadius={6}
-                      border={{ color: isNowPlaying(program) ? theme.primary : theme.borderSubtle, width: 1 }}
+                      border={{ color: isNowPlaying(program) ? 0x7a1f27ff : theme.borderSubtle, width: 1 }}
                       style={{
                         transition: { color: { duration: 150 }, scale: { duration: 150 } },
-                        $focus: { color: theme.primary, scale: 1.02 },
+                        $focus: {
+                          color: theme.surfaceHover,
+                          scale: 1.02,
+                          border: { color: theme.primary, width: 2 },
+                        },
                       }}
                       onEnter={() => handleChannelSelect(channel)}
                       forwardStates
@@ -264,6 +285,14 @@ const Guide = () => {
                           color={theme.primary}
                           borderRadius={2}
                         />
+                        <View
+                          x={9}
+                          y={ROW_HEIGHT - 10}
+                          width={getProgramProgressWidth(program)}
+                          height={3}
+                          color={theme.primary}
+                          borderRadius={3}
+                        />
                       </Show>
 
                       <Text
@@ -273,7 +302,7 @@ const Guide = () => {
                         fontWeight={700}
                         color={0xffffffff}
                         contain="width"
-                        width={getProgramWidth(program) - 20}
+                        width={program.width - 20}
                         maxLines={1}
                       >
                         {program.title}
