@@ -14,12 +14,14 @@ on:
         default: false
 
 # Secrets required (Settings -> Secrets and variables -> Actions):
-#   TIZEN_AUTHOR_P12        base64 -w0 < ~/SamsungCertificate/StreamixTV/author.p12
-#   TIZEN_DISTRIBUTOR_P12   base64 -w0 < ~/SamsungCertificate/StreamixTV/distributor.p12
-#   TIZEN_CERT_PASSWORD     senha dos dois p12 (mesma)
+#   TIZEN_AUTHOR_P12        base64 -w0 do author.p12 (já re-encrypted com pw 27-alpha)
+#   TIZEN_DISTRIBUTOR_P12   base64 -w0 do distributor.p12 (idem)
+#   TIZEN_CERT_PASSWORD     senha 27-char alpha lowercase
+# Tizen Studio 5.1 é usado de propósito: aceita plaintext no profiles.xml
+# (versões 5.6+ exigem gnome-keyring que não existe no runner).
 
 env:
-  TIZEN_STUDIO_VERSION: "5.6"
+  TIZEN_STUDIO_VERSION: "5.1"
   TIZEN_PROFILE: StreamixTV
   PACKAGE_ID: EI8qhrd7xh.streamix
   NODE_VERSION: "24"
@@ -68,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/tizen-studio
-          key: tizen-studio-${{ env.TIZEN_STUDIO_VERSION }}-tv-samsung-10
+          key: tizen-studio-${{ env.TIZEN_STUDIO_VERSION }}-minimal
 
       - name: Download Tizen Studio
         if: steps.cache-installer.outputs.cache-hit != 'true'
@@ -76,60 +78,29 @@ jobs:
           wget -nv -O ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin \
             http://download.tizen.org/sdk/Installer/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}/web-cli_Tizen_Studio_${{ env.TIZEN_STUDIO_VERSION }}_ubuntu-64.bin
 
-      - name: Install Tizen Studio + TV Samsung packages
+      - name: Install Tizen Studio
         if: steps.cache-studio.outputs.cache-hit != 'true'
         run: |
           chmod +x ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin
           ~/tizen-studio_${{ env.TIZEN_STUDIO_VERSION }}.bin --accept-license ~/tizen-studio
-          export PATH=$HOME/tizen-studio/tools/ide/bin:$HOME/tizen-studio/tools:$HOME/tizen-studio/package-manager:$PATH
-          # Instala packages necessários: cert-add-on + TV web AppDev
-          ~/tizen-studio/package-manager/package-manager-cli.bin install \
-            cert-add-on \
-            TV-Samsung-Public-Cert-Add-on \
-            WEB-CLI \
-            NativeIDE-CLI \
-            certificate-manager \
-            TV-samsung-Public_10.0_NativeAppDevelopment-CLI \
-            TV-samsung-Public_10.0_WebAppDevelopment-CLI || true
 
-      - name: Decode + re-keystore p12 with 27-char alpha password
+      - name: Decode certificates
         env:
           AUTHOR_B64: ${{ secrets.TIZEN_AUTHOR_P12 }}
           DIST_B64: ${{ secrets.TIZEN_DISTRIBUTOR_P12 }}
-          CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
         run: |
           set -e
           CERT_DIR="$HOME/SamsungCertificate/${{ env.TIZEN_PROFILE }}"
-          TMP=$(mktemp -d)
           mkdir -p "$CERT_DIR"
-
-          printf '%s' "$AUTHOR_B64" | base64 -d > "$TMP/author-old.p12"
-          printf '%s' "$DIST_B64"   | base64 -d > "$TMP/distributor-old.p12"
-          wc -c "$TMP"/*.p12
-
-          # 27 chars alpha — requisito escondido do Tizen CLI (sourcetoad action README)
-          NEW_PW="streamixtvcipipelinepassword"
-          echo "::add-mask::$NEW_PW"
-          echo "NEW_PW=$NEW_PW" >> "$GITHUB_ENV"
-
-          # Mantém cifra legacy (RC2-40-CBC) que Java do Tizen aceita
-          for kind in author distributor; do
-            openssl pkcs12 -in "$TMP/${kind}-old.p12" -legacy -nodes \
-              -passin "pass:$CERT_PW" -out "$TMP/${kind}.pem"
-            openssl pkcs12 -export -legacy -in "$TMP/${kind}.pem" \
-              -passout "pass:$NEW_PW" -out "$CERT_DIR/${kind}.p12"
-            openssl pkcs12 -in "$CERT_DIR/${kind}.p12" -legacy -passin "pass:$NEW_PW" \
-              -nokeys -noout && echo "$kind OK"
-          done
-
-          rm -rf "$TMP"
+          printf '%s' "$AUTHOR_B64" | base64 -d > "$CERT_DIR/author.p12"
+          printf '%s' "$DIST_B64"   | base64 -d > "$CERT_DIR/distributor.p12"
           ls -la "$CERT_DIR"
 
-      - name: Write profiles.xml directly (bypass gnome-keyring)
+      - name: Write profiles.xml with plaintext password
+        env:
+          CERT_PW: ${{ secrets.TIZEN_CERT_PASSWORD }}
         run: |
-          # GitHub Actions runner não tem gnome-keyring → `tizen security-profiles add`
-          # salva senha no vazio. Workaround: escrever XML com senha em plaintext,
-          # padrão usado pela sourcetoad/tizen-build-action.
+          set -e
           PROFILES_DIR="$HOME/tizen-studio-data/profile"
           mkdir -p "$PROFILES_DIR"
           CERT_DIR="$HOME/SamsungCertificate/${{ env.TIZEN_PROFILE }}"
@@ -138,8 +109,8 @@ jobs:
           <?xml version="1.0" encoding="UTF-8" standalone="no"?>
           <profiles active="${{ env.TIZEN_PROFILE }}" version="3.1">
             <profile name="${{ env.TIZEN_PROFILE }}">
-              <profileitem ca="" distributor="0" key="$CERT_DIR/author.p12" password="$NEW_PW" rootca=""/>
-              <profileitem ca="" distributor="1" key="$CERT_DIR/distributor.p12" password="$NEW_PW" rootca=""/>
+              <profileitem ca="" distributor="0" key="$CERT_DIR/author.p12" password="$CERT_PW" rootca=""/>
+              <profileitem ca="" distributor="1" key="$CERT_DIR/distributor.p12" password="$CERT_PW" rootca=""/>
               <profileitem ca="" distributor="2" key="" password="" rootca=""/>
             </profile>
           </profiles>
@@ -148,21 +119,12 @@ jobs:
           export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
           tizen cli-config "profiles.path=$PROFILES_DIR/profiles.xml"
           tizen cli-config "default.profiles.path=$PROFILES_DIR/profiles.xml"
-          echo "--- profiles.xml ---"
+          echo "--- masked profile dump ---"
           sed 's/password="[^"]*"/password="***"/g' "$PROFILES_DIR/profiles.xml"
-          echo "--- list ---"
-          tizen security-profiles list
 
       - name: Package WGT
         run: |
           export PATH=$HOME/tizen-studio/tools/ide/bin:$PATH
-          echo "--- dist/tizen ---"
-          ls -la dist/tizen/
-          echo "--- config.xml ---"
-          cat dist/tizen/config.xml 2>&1 | head -30 || echo "no config.xml"
-          echo "--- cli-config ---"
-          tizen cli-config -l
-          echo "--- package ---"
           cd dist/tizen
           tizen package -t wgt -s ${{ env.TIZEN_PROFILE }} -- . || {
             echo "::error::Package failed. Dumping cli.log..."
