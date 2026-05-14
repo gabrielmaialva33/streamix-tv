@@ -276,6 +276,41 @@
         }, 30000);
       })();
     </script>
+    <script>
+      // CapacitorHttp.enabled=true is needed so cross-origin API calls
+      // (streamix.mahina.cloud) bypass WebView CORS. But Capacitor patches
+      // both window.fetch *and* window.XMLHttpRequest, which breaks loading
+      // bundled assets at https://localhost/* (LightningJS uses XHR for SDF
+      // font atlases). Solution: keep fetch patched (so the API works), but
+      // restore the original XMLHttpRequest so local assets resolve via the
+      // Capacitor asset server. Cross-origin XHRs (image proxy etc.) are
+      // handled selectively by src/platform/nativeImageXhr.ts.
+      (function () {
+        var cap = window.Capacitor;
+        if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return;
+
+        // Rewire fetch: same-origin -> browser fetch, cross-origin -> patched.
+        var browserFetch = window.CapacitorWebFetch || window.fetch.bind(window);
+        var nativeFetch = window.fetch.bind(window);
+        var origin = location.origin;
+        window.fetch = function (input, init) {
+          var url = typeof input === "string" ? input : input && (input.url || "");
+          try {
+            if (new URL(url, origin).origin === origin) {
+              return browserFetch(input, init);
+            }
+          } catch (e) {}
+          return nativeFetch(input, init);
+        };
+
+        // Restore the un-patched XMLHttpRequest constructor.
+        var web = window.CapacitorWebXMLHttpRequest;
+        var orig = (web && web.fullObject) || null;
+        if (orig && window.XMLHttpRequest !== orig) {
+          window.XMLHttpRequest = orig;
+        }
+      })();
+    </script>
     <script src="src/index.tsx" type="module"></script>
   </body>
 </html>

@@ -9,10 +9,16 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: "https",
+    // Hosts the WebView is allowed to navigate to without being treated as
+    // external. Required when the api domain differs from the bundle origin.
+    allowNavigation: ["streamix.mahina.cloud", "*.mahina.cloud"],
   },
   plugins: {
     CapacitorHttp: {
-      enabled: false,
+      // Routes fetch() through native Android HTTP, bypassing the WebView's
+      // CORS rules. Without this, every call to streamix.mahina.cloud from
+      // https://localhost fails with "Failed to fetch".
+      enabled: true,
     },
     SystemBars: {
       hidden: true,
