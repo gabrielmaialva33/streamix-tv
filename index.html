@@ -227,20 +227,13 @@
       "
     ></div>
     <script>
-      // Overlay only activates with #debug in the hash or localStorage.streamix_debug=1
+      // Always-on error overlay: this is the only way to surface errors on
+      // an embedded TV without devtools. Captures uncaught errors, unhandled
+      // rejections, console.error, and a 30s splash watchdog.
       (function () {
-        var isDebug =
-          location.hash.indexOf("debug") !== -1 ||
-          (function () {
-            try {
-              return localStorage.getItem("streamix_debug") === "1";
-            } catch (e) {
-              return false;
-            }
-          })();
-        if (!isDebug) return;
         var box = document.getElementById("err-overlay");
         var lines = [];
+        var startedAt = Date.now();
 
         function show(msg) {
           lines.push(msg);
@@ -261,6 +254,26 @@
           show("[err] " + Array.prototype.join.call(arguments, " "));
           oldErr.apply(console, arguments);
         };
+
+        // Splash watchdog: if the app never signals "streamix:ready", surface
+        // a visible failure instead of leaving the user stuck on the spinner.
+        var readied = false;
+        window.addEventListener("streamix:ready", function () {
+          readied = true;
+        });
+        setTimeout(function () {
+          if (readied) return;
+          var elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+          show(
+            "[watchdog] App did not boot after " +
+              elapsed +
+              "s.\nLikely causes: network, CORS, API URL.\n" +
+              "API: " +
+              (window.__APP_ENV__ ? window.__APP_ENV__.VITE_API_URL : "unknown") +
+              "\nUA: " +
+              navigator.userAgent,
+          );
+        }, 30000);
       })();
     </script>
     <script src="src/index.tsx" type="module"></script>
