@@ -75,9 +75,28 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -e
+          mkdir -p ~/.streamix-android-release
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > ~/.streamix-android-release/streamix-release.jks
+          echo "ANDROID_KEYSTORE_PATH=$HOME/.streamix-android-release/streamix-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APK (signed)
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ env.ANDROID_KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          $ANDROID_SDK_ROOT/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/apksigner verify --print-certs "$APK" | head -6
 
       - name: Compute artifact name
         id: artifact
@@ -86,14 +105,14 @@ jobs:
           REF="${{ github.ref_name }}"
           NAME="Streamix-${REF//\//-}-${SHORT}"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-            "android/app/build/outputs/apk/debug/$NAME.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk \
+            "android/app/build/outputs/apk/release/$NAME.apk"
 
       - name: Upload .apk artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.name }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -101,6 +120,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/debug/${{ steps.artifact.outputs.name }}.apk
+          files: android/app/build/outputs/apk/release/${{ steps.artifact.outputs.name }}.apk
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
+
+      - name: Cleanup keystore
+        if: always()
+        run: rm -rf ~/.streamix-android-release

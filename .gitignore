@@ -8,6 +8,9 @@ environments/.env
 environments/.env.local
 environments/.env.production
 *.wgt
+*.apk
+*.jks
+*.keystore
 .claude
 .codex
 .idea

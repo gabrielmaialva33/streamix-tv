@@ -7,8 +7,8 @@ android {
         applicationId "tv.streamix.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.003"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,32 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing reads everything from environment variables so the
+    // keystore stays out of the repo. CI populates them from secrets; for
+    // local builds export them or use ~/.streamix-android-release/password.txt.
+    signingConfigs {
+        release {
+            def kPath = System.getenv("ANDROID_KEYSTORE_PATH") ?: "${System.getProperty('user.home')}/.streamix-android-release/streamix-release.jks"
+            def kPass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            def kAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "streamix"
+            def kKeyPass = System.getenv("ANDROID_KEY_PASSWORD") ?: kPass
+            if (kPass && file(kPath).exists()) {
+                storeFile file(kPath)
+                storePassword kPass
+                keyAlias kAlias
+                keyPassword kKeyPass
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Only attach the signing config when it's been resolved — otherwise
+            // ./gradlew assembleRelease still builds (unsigned) for inspection.
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
