@@ -21,16 +21,20 @@
       /* LightningJS canvas — renderer sets the backing-store size to the
          appWidth/appHeight resolution; we stretch its CSS box to the
          actual viewport while preserving aspect ratio so the same scene
-         fits 720p, 1080p, and 4K screens without changing coords. */
-      #app,
-      #app canvas {
+         fits 720p, 1080p, and 4K screens without changing coords.
+         The 4% inset on each side is the TV-overscan safe zone: most
+         consumer TVs trim 2-5% of each edge, and Amazon/Google explicitly
+         recommend keeping focusable content inside the inner 90%. */
+      #app {
         position: absolute;
         inset: 0;
-        width: 100vw;
-        height: 100vh;
+        padding: 4vh 4vw;
+        box-sizing: border-box;
       }
       #app canvas {
         display: block;
+        width: 100%;
+        height: 100%;
         object-fit: contain;
       }
 
@@ -285,6 +289,16 @@
           );
         }, 30000);
       })();
+    </script>
+    <script>
+      // Older WebView versions on Fire OS / Tizen don't ship the
+      // SpeechSynthesisErrorEvent constructor at all, so any `instanceof`
+      // check crashes with ReferenceError. @lightningtv/solid uses it in
+      // its announcer's catch block, which is enabled by default in
+      // AppShell. Provide a no-op shim before any bundle code runs.
+      if (typeof SpeechSynthesisErrorEvent === "undefined") {
+        window.SpeechSynthesisErrorEvent = function SpeechSynthesisErrorEvent() {};
+      }
     </script>
     <script>
       // CapacitorHttp.enabled=true is needed so cross-origin API calls
