@@ -13,29 +13,37 @@
       }
 
       body {
-        width: 1920px;
-        height: 1080px;
+        width: 100vw;
+        height: 100vh;
         background: #0a0a0f;
       }
 
       /* Splash screen — visible from the very first frame the TV can paint
          (index.html is served before the JS bundle is parsed). Fades out
-         through the `.app-ready` class added by bootstrap after render(). */
+         through the `.app-ready` class added by bootstrap after render().
+         Everything sized with clamp()/vw/vh so it adapts from 720p TVs all
+         the way up to 4K signage; only the LightningJS canvas downstream is
+         pinned to 1920×1080. */
       #splash {
         position: fixed;
         inset: 0;
         z-index: 9998;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: clamp(14px, 1.6vh, 28px);
         background:
-          linear-gradient(135deg, rgba(229, 9, 20, 0.12), transparent 38%),
-          linear-gradient(180deg, #0f1017 0%, #090a10 100%);
+          radial-gradient(120% 80% at 50% 30%, rgba(229, 9, 20, 0.18), transparent 55%),
+          radial-gradient(140% 90% at 50% 90%, rgba(229, 9, 20, 0.08), transparent 60%),
+          linear-gradient(180deg, #16080b 0%, #0a0a12 60%, #050507 100%);
         opacity: 1;
-        transition: opacity 420ms ease-out;
+        transition: opacity 480ms ease-out;
         pointer-events: none;
       }
 
+      /* Faint dot/grid texture for depth, fades out toward the bottom so
+         it doesn't compete with the loader at the foot of the screen. */
       #splash::before {
         content: "";
         position: absolute;
@@ -43,115 +51,124 @@
         background-image:
           linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-        background-size: 72px 72px;
-        -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
-        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
+        background-size: clamp(48px, 5vw, 96px) clamp(48px, 5vw, 96px);
+        -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+        mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      /* Cinematic vignette ring around the edges. */
+      #splash::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.7) 100%);
+        pointer-events: none;
       }
 
       body.app-ready #splash {
         opacity: 0;
       }
 
-      #splash .splash-shell {
-        position: relative;
-        width: 560px;
-        min-height: 300px;
-        padding: 42px;
-        border-radius: 8px;
-        background: rgba(17, 18, 25, 0.94);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow:
-          0 30px 90px rgba(0, 0, 0, 0.44),
-          inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        animation: splash-fade-in 520ms ease-out both;
-      }
-
-      #splash .brand-row {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-
-      #splash .logo-tile {
-        width: 96px;
-        height: 96px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        background: linear-gradient(180deg, rgba(229, 9, 20, 0.2), rgba(229, 9, 20, 0.08));
-        border: 1px solid rgba(229, 9, 20, 0.28);
-      }
-
+      /* Logo — the hero element. Pulses gently while the bundle loads. */
       #splash .logo {
-        width: 62px;
-        height: 62px;
-        filter: drop-shadow(0 12px 24px rgba(229, 9, 20, 0.38));
-      }
-
-      #splash .wordmark {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 46px;
-        line-height: 1;
-        letter-spacing: 0;
-        font-weight: 700;
-        color: #ffffff;
-      }
-
-      #splash .tagline {
-        margin-top: 10px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px;
-        letter-spacing: 0;
-        color: rgba(255, 255, 255, 0.58);
-      }
-
-      #splash .splash-divider {
-        height: 1px;
-        margin: 34px 0 28px;
-        background: linear-gradient(90deg, rgba(229, 9, 20, 0.62), rgba(255, 255, 255, 0.08), transparent);
-      }
-
-      #splash .splash-status {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px;
-        color: rgba(255, 255, 255, 0.72);
-      }
-
-      #splash .status-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: #e50914;
-        box-shadow: 0 0 18px rgba(229, 9, 20, 0.72);
-        animation: splash-dot 1.4s ease-in-out infinite;
-      }
-
-      #splash .splash-track {
         position: relative;
-        height: 6px;
-        margin-top: 22px;
+        width: clamp(160px, 22vw, 320px);
+        height: clamp(160px, 22vw, 320px);
+        filter: drop-shadow(0 clamp(8px, 1.5vh, 28px) clamp(20px, 4vw, 60px) rgba(229, 9, 20, 0.42));
+        animation:
+          splash-pop 720ms cubic-bezier(0.16, 1, 0.3, 1) both,
+          splash-pulse 3.2s ease-in-out 720ms infinite;
+        z-index: 1;
+      }
+
+      /* "STREAMIX" wordmark — bold and confident, second in hierarchy. */
+      #splash .wordmark {
+        position: relative;
+        font-family:
+          "NotoSans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-weight: 700;
+        font-size: clamp(40px, 7vw, 96px);
+        line-height: 1;
+        letter-spacing: clamp(2px, 0.4vw, 6px);
+        color: #ffffff;
+        text-transform: uppercase;
+        text-shadow: 0 clamp(4px, 0.8vh, 16px) clamp(16px, 2vw, 40px) rgba(229, 9, 20, 0.35);
+        animation: splash-rise 720ms cubic-bezier(0.16, 1, 0.3, 1) 180ms both;
+        z-index: 1;
+      }
+
+      /* Tagline — softer, supporting copy. */
+      #splash .tagline {
+        position: relative;
+        font-family:
+          "NotoSans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-weight: 400;
+        font-size: clamp(14px, 1.4vw, 22px);
+        letter-spacing: clamp(1px, 0.2vw, 4px);
+        color: rgba(255, 255, 255, 0.55);
+        text-transform: uppercase;
+        animation: splash-rise 720ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
+        z-index: 1;
+      }
+
+      /* Loader — minimal shimmer bar pinned near the bottom (safe-zone aware). */
+      #splash .splash-track {
+        position: absolute;
+        left: 50%;
+        bottom: clamp(60px, 11vh, 140px);
+        transform: translateX(-50%);
+        width: clamp(220px, 28vw, 480px);
+        height: clamp(2px, 0.3vh, 4px);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
         overflow: hidden;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
+        z-index: 1;
       }
 
       #splash .splash-bar {
         position: absolute;
         inset: 0 auto 0 0;
-        width: 46%;
-        border-radius: 8px;
-        background: linear-gradient(90deg, rgba(229, 9, 20, 0.32), #e50914, #ff4a53);
-        animation: splash-progress 1.65s ease-in-out infinite;
+        width: 40%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, #ff5560 30%, #ff8088 50%, #ff5560 70%, transparent);
+        animation: splash-shimmer 1.6s ease-in-out infinite;
       }
 
-      @keyframes splash-fade-in {
+      @keyframes splash-pop {
         from {
           opacity: 0;
-          transform: translateY(10px);
+          transform: scale(0.86);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes splash-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.025);
+        }
+      }
+
+      @keyframes splash-rise {
+        from {
+          opacity: 0;
+          transform: translateY(clamp(12px, 1.5vh, 24px));
         }
         to {
           opacity: 1;
@@ -159,23 +176,13 @@
         }
       }
 
-      @keyframes splash-dot {
-        0%,
-        100% {
-          opacity: 0.42;
-        }
-        50% {
-          opacity: 1;
-        }
-      }
-
-      @keyframes splash-progress {
+      @keyframes splash-shimmer {
         0% {
           transform: translateX(-120%);
         }
         55%,
         100% {
-          transform: translateX(240%);
+          transform: translateX(260%);
         }
       }
     </style>
@@ -184,24 +191,11 @@
   <body tabindex="0">
     <div id="app"></div>
     <div id="splash" aria-hidden="true">
-      <div class="splash-shell">
-        <div class="brand-row">
-          <div class="logo-tile">
-            <img class="logo" src="assets/streamix-logo.png" alt="" />
-          </div>
-          <div>
-            <div class="wordmark">Streamix</div>
-            <div class="tagline">Entretenimento pronto para sua TV</div>
-          </div>
-        </div>
-        <div class="splash-divider"></div>
-        <div class="splash-status">
-          <span class="status-dot"></span>
-          <span>Preparando sua sessão</span>
-        </div>
-        <div class="splash-track">
-          <div class="splash-bar"></div>
-        </div>
+      <img class="logo" src="assets/streamix-logo.png" alt="" />
+      <div class="wordmark">Streamix</div>
+      <div class="tagline">Entretenimento pronto para sua TV</div>
+      <div class="splash-track">
+        <div class="splash-bar"></div>
       </div>
     </div>
     <!-- Debug overlay visible on TV when devtools are not available.
