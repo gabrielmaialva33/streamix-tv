@@ -63,56 +63,114 @@ export function initHTML5Backend(deps: HTML5BackendDeps) {
   document.body.insertBefore(videoElement, document.body.firstChild);
 }
 
+/**
+ * The catalog API returns proxied stream URLs without file extensions, so
+ * we can't decide between native <video> and HLS.js by looking at the URL
+ * alone — we have to ask the server. A small HEAD request is enough:
+ *  - "video/mp2t" or "application/vnd.apple.mpegurl" → MPEG-TS / HLS, must
+ *    go through hls.js even in browsers that natively play HLS, since the
+ *    proxy never serves a manifest extension.
+ *  - "video/mp4" with x-streamix-fallback: <category> → backend returned a
+ *    pre-rendered placeholder MP4 because the upstream is unreachable.
+ *    Surface a category-specific message instead of a generic playback error.
+ *  - anything else → progressive playback via <video src=…>.
+ */
+type SourceProbe = {
+  contentType: string;
+  fallback: string | null;
+};
+
+async function probeSource(url: string): Promise<SourceProbe> {
+  try {
+    const response = await fetch(url, { method: "HEAD" });
+    return {
+      contentType: response.headers.get("content-type") ?? "",
+      fallback: response.headers.get("x-streamix-fallback"),
+    };
+  } catch (error) {
+    logger.warn("Stream HEAD probe failed; falling back to URL extension", error);
+    return { contentType: "", fallback: null };
+  }
+}
+
+// Categories defined server-side in
+// `streamix/lib/streamix/iptv/streaming/fallback_video.ex`.
+const FALLBACK_MESSAGES: Record<string, string> = {
+  channel_unavailable: "Canal indisponível no momento",
+  provider_unavailable: "Serviço de stream indisponível, tente novamente",
+  account_expired: "Sua assinatura expirou — atualize na página de perfil",
+  stream_blocked: "Conteúdo bloqueado na sua região",
+  rate_limited: "Muitas requisições — aguarde um momento e tente de novo",
+};
+
+function shouldUseHls(url: string, contentType: string) {
+  if (url.includes(".m3u8")) return true;
+  const ct = contentType.toLowerCase();
+  return ct.includes("mp2t") || ct.includes("mpegurl") || ct.includes("application/x-mpegurl");
+}
+
 export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
   if (!videoElement) {
     throw new Error("HTML5 backend is not initialized");
   }
 
   try {
-    if (url.includes(".m3u8")) {
-      if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-        logger.debug("Using native HLS playback");
-        videoElement.src = url;
-      } else {
-        const Hls = (await import("hls.js/light")).default;
-        if (!Hls.isSupported()) {
+    const probe = await probeSource(url);
+
+    if (probe.fallback) {
+      const message = FALLBACK_MESSAGES[probe.fallback] ?? "Stream indisponível no momento";
+      logger.warn("Backend returned fallback stream", { url, category: probe.fallback });
+      deps.updateState({ error: message, buffering: false });
+      deps.callbacks.onError?.(message);
+      return;
+    }
+
+    if (shouldUseHls(url, probe.contentType)) {
+      const Hls = (await import("hls.js/light")).default;
+      if (!Hls.isSupported()) {
+        // Last-ditch: try native HLS (Safari / iOS WebView).
+        if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+          logger.debug("Using native HLS playback");
+          videoElement.src = url;
+          await playVideo();
+        } else {
           deps.updateState({ error: "HLS is not supported", buffering: false });
           deps.callbacks.onError?.("HLS is not supported");
+        }
+        return;
+      }
+
+      const hls = new Hls({
+        enableWorker: false,
+        lowLatencyMode: false,
+        backBufferLength: -1,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        maxBufferSize: 60 * 1000 * 1000,
+        startLevel: -1,
+        autoStartLoad: true,
+        liveSyncDurationCount: 3,
+        fragLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+      });
+      hls.loadSource(url);
+      hls.attachMedia(videoElement);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        logger.debug("HLS manifest parsed");
+        void playVideo();
+      });
+      hls.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean; type?: string }) => {
+        logger.error("HLS playback error", data);
+        if (!data.fatal) {
           return;
         }
 
-        const hls = new Hls({
-          enableWorker: false,
-          lowLatencyMode: false,
-          backBufferLength: -1,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          maxBufferSize: 60 * 1000 * 1000,
-          startLevel: -1,
-          autoStartLoad: true,
-          liveSyncDurationCount: 3,
-          fragLoadingMaxRetry: 6,
-          manifestLoadingMaxRetry: 4,
-          levelLoadingMaxRetry: 4,
-        });
-        hls.loadSource(url);
-        hls.attachMedia(videoElement);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          logger.debug("HLS manifest parsed");
-          void playVideo();
-        });
-        hls.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean; type?: string }) => {
-          logger.error("HLS playback error", data);
-          if (!data.fatal) {
-            return;
-          }
-
-          const message = `HLS error: ${data.type ?? "unknown"}`;
-          deps.updateState({ error: message, buffering: false });
-          deps.callbacks.onError?.(message);
-        });
-        hlsInstance = hls;
-      }
+        const message = `HLS error: ${data.type ?? "unknown"}`;
+        deps.updateState({ error: message, buffering: false });
+        deps.callbacks.onError?.(message);
+      });
+      hlsInstance = hls;
     } else {
       videoElement.src = url;
     }
