@@ -23,23 +23,25 @@
       }
 
       /* LightningJS canvas — renderer sets the backing-store size to the
-         appWidth/appHeight resolution; we stretch its CSS box to the
-         actual viewport while preserving aspect ratio so the same scene
-         fits 720p, 1080p, and 4K screens without changing coords.
-         The 4% inset on each side is the TV-overscan safe zone: most
-         consumer TVs trim 2-5% of each edge, and Amazon/Google explicitly
-         recommend keeping focusable content inside the inner 90%. */
+         appWidth/appHeight resolution; we stretch the CSS box to fill the
+         full viewport so the same scene fits 720p, 1080p, and 4K without
+         changing coordinates. */
       #app {
         position: absolute;
         inset: 0;
-        padding: 4vh 4vw;
-        box-sizing: border-box;
       }
       #app canvas {
         display: block;
         width: 100%;
         height: 100%;
-        object-fit: contain;
+      }
+      /* TV-overscan safe zone — most consumer TVs trim 2-5% of each edge.
+         Only applied when the bootstrap detects a real Fire TV / Tizen /
+         webOS device (toggled via body.tv-overscan). Emulators and PC
+         browsers keep the full viewport. */
+      body.tv-overscan #app {
+        padding: 4vh 4vw;
+        box-sizing: border-box;
       }
 
       /* Splash screen — visible from the very first frame the TV can paint
@@ -244,6 +246,23 @@
         line-height: 1.4;
       "
     ></div>
+    <script>
+      // Toggle the TV-overscan safe-zone padding only on real TV hardware
+      // (Fire TV, Tizen, webOS). Emulators / browsers / signage with no
+      // overscan get the full viewport. Pattern matches Amazon's AFT* model
+      // codes and platform-specific UA strings.
+      (function () {
+        try {
+          var ua = navigator.userAgent || "";
+          var isFireTV = /AFT/.test(ua);
+          var isTizen = / Tizen /.test(ua);
+          var isWebOS = /Web0S|webOS/.test(ua);
+          if (isFireTV || isTizen || isWebOS) {
+            document.body.classList.add("tv-overscan");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script>
       // Always-on error overlay: this is the only way to surface errors on
       // an embedded TV without devtools. Captures uncaught errors, unhandled

@@ -25,7 +25,15 @@ const AppShell = (props: AppShellProps) => {
 
   const announcer = useAnnouncer();
   announcer.debug = false;
-  announcer.enabled = preferences.get().announcer;
+  // Older Fire OS / Tizen WebViews ship without the Speech Synthesis API
+  // entirely (SpeechSynthesisUtterance / speechSynthesis are undefined).
+  // Force the announcer off there to avoid cascading "X is not defined"
+  // rejections every time it tries to enqueue a phrase.
+  const speechAvailable =
+    typeof window !== "undefined" &&
+    typeof window.SpeechSynthesisUtterance !== "undefined" &&
+    typeof window.speechSynthesis !== "undefined";
+  announcer.enabled = speechAvailable && preferences.get().announcer;
 
   return (
     <View

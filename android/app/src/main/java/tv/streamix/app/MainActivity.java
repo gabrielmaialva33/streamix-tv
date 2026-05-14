@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -14,6 +16,31 @@ public class MainActivity extends BridgeActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         super.onCreate(savedInstanceState);
         enableTvFullscreen();
+        flushWebViewCache();
+        // Always-on Chrome DevTools attach (chrome://inspect over adb) so we
+        // can profile and reproduce TV-only bugs without rebuilding a debug APK.
+        // Trade-off: anyone with physical adb access can inspect WebView state.
+        // Acceptable for an IPTV client where session tokens rotate often.
+        WebView.setWebContentsDebuggingEnabled(true);
+    }
+
+    /**
+     * Capacitor reads www/ straight from the APK's packaged assets, so the
+     * WebView's HTTP disk cache adds zero performance benefit and actively
+     * causes "new APK shows old assets" bugs after side-load updates on Fire
+     * TV. Wipe any leftover cache and disable cache reads on every boot.
+     * See: https://www.vchalyi.com/blog/2026/capacitor-webview-cache-stale-assets/
+     */
+    private void flushWebViewCache() {
+        try {
+            WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.clearCache(true);
+                webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+            }
+        } catch (Throwable ignored) {
+            // Bridge not yet attached on some Capacitor versions; safe to ignore.
+        }
     }
 
     @Override
