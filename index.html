@@ -18,6 +18,22 @@
         background: #0a0a0f;
       }
 
+      /* LightningJS canvas — renderer sets the backing-store size to the
+         appWidth/appHeight resolution; we stretch its CSS box to the
+         actual viewport while preserving aspect ratio so the same scene
+         fits 720p, 1080p, and 4K screens without changing coords. */
+      #app,
+      #app canvas {
+        position: absolute;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+      #app canvas {
+        display: block;
+        object-fit: contain;
+      }
+
       /* Splash screen — visible from the very first frame the TV can paint
          (index.html is served before the JS bundle is parsed). Fades out
          through the `.app-ready` class added by bootstrap after render().

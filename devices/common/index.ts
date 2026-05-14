@@ -34,9 +34,11 @@ export const config = {
       fontEngines: [SdfTextRenderer, CanvasTextRenderer],
       renderEngine: WebGlCoreRenderer,
       inspector: import.meta.env.DEV ? Inspector : undefined,
-      // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2
-      deviceLogicalPixelRatio: 1,
-      devicePhysicalPixelRatio: 1,
+      // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2.
+      // Compute from the actual viewport so the same 1920×1080 lógico fits
+      // any TV without page refactor — same pattern as @lightningtv/solid-demo-app.
+      deviceLogicalPixelRatio: typeof window === "undefined" ? 1 : window.innerHeight / 1080,
+      devicePhysicalPixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
       // Keep offscreen preloading modest so low-end TVs do not decode too many textures ahead.
       boundsMargin: 240,
       // Transparent background for video playback (allows HTML5 video to show through)
