@@ -286,8 +286,19 @@
           var r = e && e.reason;
           show("[promise] " + ((r && (r.stack || r.message)) || r));
         });
+        // Suppress noisy logger scopes that already render their own friendly
+        // UI. The overlay should only surface unexpected errors — playback
+        // failures have a dedicated card in PlayerPage, so flooding the screen
+        // with raw stack traces just hides it.
+        var SUPPRESSED_SCOPES =
+          /^\[(PlayerPage|HTML5Player|HLSPlayer|TizenAVPlay|FireTVPlayer|PlayerManager)\]/;
         var oldErr = console.error;
         console.error = function () {
+          var first = arguments[0];
+          if (typeof first === "string" && SUPPRESSED_SCOPES.test(first)) {
+            oldErr.apply(console, arguments);
+            return;
+          }
           show("[err] " + Array.prototype.join.call(arguments, " "));
           oldErr.apply(console, arguments);
         };

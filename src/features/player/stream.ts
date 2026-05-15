@@ -1,5 +1,5 @@
 import api, { type Channel, type Episode, type Movie, type StreamUrl } from "../../lib/api";
-import { createLogger } from "../../shared/logging/logger";
+import { createLogger } from "@/shared/logging/logger";
 
 const logger = createLogger("PlayerStream");
 

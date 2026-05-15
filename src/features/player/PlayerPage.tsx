@@ -676,21 +676,79 @@ const PlayerPage = () => {
         <View
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
+          color={0x000000e6}
           display="flex"
-          flexDirection="column"
           justifyContent="center"
           alignItems="center"
-          gap={20}
+          zIndex={150}
         >
-          <Text fontSize={32} color={0xe50914ff}>
-            Erro de Reprodução
-          </Text>
-          <Text fontSize={24} color={0xd0d0dcff} textAlign="center" contain="width" width={1200} maxLines={2}>
-            {state().error ?? ""}
-          </Text>
-          <Text fontSize={20} color={0x9999aaff} y={40}>
-            OK tenta novamente · Voltar sai do player
-          </Text>
+          <View
+            width={760}
+            height={360}
+            color={0x16161fee}
+            border={{ color: 0x2a2b38ff, width: 1 }}
+            borderRadius={16}
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+            gap={18}
+            padding={48}
+          >
+            <Text fontSize={64} color={0xffd166ff}>
+              ⚠
+            </Text>
+            <Text
+              fontSize={30}
+              fontWeight={700}
+              color={0xffffffff}
+              textAlign="center"
+              width={640}
+              maxLines={1}
+            >
+              Não foi possível reproduzir
+            </Text>
+            <Text
+              fontSize={22}
+              color={0xc9c9d4ff}
+              textAlign="center"
+              contain="width"
+              width={640}
+              maxLines={3}
+              lineHeight={30}
+            >
+              {state().error ?? "Tente novamente em instantes."}
+            </Text>
+            <View display="flex" flexDirection="row" gap={16} y={20}>
+              <View
+                width={220}
+                height={56}
+                color={theme.primary}
+                borderRadius={28}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <Text fontSize={20} fontWeight={700} color={0xffffffff}>
+                  OK · Tentar de novo
+                </Text>
+              </View>
+              <View
+                width={180}
+                height={56}
+                color={0x1f2030ee}
+                border={{ color: 0x33344aff, width: 1 }}
+                borderRadius={28}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <Text fontSize={20} fontWeight={600} color={0xd5d5e0ff}>
+                  Voltar · Sair
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
       </Show>
 
