@@ -24,8 +24,30 @@ export function installCapacitorBackButton() {
 
   App.addListener("backButton", ({ canGoBack }) => {
     logger.debug("Capacitor backButton", { canGoBack, hash: location.hash });
-    // Pure back navigation: rewind the hash router stack one step. If we're
-    // already at the top (no history), close the app instead of doing nothing.
+
+    // Forward to Lightning's focusManager (which listens on `document` keydown)
+    // so each page's own onBack handler runs first — PlayerPage cleans up the
+    // backend before navigating, MainLayout opens the ExitDialog at the root,
+    // etc. Lightning's keymap binds Back to [27, 8, 166]; Escape (27) matches.
+    //
+    // If a focused node returns true from onBack, Lightning calls
+    // preventDefault on the event; in that case we don't fall through to
+    // history.back(). Otherwise we still pop the route so the user is never
+    // stuck.
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      code: "Escape",
+      keyCode: 27,
+      which: 27,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    if (event.defaultPrevented) {
+      return;
+    }
+
     if (window.history.length > 1) {
       window.history.back();
     } else {
