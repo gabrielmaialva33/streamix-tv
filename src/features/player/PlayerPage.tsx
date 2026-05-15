@@ -1,5 +1,4 @@
-import { Text, View } from "@lightningtv/solid";
-import { Row } from "@lightningtv/solid/primitives";
+import { type ElementNode, Text, View } from "@lightningtv/solid";
 import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
@@ -36,7 +35,8 @@ const PlayerPage = () => {
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
   const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
-  const [errorButton, setErrorButton] = createSignal<0 | 1>(0);
+  let retryButton: ElementNode | undefined;
+  let backButton: ElementNode | undefined;
 
   let controlsTimeout: number | null = null;
   let seekFeedbackTimeout: number | null = null;
@@ -734,19 +734,11 @@ const PlayerPage = () => {
               {state().error ?? "Tente novamente em instantes."}
             </Text>
 
-            {/* Buttons — uses Row primitive which auto-handles L/R navigation
-                between focusable children. Each Button has its own $focus
-                state. Pattern copied from solid-demo-app/ButtonsMaterial. */}
-            <Row
-              x={(1000 - 580) / 2}
-              y={392}
-              width={580}
-              height={80}
-              gap={20}
-              color={0x00000000}
-              scroll="none"
-            >
+            {/* Buttons — same focus pattern as components/Hero.tsx:
+                display:flex + gap, refs + setFocus() on onLeft/onRight. */}
+            <View x={(1000 - 580) / 2} y={392} display="flex" gap={20}>
               <View
+                ref={retryButton}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -760,6 +752,10 @@ const PlayerPage = () => {
                   retryPlayback();
                   return true;
                 }}
+                onRight={() => {
+                  backButton?.setFocus();
+                  return true;
+                }}
                 transition={{
                   color: { duration: 150, easing: "ease-out" },
                   scale: { duration: 150, easing: "ease-out" },
@@ -771,6 +767,7 @@ const PlayerPage = () => {
                 </Text>
               </View>
               <View
+                ref={backButton}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -783,6 +780,10 @@ const PlayerPage = () => {
                   handleClose();
                   return true;
                 }}
+                onLeft={() => {
+                  retryButton?.setFocus();
+                  return true;
+                }}
                 transition={{
                   color: { duration: 150, easing: "ease-out" },
                   scale: { duration: 150, easing: "ease-out" },
@@ -793,7 +794,7 @@ const PlayerPage = () => {
                   Voltar
                 </Text>
               </View>
-            </Row>
+            </View>
 
             <Text
               x={0}
