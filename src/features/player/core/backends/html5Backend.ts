@@ -118,12 +118,15 @@ async function probeSource(url: string): Promise<SourceProbe> {
 
 // Categories defined server-side in
 // `streamix/lib/streamix/iptv/streaming/fallback_video.ex`.
+// Backend uses "channel" in the category name even for movies/series — it's
+// the streaming-pipeline category, not the content type. The message stays
+// content-neutral so it makes sense in any of the three players.
 const FALLBACK_MESSAGES: Record<string, string> = {
-  channel_unavailable: "Canal indisponível no momento",
-  provider_unavailable: "Serviço de stream indisponível, tente novamente",
-  account_expired: "Sua assinatura expirou — atualize na página de perfil",
-  stream_blocked: "Conteúdo bloqueado na sua região",
-  rate_limited: "Muitas requisições — aguarde um momento e tente de novo",
+  channel_unavailable: "Conteúdo indisponível no momento. Tente novamente em alguns instantes.",
+  provider_unavailable: "Serviço de stream indisponível. Tente novamente em alguns instantes.",
+  account_expired: "Sua assinatura expirou. Atualize na página de perfil para continuar.",
+  stream_blocked: "Conteúdo bloqueado na sua região.",
+  rate_limited: "Muitas requisições agora. Aguarde um momento e tente de novo.",
 };
 
 function shouldUseHls(url: string, contentType: string) {

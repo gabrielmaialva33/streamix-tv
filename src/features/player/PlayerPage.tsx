@@ -673,81 +673,108 @@ const PlayerPage = () => {
       </Show>
 
       <Show when={state().error}>
-        <View
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
-          color={0x000000e6}
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          zIndex={150}
-        >
+        <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x05060bf2} zIndex={150}>
+          {/* Centered card */}
           <View
-            width={760}
-            height={360}
-            color={0x16161fee}
-            border={{ color: 0x2a2b38ff, width: 1 }}
-            borderRadius={16}
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            gap={18}
-            padding={48}
+            x={(SCREEN_WIDTH - 1000) / 2}
+            y={(SCREEN_HEIGHT - 560) / 2}
+            width={1000}
+            height={560}
+            color={0x141520f7}
+            border={{ color: 0x2c2d3cff, width: 2 }}
+            borderRadius={24}
           >
-            <Text fontSize={64} color={0xffd166ff}>
-              ⚠
-            </Text>
+            {/* Red badge with exclamation */}
+            <View
+              x={(1000 - 120) / 2}
+              y={56}
+              width={120}
+              height={120}
+              color={theme.primary}
+              borderRadius={60}
+            >
+              <Text
+                x={0}
+                y={4}
+                width={120}
+                height={120}
+                fontSize={84}
+                fontWeight={700}
+                color={0xffffffff}
+                textAlign="center"
+                lineHeight={120}
+              >
+                !
+              </Text>
+            </View>
+
+            {/* Title */}
             <Text
-              fontSize={30}
+              x={40}
+              y={208}
+              width={920}
+              fontSize={40}
               fontWeight={700}
               color={0xffffffff}
               textAlign="center"
-              width={640}
               maxLines={1}
             >
               Não foi possível reproduzir
             </Text>
+
+            {/* Message from backend / fallback */}
             <Text
-              fontSize={22}
-              color={0xc9c9d4ff}
+              x={140}
+              y={278}
+              width={720}
+              fontSize={24}
+              color={0xb8b8c8ff}
               textAlign="center"
               contain="width"
-              width={640}
               maxLines={3}
-              lineHeight={30}
+              lineHeight={34}
             >
               {state().error ?? "Tente novamente em instantes."}
             </Text>
-            <View display="flex" flexDirection="row" gap={16} y={20}>
-              <View
-                width={220}
-                height={56}
-                color={theme.primary}
-                borderRadius={28}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <Text fontSize={20} fontWeight={700} color={0xffffffff}>
+
+            {/* Buttons row */}
+            <View x={(1000 - 560) / 2} y={400} width={560} height={68}>
+              <View x={0} y={0} width={280} height={68} color={theme.primary} borderRadius={34}>
+                <Text
+                  x={0}
+                  y={0}
+                  width={280}
+                  height={68}
+                  fontSize={22}
+                  fontWeight={700}
+                  color={0xffffffff}
+                  textAlign="center"
+                  lineHeight={68}
+                >
                   OK · Tentar de novo
                 </Text>
               </View>
-              <View
-                width={180}
-                height={56}
-                color={0x1f2030ee}
-                border={{ color: 0x33344aff, width: 1 }}
-                borderRadius={28}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <Text fontSize={20} fontWeight={600} color={0xd5d5e0ff}>
-                  Voltar · Sair
+              <View x={300} y={0} width={260} height={68} color={0x2c2e3eff} borderRadius={34}>
+                <Text
+                  x={0}
+                  y={0}
+                  width={260}
+                  height={68}
+                  fontSize={22}
+                  fontWeight={600}
+                  color={0xe6e7f0ff}
+                  textAlign="center"
+                  lineHeight={68}
+                >
+                  Voltar
                 </Text>
               </View>
             </View>
+
+            {/* Hint */}
+            <Text x={40} y={500} width={920} fontSize={16} color={0x6f7088ff} textAlign="center" maxLines={1}>
+              Use OK no controle para tentar novamente · Voltar para sair
+            </Text>
           </View>
         </View>
       </Show>
