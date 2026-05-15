@@ -10,6 +10,11 @@ interface HTML5BackendDeps {
 
 let videoElement: HTMLVideoElement | null = null;
 let hlsInstance: { destroy(): void } | null = null;
+// Squelch duplicate error events from the same playback session — the
+// HTMLMediaElement can fire `error` several times in a row for the same
+// MediaError (transient buffer underruns, decoder hiccups), and each one
+// was previously rebroadcast to the debug overlay and the React-style state.
+let lastErrorAt = 0;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -30,13 +35,31 @@ function bindEvents(video: HTMLVideoElement, deps: HTML5BackendDeps) {
   video.addEventListener("loadedmetadata", () => deps.updateState({ duration: video.duration || 0 }));
   video.addEventListener("timeupdate", () => deps.updateState({ currentTime: video.currentTime }));
   video.addEventListener("ended", () => deps.callbacks.onComplete?.());
-  video.addEventListener("error", error => {
-    const message = "Playback error";
-    logger.error("Video element raised an error", error);
+  video.addEventListener("error", () => {
+    const now = Date.now();
+    // Drop bursts of error events fired within 2s of each other —
+    // HTMLMediaElement can flood errors during transient network or codec
+    // hiccups and there's nothing useful to surface beyond the first one.
+    if (now - lastErrorAt < 2000) return;
+    lastErrorAt = now;
+
+    const mediaError = video.error;
+    const codeName = mediaError ? MEDIA_ERROR_NAMES[mediaError.code] : "UNKNOWN";
+    const message = mediaError?.message
+      ? `Playback error: ${codeName}${mediaError.message ? ` (${mediaError.message})` : ""}`
+      : "Playback error";
+    logger.error("Video element raised an error", { code: mediaError?.code, codeName, message });
     deps.updateState({ error: message, buffering: false });
     deps.callbacks.onError?.(message);
   });
 }
+
+const MEDIA_ERROR_NAMES: Record<number, string> = {
+  1: "MEDIA_ERR_ABORTED",
+  2: "MEDIA_ERR_NETWORK",
+  3: "MEDIA_ERR_DECODE",
+  4: "MEDIA_ERR_SRC_NOT_SUPPORTED",
+};
 
 export function initHTML5Backend(deps: HTML5BackendDeps) {
   if (videoElement || typeof document === "undefined") {
@@ -113,6 +136,9 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
   if (!videoElement) {
     throw new Error("HTML5 backend is not initialized");
   }
+
+  // Fresh playback session: allow the next error event through the throttle.
+  lastErrorAt = 0;
 
   try {
     const probe = await probeSource(url);
