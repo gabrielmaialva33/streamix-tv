@@ -24,6 +24,8 @@ export function installCapacitorBackButton() {
 
   App.addListener("backButton", () => {
     logger.debug("Capacitor backButton intercepted");
+    // LightningTV's focus manager binds keydown on `document`, not `window`.
+    // Dispatch there so the event reaches the active node's onBack handler.
     const event = new KeyboardEvent("keydown", {
       key: "Escape",
       code: "Escape",
@@ -32,7 +34,7 @@ export function installCapacitorBackButton() {
       bubbles: true,
       cancelable: true,
     });
-    window.dispatchEvent(event);
+    document.dispatchEvent(event);
   }).catch(error => {
     logger.warn("Failed to install Capacitor backButton listener", error);
   });
