@@ -686,7 +686,6 @@ const PlayerPage = () => {
             height={560}
             color={0x141520ff}
             borderRadius={24}
-            autofocus
             onBack={handleClose}
             onLast={handleClose}
           >
