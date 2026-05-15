@@ -680,11 +680,10 @@ const PlayerPage = () => {
             y={(SCREEN_HEIGHT - 560) / 2}
             width={1000}
             height={560}
-            color={0x141520f7}
-            border={{ color: 0x2c2d3cff, width: 2 }}
+            color={0x141520ff}
             borderRadius={24}
           >
-            {/* Red badge with exclamation */}
+            {/* Red badge */}
             <View
               x={(1000 - 120) / 2}
               y={56}
@@ -692,37 +691,29 @@ const PlayerPage = () => {
               height={120}
               color={theme.primary}
               borderRadius={60}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
             >
-              <Text
-                x={0}
-                y={4}
-                width={120}
-                height={120}
-                fontSize={84}
-                fontWeight={700}
-                color={0xffffffff}
-                textAlign="center"
-                lineHeight={120}
-              >
+              <Text fontSize={80} fontWeight={700} color={0xffffffff}>
                 !
               </Text>
             </View>
 
-            {/* Title */}
             <Text
-              x={40}
+              x={0}
               y={208}
-              width={920}
+              width={1000}
               fontSize={40}
               fontWeight={700}
               color={0xffffffff}
               textAlign="center"
+              contain="width"
               maxLines={1}
             >
               Não foi possível reproduzir
             </Text>
 
-            {/* Message from backend / fallback */}
             <Text
               x={140}
               y={278}
@@ -737,42 +728,54 @@ const PlayerPage = () => {
               {state().error ?? "Tente novamente em instantes."}
             </Text>
 
-            {/* Buttons row */}
-            <View x={(1000 - 560) / 2} y={400} width={560} height={68}>
-              <View x={0} y={0} width={280} height={68} color={theme.primary} borderRadius={34}>
-                <Text
-                  x={0}
-                  y={0}
-                  width={280}
-                  height={68}
-                  fontSize={22}
-                  fontWeight={700}
-                  color={0xffffffff}
-                  textAlign="center"
-                  lineHeight={68}
-                >
+            {/* Buttons row — copy of ExitDialog pattern (works reliably) */}
+            <View
+              x={(1000 - 560) / 2}
+              y={400}
+              width={560}
+              height={64}
+              display="flex"
+              flexDirection="row"
+              gap={20}
+            >
+              <View
+                width={280}
+                height={64}
+                borderRadius={32}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                color={theme.primary}
+              >
+                <Text fontSize={22} fontWeight={700} color={0xffffffff}>
                   OK · Tentar de novo
                 </Text>
               </View>
-              <View x={300} y={0} width={260} height={68} color={0x2c2e3eff} borderRadius={34}>
-                <Text
-                  x={0}
-                  y={0}
-                  width={260}
-                  height={68}
-                  fontSize={22}
-                  fontWeight={600}
-                  color={0xe6e7f0ff}
-                  textAlign="center"
-                  lineHeight={68}
-                >
+              <View
+                width={260}
+                height={64}
+                borderRadius={32}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                color={0x333344ff}
+              >
+                <Text fontSize={22} fontWeight={700} color={0xffffffff}>
                   Voltar
                 </Text>
               </View>
             </View>
 
-            {/* Hint */}
-            <Text x={40} y={500} width={920} fontSize={16} color={0x6f7088ff} textAlign="center" maxLines={1}>
+            <Text
+              x={0}
+              y={500}
+              width={1000}
+              fontSize={16}
+              color={0x6f7088ff}
+              textAlign="center"
+              contain="width"
+              maxLines={1}
+            >
               Use OK no controle para tentar novamente · Voltar para sair
             </Text>
           </View>
