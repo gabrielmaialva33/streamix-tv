@@ -22,19 +22,15 @@ export function installCapacitorBackButton() {
   if (!Capacitor.isNativePlatform()) return;
   installed = true;
 
-  App.addListener("backButton", () => {
-    logger.debug("Capacitor backButton intercepted");
-    // LightningTV's focus manager binds keydown on `document`, not `window`.
-    // Dispatch there so the event reaches the active node's onBack handler.
-    const event = new KeyboardEvent("keydown", {
-      key: "Escape",
-      code: "Escape",
-      keyCode: 27,
-      which: 27,
-      bubbles: true,
-      cancelable: true,
-    });
-    document.dispatchEvent(event);
+  App.addListener("backButton", ({ canGoBack }) => {
+    logger.debug("Capacitor backButton", { canGoBack, hash: location.hash });
+    // Pure back navigation: rewind the hash router stack one step. If we're
+    // already at the top (no history), close the app instead of doing nothing.
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      void App.exitApp();
+    }
   }).catch(error => {
     logger.warn("Failed to install Capacitor backButton listener", error);
   });
