@@ -1,10 +1,11 @@
 import { Text, View } from "@lightningtv/solid";
+import { Row } from "@lightningtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { history } from "../../lib/storage";
-import { theme } from "../../styles";
-import { createLogger } from "../../shared/logging/logger";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../shared/layout";
+import { history } from "@/lib/storage";
+import { theme } from "@/styles";
+import { createLogger } from "@/shared/logging/logger";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import api, { ApiError, type PlaybackTelemetryEvent } from "@/lib/api";
 import { authState } from "@/features/auth/auth";
 import PlayerManager, { type PlayerState } from "./core/playerManager";
@@ -733,12 +734,19 @@ const PlayerPage = () => {
               {state().error ?? "Tente novamente em instantes."}
             </Text>
 
-            {/* Buttons row — absolute positioning so $focus scale doesn't
-                push siblings out of a flex layout. */}
-            <View x={(1000 - 580) / 2} y={392} width={580} height={80}>
+            {/* Buttons — uses Row primitive which auto-handles L/R navigation
+                between focusable children. Each Button has its own $focus
+                state. Pattern copied from solid-demo-app/ButtonsMaterial. */}
+            <Row
+              x={(1000 - 580) / 2}
+              y={392}
+              width={580}
+              height={80}
+              gap={20}
+              color={0x00000000}
+              scroll="none"
+            >
               <View
-                x={0}
-                y={8}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -747,20 +755,14 @@ const PlayerPage = () => {
                 alignItems="center"
                 color={0x333344ff}
                 forwardStates
-                autofocus={errorButton() === 0}
-                onFocus={() => setErrorButton(0)}
-                onRight={() => {
-                  setErrorButton(1);
-                  return true;
-                }}
+                autofocus
                 onEnter={() => {
                   retryPlayback();
                   return true;
                 }}
-                scale={1}
                 transition={{
-                  scale: { duration: 150, easing: "ease-out" },
                   color: { duration: 150, easing: "ease-out" },
+                  scale: { duration: 150, easing: "ease-out" },
                 }}
                 $focus={{ color: theme.primary, scale: 1.06 }}
               >
@@ -769,8 +771,6 @@ const PlayerPage = () => {
                 </Text>
               </View>
               <View
-                x={300}
-                y={8}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -779,20 +779,13 @@ const PlayerPage = () => {
                 alignItems="center"
                 color={0x333344ff}
                 forwardStates
-                autofocus={errorButton() === 1}
-                onFocus={() => setErrorButton(1)}
-                onLeft={() => {
-                  setErrorButton(0);
-                  return true;
-                }}
                 onEnter={() => {
                   handleClose();
                   return true;
                 }}
-                scale={1}
                 transition={{
-                  scale: { duration: 150, easing: "ease-out" },
                   color: { duration: 150, easing: "ease-out" },
+                  scale: { duration: 150, easing: "ease-out" },
                 }}
                 $focus={{ color: theme.primary, scale: 1.06 }}
               >
@@ -800,7 +793,7 @@ const PlayerPage = () => {
                   Voltar
                 </Text>
               </View>
-            </View>
+            </Row>
 
             <Text
               x={0}
