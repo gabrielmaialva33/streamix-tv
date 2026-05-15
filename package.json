@@ -1,6 +1,6 @@
 {
   "name": "streamix-tv",
-  "version": "1.0.009",
+  "version": "1.0.010",
   "description": "Streamix IPTV App for Samsung Smart TV - LightningJS + SolidJS",
   "main": "index.js",
   "type": "module",
@@ -48,6 +48,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
     "@lightningjs/renderer": "^3.0.1",
     "@lightningtv/solid": "^3.1.18",
     "@solid-primitives/i18n": "^2.2.1",

@@ -7,6 +7,7 @@ import AppRoutes from "./routes";
 import { createLogger } from "@/shared/logging/logger";
 import { focusRuntimeWindow, isTizenRuntime } from "@/platform/runtime";
 import { installNativeImageXhrBridge } from "@/platform/nativeImageXhr";
+import { installCapacitorBackButton } from "@/platform/capacitorBackButton";
 
 const logger = createLogger("AppBootstrap");
 
@@ -19,6 +20,7 @@ export async function bootstrapApp() {
   try {
     await config.initialize();
     installNativeImageXhrBridge();
+    installCapacitorBackButton();
     logger.debug("Device initialized", { tizen: isTizenRuntime() });
     if (isTizenRuntime()) {
       focusRuntimeWindow();

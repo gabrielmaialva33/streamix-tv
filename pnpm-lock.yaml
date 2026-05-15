@@ -7,6 +7,9 @@ settings:
 importers:
   .:
     dependencies:
+      "@capacitor/app":
+        specifier: ^8.1.0
+        version: 8.1.0(@capacitor/core@8.3.1)
       "@lightningjs/renderer":
         specifier: ^3.0.1
         version: 3.0.1
@@ -973,6 +976,14 @@ packages:
       }
     peerDependencies:
       "@capacitor/core": ^8.3.0
+
+  "@capacitor/app@8.1.0":
+    resolution:
+      {
+        integrity: sha512-MlmttTOWHDedr/G4SrhNRxsXMqY+R75S4MM4eIgzsgCzOYhb/MpCkA5Q3nuOCfL1oHm26xjUzqZ5aupbOwdfYg==,
+      }
+    peerDependencies:
+      "@capacitor/core": ">=8.0.0"
 
   "@capacitor/cli@8.3.1":
     resolution:
@@ -6817,6 +6828,10 @@ snapshots:
       css-tree: 3.2.1
 
   "@capacitor/android@8.3.1(@capacitor/core@8.3.1)":
+    dependencies:
+      "@capacitor/core": 8.3.1
+
+  "@capacitor/app@8.1.0(@capacitor/core@8.3.1)":
     dependencies:
       "@capacitor/core": 8.3.1
 
