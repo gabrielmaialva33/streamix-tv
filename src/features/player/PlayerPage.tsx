@@ -209,7 +209,11 @@ const PlayerPage = () => {
     void PlayerManager.destroy();
   }
 
-  function handleClose() {
+  function handleClose(event?: KeyboardEvent) {
+    // Mark the synthetic Back keydown as consumed so the Capacitor
+    // backButton listener doesn't fall through to its own history.back()
+    // and double-pop the route.
+    event?.preventDefault();
     cleanupPlayer();
     if (window.history.length > 1) {
       navigate(-1);
