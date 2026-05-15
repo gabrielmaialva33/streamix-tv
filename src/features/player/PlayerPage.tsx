@@ -35,6 +35,7 @@ const PlayerPage = () => {
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
   const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
+  const [errorButton, setErrorButton] = createSignal<0 | 1>(0);
 
   let controlsTimeout: number | null = null;
   let seekFeedbackTimeout: number | null = null;
@@ -678,7 +679,6 @@ const PlayerPage = () => {
 
       <Show when={state().error}>
         <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x05060bf2} zIndex={150}>
-          {/* Centered card */}
           <View
             x={(SCREEN_WIDTH - 1000) / 2}
             y={(SCREEN_HEIGHT - 560) / 2}
@@ -686,8 +686,18 @@ const PlayerPage = () => {
             height={560}
             color={0x141520ff}
             borderRadius={24}
+            autofocus
+            onBack={handleClose}
+            onLast={handleClose}
+            onLeft={() => {
+              setErrorButton(0);
+              return true;
+            }}
+            onRight={() => {
+              setErrorButton(1);
+              return true;
+            }}
           >
-            {/* Red badge */}
             <View
               x={(1000 - 120) / 2}
               y={56}
@@ -732,12 +742,11 @@ const PlayerPage = () => {
               {state().error ?? "Tente novamente em instantes."}
             </Text>
 
-            {/* Buttons row — copy of ExitDialog pattern (works reliably) */}
             <View
-              x={(1000 - 560) / 2}
-              y={400}
-              width={560}
-              height={64}
+              x={(1000 - 580) / 2}
+              y={392}
+              width={580}
+              height={80}
               display="flex"
               flexDirection="row"
               gap={20}
@@ -749,20 +758,46 @@ const PlayerPage = () => {
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                color={theme.primary}
+                color={0x333344ff}
+                forwardStates
+                autofocus={errorButton() === 0}
+                onFocus={() => setErrorButton(0)}
+                onEnter={() => {
+                  retryPlayback();
+                  return true;
+                }}
+                scale={1}
+                transition={{
+                  scale: { duration: 150, easing: "ease-out" },
+                  color: { duration: 150, easing: "ease-out" },
+                }}
+                $focus={{ color: theme.primary, scale: 1.06 }}
               >
                 <Text fontSize={22} fontWeight={700} color={0xffffffff}>
-                  OK · Tentar de novo
+                  Tentar de novo
                 </Text>
               </View>
               <View
-                width={260}
+                width={280}
                 height={64}
                 borderRadius={32}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
                 color={0x333344ff}
+                forwardStates
+                autofocus={errorButton() === 1}
+                onFocus={() => setErrorButton(1)}
+                onEnter={() => {
+                  handleClose();
+                  return true;
+                }}
+                scale={1}
+                transition={{
+                  scale: { duration: 150, easing: "ease-out" },
+                  color: { duration: 150, easing: "ease-out" },
+                }}
+                $focus={{ color: theme.primary, scale: 1.06 }}
               >
                 <Text fontSize={22} fontWeight={700} color={0xffffffff}>
                   Voltar
@@ -772,7 +807,7 @@ const PlayerPage = () => {
 
             <Text
               x={0}
-              y={500}
+              y={502}
               width={1000}
               fontSize={16}
               color={0x6f7088ff}
@@ -780,7 +815,7 @@ const PlayerPage = () => {
               contain="width"
               maxLines={1}
             >
-              Use OK no controle para tentar novamente · Voltar para sair
+              Esquerda/direita para escolher · OK confirma · Voltar sai
             </Text>
           </View>
         </View>
