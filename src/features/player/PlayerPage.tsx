@@ -689,14 +689,6 @@ const PlayerPage = () => {
             autofocus
             onBack={handleClose}
             onLast={handleClose}
-            onLeft={() => {
-              setErrorButton(0);
-              return true;
-            }}
-            onRight={() => {
-              setErrorButton(1);
-              return true;
-            }}
           >
             <View
               x={(1000 - 120) / 2}
@@ -742,16 +734,12 @@ const PlayerPage = () => {
               {state().error ?? "Tente novamente em instantes."}
             </Text>
 
-            <View
-              x={(1000 - 580) / 2}
-              y={392}
-              width={580}
-              height={80}
-              display="flex"
-              flexDirection="row"
-              gap={20}
-            >
+            {/* Buttons row — absolute positioning so $focus scale doesn't
+                push siblings out of a flex layout. */}
+            <View x={(1000 - 580) / 2} y={392} width={580} height={80}>
               <View
+                x={0}
+                y={8}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -762,6 +750,10 @@ const PlayerPage = () => {
                 forwardStates
                 autofocus={errorButton() === 0}
                 onFocus={() => setErrorButton(0)}
+                onRight={() => {
+                  setErrorButton(1);
+                  return true;
+                }}
                 onEnter={() => {
                   retryPlayback();
                   return true;
@@ -778,6 +770,8 @@ const PlayerPage = () => {
                 </Text>
               </View>
               <View
+                x={300}
+                y={8}
                 width={280}
                 height={64}
                 borderRadius={32}
@@ -788,6 +782,10 @@ const PlayerPage = () => {
                 forwardStates
                 autofocus={errorButton() === 1}
                 onFocus={() => setErrorButton(1)}
+                onLeft={() => {
+                  setErrorButton(0);
+                  return true;
+                }}
                 onEnter={() => {
                   handleClose();
                   return true;
