@@ -2,11 +2,13 @@
 
 ## Project Structure & Module Organization
 
-`src/` contains the app code: `pages/` for routed screens, `components/` for reusable UI, `managers/` for runtime
-controllers such as `PlayerManager.ts`, `lib/` for API/storage helpers, and `device/` for in-app device config. Platform
-build wiring lives in `devices/`, environment files in `environments/`, static assets in `public/` (`assets/lang`,
-`fonts`), Storybook config in `.storybook/`, and helper scripts in `scripts/`. Build output goes to `dist/` and should
-never be edited manually.
+`src/` contains the app code: `app/` for the shell (bootstrap, renderer, routes, layout), `pages/` for routed screens
+(`pages/shared/` holds page templates like `CatalogGridPage`), `features/` for vertical slices (`auth/`, `player/` with
+its backend-agnostic core), `components/` for reusable UI, `lib/` for API/storage/presentation helpers, `shared/` for
+layout constants, logging and navigation utilities, `platform/` for Tizen/Capacitor integration, and `debug/` for the
+on-TV overlay state. Platform build wiring lives in `devices/`, environment files in `environments/`, static assets in
+`public/` (`assets/lang`, `fonts`), Storybook config in `.storybook/`, and helper scripts in `scripts/`. Build output
+goes to `dist/` and should never be edited manually.
 
 ## Build, Test, and Development Commands
 
@@ -24,18 +26,18 @@ Use `pnpm`; the repo pins it in `package.json`.
 ## Coding Style & Naming Conventions
 
 Use TypeScript and SolidJS with 2-space indentation, double quotes, semicolons, and trailing commas in multiline
-structures. Keep page, component, and manager files in PascalCase (`Home.tsx`, `FavoriteButton.tsx`,
-`PlayerManager.ts`). Use camelCase for utility and config files (`api.ts`, `storage.ts`, `config.ts`). Prefer the
-configured aliases: `@/` for `src` and `#devices` for platform-specific code. `tsconfig.json` is `strict`; avoid adding
-new `any` usage even where ESLint currently permits it.
+structures. Keep page and component files in PascalCase (`Home.tsx`, `FavoriteButton.tsx`). Use camelCase for utility
+and config files (`api.ts`, `storage.ts`, `contentMeta.ts`). Import style: use the `@/` alias for anything outside the
+current directory; plain relative imports (`./auth`, `../playerState`) only within the same feature/folder. `#devices`
+maps to platform-specific code. `tsconfig.json` is `strict`; avoid adding new `any` usage even where ESLint currently
+permits it.
 
 ## Testing Guidelines
 
-Vitest is the test runner, with browser-mode settings currently defined in `vite.config.js`. Place tests beside the code
-they cover using `*.test.{js,jsx,ts,tsx}`; the existing example is `src/components/Button/Button.test.jsx`. Add focused
-tests for UI behavior, storage helpers, and player/device logic. Current repo note: `pnpm test` is broken on Vitest 4
-until `browser.provider` is migrated from a string to the required factory import, so fix that before treating the suite
-as a gate.
+Vitest is the test runner (`vitest.config.ts`, jsdom environment). Place tests beside the code they cover using
+`*.test.{js,jsx,ts,tsx}`. There are currently no test suites — `passWithNoTests` keeps `pnpm test` green — so new
+tests for storage helpers, `lib/contentMeta`, and player/device logic are welcome and should become the gate once they
+exist.
 
 ## Commit & Pull Request Guidelines
 
