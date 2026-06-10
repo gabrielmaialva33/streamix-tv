@@ -1,12 +1,10 @@
 import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { authState, persistFavoriteChange } from "@/features/auth/auth";
 import { type FavoriteItem, favorites } from "@/lib/storage";
 import { theme } from "@/styles";
 
 const ButtonStyle = {
-  width: 220,
-  height: 58,
   borderRadius: 18,
   color: theme.surfaceLight,
   border: { color: theme.border, width: 2 },
@@ -28,9 +26,14 @@ const ButtonStyle = {
 export interface FavoriteButtonProps extends NodeProps {
   item: Omit<FavoriteItem, "addedAt">;
   onToggle?: (isFavorite: boolean) => void;
+  /** Match the sibling buttons in the action row. */
+  width?: number;
+  height?: number;
 }
 
 const FavoriteButton = (props: FavoriteButtonProps) => {
+  const width = () => props.width ?? 220;
+  const height = () => props.height ?? 58;
   const [isFavorite, setIsFavorite] = createSignal(favorites.isFavorite(props.item.id, props.item.type));
   const [feedbackTone, setFeedbackTone] = createSignal<"neutral" | "warning" | "success">("neutral");
   let feedbackTimeout: number | null = null;
@@ -38,6 +41,12 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
   // Update when item changes
   createEffect(() => {
     setIsFavorite(favorites.isFavorite(props.item.id, props.item.type));
+  });
+
+  onCleanup(() => {
+    if (feedbackTimeout) {
+      clearTimeout(feedbackTimeout);
+    }
   });
 
   // Flash the button border/colors for a moment to acknowledge the action.
@@ -84,8 +93,8 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
   return (
     <View
       {...props}
-      width={220}
-      height={58}
+      width={width()}
+      height={height()}
       style={ButtonStyle}
       color={
         feedbackTone() === "success"
@@ -107,7 +116,7 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
       forwardStates
     >
       <Text
-        width={188}
+        width={width() - 32}
         fontSize={20}
         fontWeight={700}
         color={

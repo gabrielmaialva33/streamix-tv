@@ -362,7 +362,6 @@ const LoginPage = () => {
           <VirtualKeyboard
             ref={keyboardRef}
             value={currentValue()}
-            password={activeField() === "password"}
             autofocus
             homeRow={2}
             focusRequest={keyboardFocusRequest()}

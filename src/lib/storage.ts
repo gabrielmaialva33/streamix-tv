@@ -33,7 +33,8 @@ export interface HistoryItem {
   currentTime: number; // seconds
   duration: number; // seconds
   watchedAt: number;
-  // For series
+  // For series — `id` mirrors the episode id; `seriesId` points at the show.
+  seriesId?: string;
   episodeId?: string;
   seasonNumber?: number;
   episodeNumber?: number;
@@ -190,5 +191,3 @@ export const authSession = {
     }
   },
 };
-
-export default { favorites, history, preferences, authSession };

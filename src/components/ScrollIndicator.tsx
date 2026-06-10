@@ -76,9 +76,15 @@ const ScrollIndicator = (props: ScrollIndicatorProps) => {
     return scrollRatio * availableTrack;
   };
 
-  // Show indicator when scroll position changes
+  // Show indicator when scroll position changes. Skip the first run so the
+  // indicator doesn't flash on mount before the user ever scrolls.
+  let mounted = false;
   createEffect(() => {
     const pos = props.scrollPosition;
+    if (!mounted) {
+      mounted = true;
+      return;
+    }
     if (pos !== undefined) {
       setVisible(true);
 

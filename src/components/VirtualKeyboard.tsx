@@ -46,7 +46,6 @@ const KEY_STYLE = {
 
 export interface VirtualKeyboardProps {
   value: string;
-  password?: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onLeft?: () => boolean;

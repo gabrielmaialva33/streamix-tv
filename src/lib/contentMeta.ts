@@ -32,3 +32,22 @@ export function chunkIntoRows<T>(items: readonly T[] | undefined, perRow: number
 export function seasonLabel(season: Season, index: number): string {
   return `Temporada ${season.season_number ?? index + 1}`;
 }
+
+/** "1:02:34" / "32:14" — playback position for resume labels. */
+export function formatPlaybackTime(seconds: number): string {
+  if (!seconds || !Number.isFinite(seconds)) {
+    return "0:00";
+  }
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remaining = Math.floor(seconds % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${remaining.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+}
+
+/** Resumable progress entry: started for real and not effectively finished. */
+export function isResumable(saved: { duration: number; currentTime: number; progress: number }): boolean {
+  return saved.duration > 0 && saved.currentTime >= 30 && saved.progress < 95;
+}

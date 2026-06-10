@@ -1,6 +1,6 @@
 import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
 import { Row } from "@lightningtv/solid/primitives";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { history, type HistoryItem } from "@/lib/storage";
 import { theme } from "@/styles";
@@ -37,17 +37,18 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
   const navigate = useNavigate();
   const [items, setItems] = createSignal<HistoryItem[]>([]);
 
-  // Fetch history items
-  createEffect(() => {
-    const historyItems = history.getContinueWatching(props.limit || 10);
-    setItems(historyItems);
+  // localStorage isn't reactive — read once on mount (the row remounts on
+  // every Home visit, which keeps it fresh enough).
+  onMount(() => {
+    setItems(history.getContinueWatching(props.limit || 10));
   });
 
   const handleSelect = (item: HistoryItem) => {
     if (item.type === "movie") {
       navigate(`/player/movie/${item.id}`);
     } else if (item.type === "series" && item.episodeId) {
-      navigate(`/player/series/${item.episodeId}`);
+      const seriesContext = item.seriesId ? `?series=${item.seriesId}` : "";
+      navigate(`/player/series/${item.episodeId}${seriesContext}`);
     } else if (item.type === "channel") {
       navigate(`/player/channel/${item.id}`);
     }

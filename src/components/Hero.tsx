@@ -155,6 +155,7 @@ const Hero = (props: HeroProps) => {
   });
 
   const backdrop = createMemo(() => heroBackdrop(props.item, detail()));
+  const meta = createMemo(() => heroMeta(props.item));
 
   return (
     <View
@@ -237,11 +238,11 @@ const Hero = (props: HeroProps) => {
       />
 
       <View x={SAFE_AREA_X + 44} y={200} width={748} zIndex={3} skipFocus>
-        <Show when={heroMeta(props.item).length > 0}>
+        <Show when={meta().length > 0}>
           <View y={0} width={748} height={36} skipFocus>
-            <Show when={heroMeta(props.item)[0]}>
-              <Text fontSize={18} color={0xffd166ff} maxLines={1}>
-                {heroMeta(props.item).join("  ·  ")}
+            <Show when={meta()[0]}>
+              <Text fontSize={18} color={theme.gold} maxLines={1}>
+                {meta().join("  ·  ")}
               </Text>
             </Show>
           </View>
@@ -268,7 +269,7 @@ const Hero = (props: HeroProps) => {
               width={748}
               textOverflow="ellipsis"
               maxLines={2}
-              y={heroMeta(props.item).length > 0 ? 38 : 0}
+              y={meta().length > 0 ? 38 : 0}
             >
               {title()}
             </Text>
@@ -277,7 +278,7 @@ const Hero = (props: HeroProps) => {
 
         <Show when={props.item?.description || props.item?.plot}>
           <Text
-            y={heroMeta(props.item).length > 0 ? 172 : 138}
+            y={meta().length > 0 ? 172 : 138}
             fontSize={23}
             color={0xe7e7ecff}
             contain="both"
@@ -290,7 +291,7 @@ const Hero = (props: HeroProps) => {
           </Text>
         </Show>
 
-        <View y={heroMeta(props.item).length > 0 ? 286 : 252} display="flex" gap={20}>
+        <View y={meta().length > 0 ? 286 : 252} display="flex" gap={20}>
           <View
             ref={playButton}
             style={PlayButtonStyle}
