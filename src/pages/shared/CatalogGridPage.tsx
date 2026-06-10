@@ -269,7 +269,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
             alignItems="center"
             skipFocus
           >
-            <Text fontSize={28} color={0x888888ff}>
+            <Text fontSize={28} color={theme.textMuted}>
               {props.emptyMessage}
             </Text>
           </View>

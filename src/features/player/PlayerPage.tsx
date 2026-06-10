@@ -1,15 +1,15 @@
 import { type ElementNode, Text, View } from "@lightningtv/solid";
-import { useNavigate, useParams } from "@solidjs/router";
+import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
 import { theme } from "@/styles";
 import { createLogger } from "@/shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
-import api, { ApiError, type PlaybackTelemetryEvent } from "@/lib/api";
+import api, { ApiError, type Episode, type PlaybackTelemetryEvent } from "@/lib/api";
 import { authState } from "@/features/auth/auth";
 import PlayerManager, { type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
-import { type PlayerType, resolvePlayerSource } from "./stream";
+import { findNextEpisode, type PlayerType, resolvePlayerSource } from "./stream";
 
 const logger = createLogger("PlayerPage");
 const SEEK_BAR_WIDTH = 1800;
@@ -21,10 +21,12 @@ const STALLED_RECOVERY_COOLDOWN_MS = 30000;
 const SEEK_COMMIT_DELAY_MS = 900;
 const SEEK_ACCELERATION_WINDOW_MS = 1400;
 const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
+const NEXT_EPISODE_COUNTDOWN_SECONDS = 5;
 type PlayerControl = "timeline" | "back" | "play" | "forward";
 
 const PlayerPage = () => {
   const params = useParams<{ type: PlayerType; id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [state, setState] = createSignal<PlayerState>(createInitialPlayerState());
@@ -35,6 +37,9 @@ const PlayerPage = () => {
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
   const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
+  const [nextUp, setNextUp] = createSignal<Episode | null>(null);
+  const [nextUpSeconds, setNextUpSeconds] = createSignal(NEXT_EPISODE_COUNTDOWN_SECONDS);
+  let nextUpInterval: number | null = null;
   let retryButton: ElementNode | undefined;
   let backButton: ElementNode | undefined;
 
@@ -67,6 +72,66 @@ const PlayerPage = () => {
     },
   );
 
+  // Auto-next: resolved from the (cached) series detail when the episode
+  // playback was opened with a `?series=<id>` context. Without the context
+  // (deep link) the feature simply stays off.
+  const [nextEpisode] = createResource(
+    () =>
+      params.type === "series" && searchParams.series
+        ? { seriesId: String(searchParams.series), episodeId: params.id }
+        : null,
+    async ({ seriesId, episodeId }) => {
+      try {
+        return findNextEpisode(await api.getSeriesDetail(seriesId), episodeId);
+      } catch {
+        return null;
+      }
+    },
+  );
+
+  function cancelNextUp() {
+    if (nextUpInterval) {
+      clearInterval(nextUpInterval);
+      nextUpInterval = null;
+    }
+    setNextUp(null);
+  }
+
+  function playNextEpisode() {
+    const next = nextUp();
+    cancelNextUp();
+    if (!next || destroyed) {
+      return;
+    }
+
+    // Flush the finished episode into history (completed) before the route
+    // param swap re-targets saveHistory at the new episode id.
+    saveHistory();
+    lastTelemetryPosition = -1;
+    // Same route, new param: the page does NOT remount — streamData refetches
+    // and the load effect feeds the already-initialized PlayerManager.
+    navigate(`/player/series/${next.id}?series=${String(searchParams.series)}`, { replace: true });
+  }
+
+  function startNextEpisodeCountdown() {
+    setNextUpSeconds(NEXT_EPISODE_COUNTDOWN_SECONDS);
+    setNextUp(nextEpisode() ?? null);
+    if (!nextUp()) {
+      return false;
+    }
+
+    nextUpInterval = window.setInterval(() => {
+      setNextUpSeconds(seconds => {
+        if (seconds <= 1) {
+          playNextEpisode();
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return true;
+  }
+
   function clearTimers() {
     if (controlsTimeout) {
       clearTimeout(controlsTimeout);
@@ -87,6 +152,10 @@ const PlayerPage = () => {
     if (syncMessageTimeout) {
       clearTimeout(syncMessageTimeout);
       syncMessageTimeout = null;
+    }
+    if (nextUpInterval) {
+      clearInterval(nextUpInterval);
+      nextUpInterval = null;
     }
   }
 
@@ -113,6 +182,7 @@ const PlayerPage = () => {
       return;
     }
 
+    const episodeMeta = params.type === "series" ? streamData()?.episode : undefined;
     history.update({
       id: params.id,
       type: params.type,
@@ -122,6 +192,10 @@ const PlayerPage = () => {
       currentTime,
       duration,
       episodeId: params.type === "series" ? params.id : undefined,
+      seriesId: params.type === "series" && searchParams.series ? String(searchParams.series) : undefined,
+      seasonNumber: episodeMeta?.seasonNumber,
+      episodeNumber: episodeMeta?.episodeNumber,
+      episodeTitle: episodeMeta?.title,
     });
 
     if (!authState.isAuthenticated()) {
@@ -216,6 +290,7 @@ const PlayerPage = () => {
     // backButton listener doesn't fall through to its own history.back()
     // and double-pop the route.
     event?.preventDefault();
+    cancelNextUp();
     cleanupPlayer();
     if (window.history.length > 1) {
       navigate(-1);
@@ -243,6 +318,11 @@ const PlayerPage = () => {
 
   function getSavedResumePosition() {
     if (params.type === "channel") {
+      return null;
+    }
+
+    // Explicit "watch from the beginning" request from a detail page.
+    if (searchParams.restart) {
       return null;
     }
 
@@ -286,6 +366,11 @@ const PlayerPage = () => {
   }
 
   function handleSelectedControl() {
+    if (nextUp()) {
+      playNextEpisode();
+      return true;
+    }
+
     switch (selectedControl()) {
       case "timeline":
         if (accumulatedSeek() !== 0) {
@@ -544,7 +629,10 @@ const PlayerPage = () => {
       onComplete: () => {
         logger.debug("Playback completed");
         sendTelemetry("complete");
-        if (!destroyed) {
+        if (destroyed) {
+          return;
+        }
+        if (!startNextEpisodeCountdown()) {
           handleClose();
         }
       },
@@ -809,6 +897,42 @@ const PlayerPage = () => {
               Esquerda/direita para escolher · OK confirma · Voltar sai
             </Text>
           </View>
+        </View>
+      </Show>
+
+      <Show when={nextUp()}>
+        <View
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          color={0x05060bd9}
+          zIndex={140}
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
+          alignItems="center"
+          gap={18}
+          skipFocus
+        >
+          <Text fontSize={22} fontWeight={700} color={theme.gold}>
+            Próximo episódio
+          </Text>
+          <Text
+            width={1200}
+            fontSize={44}
+            fontWeight={700}
+            color={0xffffffff}
+            textAlign="center"
+            contain="width"
+            maxLines={1}
+          >
+            {`E${nextUp()?.episode_num ?? nextUp()?.number ?? ""} · ${nextUp()?.title ?? ""}`}
+          </Text>
+          <Text fontSize={26} color={theme.textSecondary}>
+            {`Começando em ${nextUpSeconds()}s`}
+          </Text>
+          <Text fontSize={18} color={theme.textMuted}>
+            OK assistir agora · Voltar sair
+          </Text>
         </View>
       </Show>
 

@@ -103,7 +103,7 @@ const Favorites = () => {
           borderRadius={10}
           border={{ color: theme.borderSubtle, width: 1 }}
         >
-          <Text y={8} width={210} fontSize={15} color={theme.textPrimary} textAlign="center">
+          <Text y={8} width={210} fontSize={15} color={theme.textPrimary} textAlign="center" contain="width">
             Favoritos da sua conta
           </Text>
         </View>

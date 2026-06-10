@@ -1,10 +1,11 @@
 import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
 import api, { type Series } from "@/lib/api";
-import { ratingCaption, relatedPoster, seasonLabel } from "@/lib/contentMeta";
+import { isResumable, ratingCaption, relatedPoster, seasonLabel } from "@/lib/contentMeta";
+import { history } from "@/lib/storage";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -42,18 +43,24 @@ const SeriesDetail = () => {
     () => params.id,
     id => api.getSeriesDetail(id),
   );
-  const [selectedSeasonIdx] = createSignal(0);
   const [similar] = createResource(
     () => params.id,
     id => fetchSimilar("series", id),
   );
 
-  function currentSeasonIndex() {
-    return selectedSeasonIdx();
-  }
+  // Most recent unfinished episode of THIS show — powers the "Continuar"
+  // CTA. history is sorted most-recent-first.
+  const inProgress = () => {
+    const saved = history
+      .getAll()
+      .find(h => h.type === "series" && h.seriesId === params.id && isResumable(h));
+    return saved ?? null;
+  };
 
+  // Season picking lives in SeriesEpisodes; this page only summarizes the first.
+  const ACTIVE_SEASON_INDEX = 0;
   function currentSeason() {
-    return series()?.seasons?.[currentSeasonIndex()];
+    return series()?.seasons?.[ACTIVE_SEASON_INDEX];
   }
 
   function handleBack() {
@@ -98,7 +105,7 @@ const SeriesDetail = () => {
               <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
                 <Column x={30} y={26} width={1332} gap={14} scroll="none" skipFocus>
                   <Show when={currentSeries().tagline}>
-                    <Text fontSize={20} color={0xffd166ff} maxLines={1}>
+                    <Text fontSize={20} color={theme.gold} maxLines={1}>
                       {currentSeries().tagline || ""}
                     </Text>
                   </Show>
@@ -126,10 +133,39 @@ const SeriesDetail = () => {
                 </Column>
 
                 <Row ref={actionRow} x={30} y={194} width={1332} height={58} gap={20} scroll="none" autofocus>
+                  <Show when={inProgress()}>
+                    <View
+                      width={260}
+                      height={58}
+                      style={PRIMARY_BUTTON_STYLE}
+                      onEnter={() => {
+                        const saved = inProgress();
+                        if (saved?.episodeId) {
+                          navigate(`/player/series/${saved.episodeId}?series=${params.id}`);
+                        }
+                        return true;
+                      }}
+                    >
+                      <Text
+                        width={228}
+                        fontSize={22}
+                        fontWeight={700}
+                        color={0xffffffff}
+                        textAlign="center"
+                        contain="width"
+                      >
+                        {`Continuar ${
+                          inProgress()?.seasonNumber && inProgress()?.episodeNumber
+                            ? `S${inProgress()?.seasonNumber}E${inProgress()?.episodeNumber}`
+                            : "assistindo"
+                        }`}
+                      </Text>
+                    </View>
+                  </Show>
                   <View
                     width={220}
                     height={58}
-                    style={PRIMARY_BUTTON_STYLE}
+                    style={inProgress() ? SECONDARY_BUTTON_STYLE : PRIMARY_BUTTON_STYLE}
                     onEnter={() => {
                       navigate(`/series/${params.id}/episodes`);
                       return true;
@@ -158,6 +194,8 @@ const SeriesDetail = () => {
                     </Text>
                   </View>
                   <FavoriteButton
+                    width={180}
+                    height={58}
                     item={{
                       id: currentSeries().id,
                       type: "series",
@@ -168,34 +206,34 @@ const SeriesDetail = () => {
                 </Row>
               </View>
 
-              <View x={40} y={614} width={1620} height={120} style={PANEL_STYLE} skipFocus>
-                <Text x={30} y={20} fontSize={16} color={theme.textMuted}>
-                  Sinopse
-                </Text>
-                <Text
-                  x={30}
-                  y={48}
-                  width={1560}
-                  fontSize={20}
-                  lineHeight={28}
-                  color={theme.textPrimary}
-                  maxLines={2}
-                  contain="width"
-                >
-                  {currentSeries().plot || "Sem sinopse disponível para esta série."}
-                </Text>
-              </View>
-
               <Column
                 x={40}
-                y={754}
+                y={614}
                 width={1620}
-                height={326}
+                height={466}
                 gap={22}
                 scroll="auto"
                 clipping
                 forwardFocus={0}
               >
+                <View width={1620} height={120} style={PANEL_STYLE} skipFocus>
+                  <Text x={30} y={20} fontSize={16} color={theme.textMuted}>
+                    Sinopse
+                  </Text>
+                  <Text
+                    x={30}
+                    y={48}
+                    width={1560}
+                    fontSize={20}
+                    lineHeight={28}
+                    color={theme.textPrimary}
+                    maxLines={2}
+                    contain="width"
+                  >
+                    {currentSeries().plot || "Sem sinopse disponível para esta série."}
+                  </Text>
+                </View>
+
                 <View width={1620} minHeight={116} style={PANEL_STYLE} skipFocus>
                   <Column x={30} y={20} width={1560} gap={12} scroll="none">
                     <Show when={currentSeries().cast}>
@@ -246,7 +284,7 @@ const SeriesDetail = () => {
                           contain="width"
                         >
                           {currentSeason()
-                            ? seasonLabel(currentSeason()!, currentSeasonIndex())
+                            ? seasonLabel(currentSeason()!, ACTIVE_SEASON_INDEX)
                             : "Nenhuma temporada"}
                         </Text>
                       </View>
@@ -258,7 +296,7 @@ const SeriesDetail = () => {
                   <View
                     ref={relatedRow}
                     width={1620}
-                    height={286}
+                    height={430}
                     onUp={() => {
                       actionRow?.setFocus();
                       return true;

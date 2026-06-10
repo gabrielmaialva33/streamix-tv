@@ -1,6 +1,6 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "@/lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
@@ -100,12 +100,13 @@ const Guide = () => {
     return [...withPrograms, ...emptyRows].map(({ channel, programs }) => ({ channel, programs }));
   });
 
-  // Update current time every minute
+  // Update current time every minute. Cleanup must go through onCleanup —
+  // returning a function from onMount does NOT dispose it in Solid.
   onMount(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
-    return () => clearInterval(interval);
+    onCleanup(() => clearInterval(interval));
   });
 
   // Time slots for header (6 hours window)
@@ -150,7 +151,15 @@ const Guide = () => {
         <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
           Guia de Programação
         </Text>
-        <Text x={1030} y={19} width={630} fontSize={24} color={theme.textSecondary} textAlign="right">
+        <Text
+          x={1030}
+          y={19}
+          width={630}
+          fontSize={24}
+          color={theme.textSecondary}
+          textAlign="right"
+          contain="width"
+        >
           {currentTime().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
         </Text>
       </View>
@@ -228,7 +237,10 @@ const Guide = () => {
                   border={{ color: theme.borderSubtle, width: 1 }}
                   transition={{ color: { duration: 150 } }}
                   $focus={{ color: theme.surfaceHover, border: { color: theme.primary, width: 2 } }}
-                  onEnter={() => handleChannelSelect(channel)}
+                  onEnter={() => {
+                    handleChannelSelect(channel);
+                    return true;
+                  }}
                 >
                   <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
                     Sem programação disponível · OK para assistir ao vivo
@@ -262,7 +274,10 @@ const Guide = () => {
                           border: { color: theme.primary, width: 2 },
                         },
                       }}
-                      onEnter={() => handleChannelSelect(channel)}
+                      onEnter={() => {
+                        handleChannelSelect(channel);
+                        return true;
+                      }}
                       forwardStates
                     >
                       {/* Now playing indicator */}

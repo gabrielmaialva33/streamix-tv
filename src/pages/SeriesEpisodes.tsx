@@ -5,6 +5,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
 import { chunkIntoRows, seasonLabel } from "@/lib/contentMeta";
+import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -69,9 +70,16 @@ const SeriesEpisodes = () => {
   const episodes = (): Episode[] => currentSeason()?.episodes || [];
   const episodeRows = () => chunkIntoRows(episodes(), ITEMS_PER_ROW);
 
+  // Watch progress per episode (0-100), from local history.
+  const episodeProgress = (episode: Episode): number | null => {
+    const saved = history.getProgress(String(episode.id), "series", String(episode.id));
+    return saved && saved.progress > 0 ? Math.min(100, saved.progress) : null;
+  };
+
   function handlePlay(ep?: Episode) {
     if (!ep) return;
-    navigate(`/player/series/${ep.id}`);
+    // The series context enables auto-next in the player.
+    navigate(`/player/series/${ep.id}?series=${params.id}`);
   }
 
   function handleBack() {
@@ -209,8 +217,19 @@ const SeriesEpisodes = () => {
                             />
                           </Show>
 
+                          <Show when={episodeProgress(episode) !== null}>
+                            <View x={14} y={134} width={184} height={6} color={0x00000080} borderRadius={3}>
+                              <View
+                                width={Math.max(8, (184 * (episodeProgress(episode) ?? 0)) / 100)}
+                                height={6}
+                                color={theme.primary}
+                                borderRadius={3}
+                              />
+                            </View>
+                          </Show>
+
                           <View x={212} y={18} width={290}>
-                            <Text fontSize={16} color={0xffd166ff}>
+                            <Text fontSize={16} color={theme.gold}>
                               {`E${episode.episode_num ?? episode.number ?? "?"}`}
                             </Text>
                             <Text

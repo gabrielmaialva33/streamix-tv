@@ -220,7 +220,15 @@ const Search = () => {
               <Text fontSize={20} fontWeight={700} color={theme.textPrimary}>
                 Sugestões
               </Text>
-              <Text x={520} y={4} width={220} fontSize={15} color={theme.textMuted} textAlign="right">
+              <Text
+                x={520}
+                y={4}
+                width={220}
+                fontSize={15}
+                color={theme.textMuted}
+                textAlign="right"
+                contain="width"
+              >
                 OK abre todos
               </Text>
             </View>
@@ -372,7 +380,7 @@ const Search = () => {
               transition={{ alpha: { duration: 180 } }}
               skipFocus
             >
-              <Text fontSize={28} color={0x888888ff}>
+              <Text fontSize={28} color={theme.textMuted}>
                 Buscando...
               </Text>
             </View>
@@ -389,7 +397,7 @@ const Search = () => {
               transition={{ alpha: { duration: 180 } }}
               skipFocus
             >
-              <Text fontSize={28} color={0x888888ff}>
+              <Text fontSize={28} color={theme.textMuted}>
                 Nenhum resultado encontrado
               </Text>
             </View>

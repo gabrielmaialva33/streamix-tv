@@ -252,7 +252,7 @@ const Channels = () => {
             alignItems="center"
             skipFocus
           >
-            <Text fontSize={28} color={0x888888ff}>
+            <Text fontSize={28} color={theme.textMuted}>
               Nenhum canal encontrado
             </Text>
           </View>
@@ -264,7 +264,13 @@ const Channels = () => {
               <Row width={1640} height={150} gap={12} scroll="none">
                 <For each={row}>
                   {(channel: Channel, itemIndex) => (
-                    <View style={ChannelCardStyle} onEnter={() => handleChannelSelect(channel)}>
+                    <View
+                      style={ChannelCardStyle}
+                      onEnter={() => {
+                        handleChannelSelect(channel);
+                        return true;
+                      }}
+                    >
                       <View
                         x={40}
                         y={15}

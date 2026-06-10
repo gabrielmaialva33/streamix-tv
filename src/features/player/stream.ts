@@ -1,4 +1,4 @@
-import api, { type Channel, type Episode, type Movie, type StreamUrl } from "@/lib/api";
+import api, { type Channel, type Episode, type Movie, type Series, type StreamUrl } from "@/lib/api";
 import { createLogger } from "@/shared/logging/logger";
 
 const logger = createLogger("PlayerStream");
@@ -14,6 +14,12 @@ export interface PlayerSource {
   title: string;
   posterUrl?: string;
   streamUrl: string;
+  /** Present when the source is a series episode. */
+  episode?: {
+    seasonNumber?: number;
+    episodeNumber?: number;
+    title?: string;
+  };
 }
 
 function pickStreamUrl(source: StreamSource) {
@@ -44,6 +50,11 @@ function toEpisodeSource(episode: Episode) {
     title: `S${episode.season_number}E${episode.episode_num} - ${episode.title}`,
     posterUrl: episode.thumbnail_url,
     streamUrl: "",
+    episode: {
+      seasonNumber: episode.season_number,
+      episodeNumber: episode.episode_num ?? episode.number,
+      title: episode.title,
+    },
   };
 }
 
@@ -53,6 +64,20 @@ function toChannelSource(channel: Channel) {
     posterUrl: channel.logo_url || channel.icon || undefined,
     streamUrl: pickStreamUrl(channel),
   };
+}
+
+/**
+ * Next episode in playback order: walks seasons/episodes as returned by the
+ * API and returns the entry right after `episodeId`, crossing season
+ * boundaries. Null when the id is unknown or it's the very last episode.
+ */
+export function findNextEpisode(series: Series, episodeId: string | number): Episode | null {
+  const ordered = (series.seasons ?? []).flatMap(season => season.episodes ?? []);
+  const index = ordered.findIndex(episode => String(episode.id) === String(episodeId));
+  if (index < 0) {
+    return null;
+  }
+  return ordered[index + 1] ?? null;
 }
 
 export async function resolvePlayerSource(type: PlayerType, id: string): Promise<PlayerSource> {
