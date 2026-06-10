@@ -11,11 +11,11 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0(@capacitor/core@8.3.1)
       "@lightningjs/renderer":
-        specifier: ^3.0.1
-        version: 3.0.1
+        specifier: ^3.0.6
+        version: 3.0.6
       "@lightningtv/solid":
         specifier: ^3.1.18
-        version: 3.1.18(@lightningjs/renderer@3.0.1)(@solidjs/router@0.16.1(solid-js@1.9.12))(solid-js@1.9.12)
+        version: 3.1.18(@lightningjs/renderer@3.0.6)(@solidjs/router@0.16.1(solid-js@1.9.12))(solid-js@1.9.12)
       "@solid-primitives/i18n":
         specifier: ^2.2.1
         version: 2.2.1(solid-js@1.9.12)
@@ -175,6 +175,13 @@ packages:
       }
     engines: { node: ">=6.9.0" }
 
+  "@babel/code-frame@7.29.7":
+    resolution:
+      {
+        integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==,
+      }
+    engines: { node: ">=6.9.0" }
+
   "@babel/compat-data@7.29.0":
     resolution:
       {
@@ -323,6 +330,13 @@ packages:
     resolution:
       {
         integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==,
+      }
+    engines: { node: ">=6.9.0" }
+
+  "@babel/helper-validator-identifier@7.29.7":
+    resolution:
+      {
+        integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==,
       }
     engines: { node: ">=6.9.0" }
 
@@ -921,10 +935,10 @@ packages:
     peerDependencies:
       "@babel/core": ^7.0.0-0 || ^8.0.0-0 <8.0.0
 
-  "@babel/runtime@7.29.2":
+  "@babel/runtime@7.29.7":
     resolution:
       {
-        integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==,
+        integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==,
       }
     engines: { node: ">=6.9.0" }
 
@@ -1736,10 +1750,10 @@ packages:
         integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==,
       }
 
-  "@lightningjs/renderer@3.0.1":
+  "@lightningjs/renderer@3.0.6":
     resolution:
       {
-        integrity: sha512-xAn5eVtYdAmpqA8rN5/f4LnF/48cqrC204s1Mv51KL6GylYHCdhzdGqX480Apgiq3ub+DzNDgNs/xhTASzi7hQ==,
+        integrity: sha512-tGF32ewPBfPcutruHqINhJ93X/l5ujwJfYiAgrmCRvE/guvVjrBuE7ppFN/L5aKcGmBPFyXv3amPTFYckxyoWw==,
       }
     engines: { node: ">= 18.0.0", npm: ">= 10.0.0", pnpm: ">= 10.17.0" }
 
@@ -6162,6 +6176,12 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
+  "@babel/code-frame@7.29.7":
+    dependencies:
+      "@babel/helper-validator-identifier": 7.29.7
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
   "@babel/compat-data@7.29.0": {}
 
   "@babel/core@7.29.0":
@@ -6298,6 +6318,8 @@ snapshots:
   "@babel/helper-string-parser@7.27.1": {}
 
   "@babel/helper-validator-identifier@7.28.5": {}
+
+  "@babel/helper-validator-identifier@7.29.7": {}
 
   "@babel/helper-validator-option@7.27.1": {}
 
@@ -6794,7 +6816,7 @@ snapshots:
       "@babel/types": 7.29.0
       esutils: 2.0.3
 
-  "@babel/runtime@7.29.2": {}
+  "@babel/runtime@7.29.7": {}
 
   "@babel/template@7.28.6":
     dependencies:
@@ -7219,11 +7241,11 @@ snapshots:
       "@jridgewell/resolve-uri": 3.1.2
       "@jridgewell/sourcemap-codec": 1.5.5
 
-  "@lightningjs/renderer@3.0.1": {}
+  "@lightningjs/renderer@3.0.6": {}
 
-  "@lightningtv/solid@3.1.18(@lightningjs/renderer@3.0.1)(@solidjs/router@0.16.1(solid-js@1.9.12))(solid-js@1.9.12)":
+  "@lightningtv/solid@3.1.18(@lightningjs/renderer@3.0.6)(@solidjs/router@0.16.1(solid-js@1.9.12))(solid-js@1.9.12)":
     dependencies:
-      "@lightningjs/renderer": 3.0.1
+      "@lightningjs/renderer": 3.0.6
       "@solid-primitives/event-listener": 2.4.5(solid-js@1.9.12)
       "@solid-primitives/list": 0.1.2(solid-js@1.9.12)
       "@solid-primitives/mouse": 2.1.6(solid-js@1.9.12)
@@ -7516,8 +7538,8 @@ snapshots:
 
   "@testing-library/dom@10.4.1":
     dependencies:
-      "@babel/code-frame": 7.29.0
-      "@babel/runtime": 7.29.2
+      "@babel/code-frame": 7.29.7
+      "@babel/runtime": 7.29.7
       "@types/aria-query": 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16

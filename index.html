@@ -265,51 +265,61 @@
       })();
     </script>
     <script>
-      // Always-on error overlay: this is the only way to surface errors on
-      // an embedded TV without devtools. Captures uncaught errors, unhandled
-      // rejections, console.error, and a 30s splash watchdog.
+      // Boot diagnostics overlay. Debug builds (VITE_ENABLE_DEBUG_OVERLAY)
+      // mirror uncaught errors / rejections / console.error; every build keeps
+      // the splash watchdog so a dead boot is never a silent black screen.
+      // The whole overlay clears itself once the app signals readiness — a
+      // late boot (backend rate limit) must not leave a red banner behind.
       (function () {
+        var DEBUG_OVERLAY = "%VITE_ENABLE_DEBUG_OVERLAY%" === "true";
         var box = document.getElementById("err-overlay");
         var lines = [];
         var startedAt = Date.now();
+        var readied = false;
 
         function show(msg) {
+          if (readied) return;
           lines.push(msg);
           if (lines.length > 40) lines.shift();
           box.textContent = lines.join("\n");
           box.style.display = "block";
         }
 
-        window.addEventListener("error", function (e) {
-          show("[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?"));
+        window.addEventListener("streamix:ready", function () {
+          readied = true;
+          lines = [];
+          box.textContent = "";
+          box.style.display = "none";
         });
-        window.addEventListener("unhandledrejection", function (e) {
-          var r = e && e.reason;
-          show("[promise] " + ((r && (r.stack || r.message)) || r));
-        });
-        // Suppress noisy logger scopes that already render their own friendly
-        // UI. The overlay should only surface unexpected errors — playback
-        // failures have a dedicated card in PlayerPage, so flooding the screen
-        // with raw stack traces just hides it.
-        var SUPPRESSED_SCOPES =
-          /^\[(PlayerPage|HTML5Player|HLSPlayer|TizenAVPlay|FireTVPlayer|PlayerManager)\]/;
-        var oldErr = console.error;
-        console.error = function () {
-          var first = arguments[0];
-          if (typeof first === "string" && SUPPRESSED_SCOPES.test(first)) {
+
+        if (DEBUG_OVERLAY) {
+          window.addEventListener("error", function (e) {
+            show("[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?"));
+          });
+          window.addEventListener("unhandledrejection", function (e) {
+            var r = e && e.reason;
+            show("[promise] " + ((r && (r.stack || r.message)) || r));
+          });
+          // Suppress noisy logger scopes that already render their own friendly
+          // UI. The overlay should only surface unexpected errors — playback
+          // failures have a dedicated card in PlayerPage, so flooding the screen
+          // with raw stack traces just hides it.
+          var SUPPRESSED_SCOPES =
+            /^\[(PlayerPage|HTML5Player|HLSPlayer|TizenAVPlay|FireTVPlayer|PlayerManager)\]/;
+          var oldErr = console.error;
+          console.error = function () {
+            var first = arguments[0];
+            if (typeof first === "string" && SUPPRESSED_SCOPES.test(first)) {
+              oldErr.apply(console, arguments);
+              return;
+            }
+            show("[err] " + Array.prototype.join.call(arguments, " "));
             oldErr.apply(console, arguments);
-            return;
-          }
-          show("[err] " + Array.prototype.join.call(arguments, " "));
-          oldErr.apply(console, arguments);
-        };
+          };
+        }
 
         // Splash watchdog: if the app never signals "streamix:ready", surface
         // a visible failure instead of leaving the user stuck on the spinner.
-        var readied = false;
-        window.addEventListener("streamix:ready", function () {
-          readied = true;
-        });
         setTimeout(function () {
           if (readied) return;
           var elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);

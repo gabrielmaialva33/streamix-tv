@@ -175,8 +175,6 @@ export const PlayerManager = {
   getState,
   destroy,
   getBackend,
-  isTizen: isTizenRuntime(),
-  hasAVPlay: hasAVPlaySupport,
 };
 
 export default PlayerManager;

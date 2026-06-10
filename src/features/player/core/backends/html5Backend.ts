@@ -10,6 +10,12 @@ interface HTML5BackendDeps {
 
 let videoElement: HTMLVideoElement | null = null;
 let hlsInstance: { destroy(): void } | null = null;
+// Self-healing for fatal hls.js errors (IPTV streams hiccup a lot): retry
+// with exponential backoff before surfacing the error modal. Counter resets
+// once a fragment buffers again (stream is healthy).
+const HLS_RECOVERY_LIMIT = 4;
+let hlsRecoveryAttempts = 0;
+let hlsRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
 // Squelch duplicate error events from the same playback session — the
 // HTMLMediaElement can fire `error` several times in a row for the same
 // MediaError (transient buffer underruns, decoder hiccups), and each one
@@ -142,6 +148,11 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
 
   // Fresh playback session: allow the next error event through the throttle.
   lastErrorAt = 0;
+  hlsRecoveryAttempts = 0;
+  if (hlsRecoveryTimer) {
+    clearTimeout(hlsRecoveryTimer);
+    hlsRecoveryTimer = null;
+  }
 
   try {
     const probe = await probeSource(url);
@@ -189,12 +200,39 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
         logger.debug("HLS manifest parsed");
         void playVideo();
       });
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        // Stream is delivering again — future fatal errors start fresh.
+        hlsRecoveryAttempts = 0;
+      });
       hls.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean; type?: string }) => {
-        logger.error("HLS playback error", data);
         if (!data.fatal) {
           return;
         }
 
+        // Network errors resume the loader; media errors re-sync the decoder.
+        // Anything else (mux/other) has no recovery path in hls.js.
+        const recover =
+          data.type === Hls.ErrorTypes.NETWORK_ERROR
+            ? () => hls.startLoad()
+            : data.type === Hls.ErrorTypes.MEDIA_ERROR
+              ? () => hls.recoverMediaError()
+              : null;
+
+        if (recover && hlsRecoveryAttempts < HLS_RECOVERY_LIMIT) {
+          hlsRecoveryAttempts += 1;
+          const delay = Math.min(8000, 500 * 2 ** hlsRecoveryAttempts);
+          logger.warn(
+            `HLS fatal ${data.type}; recovery ${hlsRecoveryAttempts}/${HLS_RECOVERY_LIMIT} in ${delay}ms`,
+          );
+          deps.updateState({ buffering: true });
+          hlsRecoveryTimer = setTimeout(() => {
+            hlsRecoveryTimer = null;
+            recover();
+          }, delay);
+          return;
+        }
+
+        logger.error("HLS playback error", data);
         const message = `HLS error: ${data.type ?? "unknown"}`;
         deps.updateState({ error: message, buffering: false });
         deps.callbacks.onError?.(message);
@@ -238,6 +276,10 @@ export function seekToHTML5(position: number, duration: number) {
 }
 
 export function destroyHTML5Backend() {
+  if (hlsRecoveryTimer) {
+    clearTimeout(hlsRecoveryTimer);
+    hlsRecoveryTimer = null;
+  }
   if (hlsInstance) {
     hlsInstance.destroy();
     hlsInstance = null;

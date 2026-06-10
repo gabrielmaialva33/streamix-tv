@@ -42,6 +42,7 @@ export const theme = {
 
   // Accent colors
   accent: 0x4dabf7ff, // Blue for info
+  gold: 0xffd166ff, // Taglines / episode numbers
   success: 0x51cf66ff, // Green
   warning: 0xfcc419ff, // Yellow
 
