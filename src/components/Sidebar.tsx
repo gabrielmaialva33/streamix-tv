@@ -211,7 +211,7 @@ const Sidebar = (props: SidebarProps) => {
       {/* Version */}
       <View skipFocus y={1020} x={20} zIndex={105}>
         <Text fontSize={12} color={theme.textDisabled}>
-          v1.0.0
+          {`v${__APP_VERSION__}`}
         </Text>
       </View>
     </>

@@ -1,9 +1,8 @@
 import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
 import { createEffect, createSignal } from "solid-js";
-import { type FavoriteItem, favorites } from "../lib/storage";
-import { theme } from "../styles";
 import { authState, persistFavoriteChange } from "@/features/auth/auth";
-import { ApiError } from "@/lib/api";
+import { type FavoriteItem, favorites } from "@/lib/storage";
+import { theme } from "@/styles";
 
 const ButtonStyle = {
   width: 220,
@@ -41,7 +40,8 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
     setIsFavorite(favorites.isFavorite(props.item.id, props.item.type));
   });
 
-  function showFeedback(_message: string, tone: "neutral" | "warning" | "success" = "neutral") {
+  // Flash the button border/colors for a moment to acknowledge the action.
+  function showFeedback(tone: "neutral" | "warning" | "success") {
     setFeedbackTone(tone);
 
     if (feedbackTimeout) {
@@ -61,25 +61,21 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
     props.onToggle?.(newState);
 
     if (!authState.isAuthenticated()) {
-      showFeedback(newState ? "Salvo nesta TV" : "Removido desta TV");
+      // Saved locally only ("nesta TV") — no sync to acknowledge.
+      showFeedback("neutral");
       return true;
     }
 
     void persistFavoriteChange(props.item, newState)
       .then(() => {
-        showFeedback(newState ? "Favorito sincronizado" : "Removido da sua conta", "success");
+        showFeedback("success");
       })
-      .catch(error => {
+      .catch(() => {
+        // Unauthorized or transient failure — either way roll the toggle back.
         favorites.toggle(props.item);
         setIsFavorite(previousState);
         props.onToggle?.(previousState);
-
-        if (error instanceof ApiError && error.isUnauthorized()) {
-          showFeedback("Faça login para sincronizar", "warning");
-          return;
-        }
-
-        showFeedback("Não foi possível sincronizar agora", "warning");
+        showFeedback("warning");
       });
 
     return true;

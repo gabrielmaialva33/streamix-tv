@@ -7,10 +7,10 @@ import {
   View,
 } from "@lightningtv/solid";
 import { createMemo, createResource, Show } from "solid-js";
-import api, { type FeaturedItem, type Movie, type Series } from "../lib/api";
-import { pickBackdrop, proxyBackdropUrl } from "../lib/imageUrl";
-import { CONTENT_WIDTH, SAFE_AREA_X } from "../shared/layout";
-import { theme } from "../styles";
+import api, { type FeaturedItem, type Movie, type Series } from "@/lib/api";
+import { pickBackdrop, proxyBackdropUrl } from "@/lib/imageUrl";
+import { CONTENT_WIDTH, SAFE_AREA_X } from "@/shared/layout";
+import { theme } from "@/styles";
 
 // Hero button styles with $focus
 const PlayButtonStyle = {
@@ -55,16 +55,7 @@ const InfoButtonStyle = {
   },
 } satisfies IntrinsicNodeStyleProps;
 
-const PlayButtonTextStyle = {
-  fontSize: 22,
-  fontWeight: 700,
-  color: 0xffffffff,
-  $focus: {
-    color: 0xffffffff,
-  },
-} satisfies IntrinsicTextNodeStyleProps;
-
-const InfoButtonTextStyle = {
+const HeroButtonTextStyle = {
   fontSize: 22,
   fontWeight: 700,
   color: 0xffffffff,
@@ -315,7 +306,7 @@ const Hero = (props: HeroProps) => {
             }}
             onDown={props.onDownRequest}
           >
-            <Text style={PlayButtonTextStyle}>Assistir</Text>
+            <Text style={HeroButtonTextStyle}>Assistir</Text>
           </View>
 
           <View
@@ -332,7 +323,7 @@ const Hero = (props: HeroProps) => {
             }}
             onDown={props.onDownRequest}
           >
-            <Text style={InfoButtonTextStyle}>Detalhes</Text>
+            <Text style={HeroButtonTextStyle}>Detalhes</Text>
           </View>
         </View>
       </View>

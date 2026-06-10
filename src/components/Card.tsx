@@ -8,25 +8,9 @@ import {
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { theme } from "@/styles";
 
-// Card image container - subtle border that highlights on focus
+// Card image container (also used by the placeholder) - subtle border that
+// highlights on focus.
 const CardImageStyle = {
-  borderRadius: 8,
-  color: theme.surfaceMuted,
-  border: { color: theme.panelBorder, width: 1 },
-  transition: {
-    scale: { duration: 150, easing: "ease-out" },
-  },
-  scale: 1,
-  zIndex: 1,
-  $focus: {
-    border: { color: theme.primary, width: 3 },
-    scale: 1.015,
-    zIndex: 30,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-// Placeholder style for missing images
-const PlaceholderStyle = {
   borderRadius: 8,
   color: theme.surfaceMuted,
   border: { color: theme.panelBorder, width: 1 },
@@ -127,7 +111,7 @@ const Card = (props: CardProps) => {
 
       {/* Placeholder - shown when no image, loading, or error */}
       <Show when={showPlaceholder()}>
-        <View width={width} height={height} style={PlaceholderStyle}>
+        <View width={width} height={height} style={CardImageStyle}>
           <View
             x={width / 2 - 38}
             y={height / 2 - 38}
