@@ -416,16 +416,6 @@ export interface EpgProgram {
   category: string | null;
 }
 
-// EPG — currently-airing entry from /epg/now (no id, adds progress fraction).
-export interface EpgCurrentProgram {
-  title: string;
-  description: string | null;
-  start: string;
-  end: string;
-  category: string | null;
-  progress: number; // 0.0..1.0
-}
-
 // History (backend /history)
 export interface HistoryRecord {
   id: string | number;
@@ -450,13 +440,6 @@ export interface FavoriteRecord extends FavoriteBase {
   content_name?: string;
   content_icon?: string;
   created_at?: string;
-}
-
-export interface FavoriteSyncOp {
-  type: FavoriteKind;
-  content_id: string | number;
-  action: "add" | "remove";
-  at?: string;
 }
 
 export interface AuthUser {
@@ -497,23 +480,6 @@ export interface SimilarRecommendationsResponse {
   similar: RecommendationItem[];
   source_id: number;
   type: string;
-}
-
-export interface SearchStatus {
-  available: boolean;
-  stats: Record<string, { status: string; vectors_count: number }>;
-}
-
-export interface SearchInfo {
-  available: boolean;
-  embeddings: {
-    dimensions: number;
-    provider: string;
-    fallback_available: boolean;
-    gemini_enabled: boolean;
-    nvidia_enabled: boolean;
-  };
-  qdrant_enabled: boolean;
 }
 
 // ----- Telemetry -----
@@ -562,20 +528,7 @@ const normSimilarItem = (item: SimilarContentItem): SimilarContentItem => ({
   backdrop: Array.isArray(item.backdrop) ? item.backdrop : item.backdrop ? [item.backdrop] : [],
 });
 
-/** Convert "1h 44min" / "44min" / "59min" to seconds. Returns 0 on failure. */
-export function parseDuration(s: string | null | undefined): number {
-  if (!s) return 0;
-  const h = /(\d+)\s*h/.exec(s);
-  const m = /(\d+)\s*min/.exec(s);
-  return (h ? parseInt(h[1], 10) * 3600 : 0) + (m ? parseInt(m[1], 10) * 60 : 0);
-}
-
 // ============ API ============
-
-interface FeaturedResponse {
-  featured: FeaturedItem | null;
-  stats: { movies_count: number; series_count: number; channels_count: number };
-}
 
 interface MoviesListResponse {
   total: number;
@@ -604,28 +557,6 @@ interface MovieListParams {
 }
 
 export const api = {
-  // ----- Featured / stats -----
-  getFeatured: async (): Promise<FeaturedItem[]> => {
-    const r = await request<FeaturedResponse>(`${CATALOG_URL}/featured`, { ttl: SHORT_TTL });
-    if (r.featured) {
-      const f = r.featured;
-      return [
-        {
-          ...f,
-          description: f.plot || f.description,
-          backdrop_url: f.backdrop?.[0] || f.backdrop_url,
-          poster_url: f.poster || f.poster_url,
-        },
-      ];
-    }
-    return [];
-  },
-
-  getStats: async () => {
-    const r = await request<FeaturedResponse>(`${CATALOG_URL}/featured`, { ttl: SHORT_TTL });
-    return r.stats;
-  },
-
   // ----- Categories -----
   getCategories: (type?: CategoryFilter) =>
     request<Category[]>(`${CATALOG_URL}/categories${buildQuery({ type })}`),
@@ -756,70 +687,7 @@ export const api = {
       trending_series: Series[];
     }>(`${CATALOG_URL}/home${buildQuery({ limit })}`, { ttl: SHORT_TTL }),
 
-  // Cascading fallback: dedicated endpoint -> sorted listing -> unsorted listing.
-  getTrending: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
-    try {
-      const r = await request<{ type: string; items: Movie[] | Series[] }>(
-        `${CATALOG_URL}/trending${buildQuery({ type, limit })}`,
-      );
-      return type === "series" ? (r.items as Series[]).map(normSeries) : (r.items as Movie[]).map(normMovie);
-    } catch {
-      if (type === "series") {
-        const withSort = (await api.getSeries({ limit, sort: "rating_desc" })).data;
-        if (withSort.length) return withSort;
-        return (await api.getSeries({ limit })).data;
-      }
-      return (await api.getMovies({ limit, sort: "rating_desc" })).data;
-    }
-  },
-
-  getRecent: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
-    try {
-      const r = await request<{ type: string; items: Movie[] | Series[] }>(
-        `${CATALOG_URL}/recent${buildQuery({ type, limit })}`,
-      );
-      return type === "series" ? (r.items as Series[]).map(normSeries) : (r.items as Movie[]).map(normMovie);
-    } catch {
-      if (type === "series") {
-        const withSort = (await api.getSeries({ limit, sort: "created_desc" })).data;
-        if (withSort.length) return withSort;
-        return (await api.getSeries({ limit })).data;
-      }
-      return (await api.getMovies({ limit, sort: "created_desc" })).data;
-    }
-  },
-
-  getTopRated: async (type: "movie" | "series" = "movie", limit = 20): Promise<Movie[] | Series[]> => {
-    try {
-      const r = await request<{ type: string; items: Movie[] | Series[] }>(
-        `${CATALOG_URL}/top-rated${buildQuery({ type, limit })}`,
-      );
-      return type === "series" ? (r.items as Series[]).map(normSeries) : (r.items as Movie[]).map(normMovie);
-    } catch {
-      if (type === "series") {
-        const withSort = (await api.getSeries({ limit, sort: "rating_desc" })).data;
-        if (withSort.length) return withSort;
-        return (await api.getSeries({ limit })).data;
-      }
-      return (await api.getMovies({ limit, sort: "rating_desc" })).data;
-    }
-  },
-
   // ----- EPG -----
-  /**
-   * Current EPG data. A channel value can be null if no program is available.
-   */
-  getEpgNow: async (
-    channelIds: Array<number | string>,
-  ): Promise<Record<string, EpgCurrentProgram | null>> => {
-    if (channelIds.length === 0) return {};
-    type NowResp = { now: Record<string, EpgCurrentProgram | null> };
-    const r = await request<NowResp>(`${EPG_URL}/now${buildQuery({ channel_ids: channelIds.join(",") })}`, {
-      ttl: SHORT_TTL,
-    });
-    return r.now || {};
-  },
-
   /**
    * EPG grid for the next N hours, default 6 and max 12.
    */
@@ -836,9 +704,6 @@ export const api = {
   },
 
   // ----- History (Bearer auth) -----
-  getHistory: (bearer?: string) =>
-    request<{ items: HistoryRecord[] }>(`${HISTORY_URL}`, { ttl: SHORT_TTL, bearer }),
-
   upsertHistory: (
     record: {
       type: "movie" | "episode" | "live_channel";
@@ -855,9 +720,6 @@ export const api = {
       noCache: true,
       bearer,
     }),
-
-  deleteHistory: (id: string | number, bearer?: string) =>
-    request<{ ok: boolean }>(`${HISTORY_URL}/${id}`, { method: "DELETE", noCache: true, bearer }),
 
   // ----- Favorites (Bearer auth) -----
   getFavorites: (type?: FavoriteKind, bearer?: string) =>
@@ -877,22 +739,6 @@ export const api = {
   removeFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
     request<void>(`${FAVORITES_URL}/${type}/${contentId}`, {
       method: "DELETE",
-      noCache: true,
-      bearer,
-    }),
-
-  toggleFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
-    request<{ status: "added" | "removed" }>(`${FAVORITES_URL}/toggle`, {
-      method: "POST",
-      body: { type, content_id: contentId },
-      noCache: true,
-      bearer,
-    }),
-
-  syncFavorites: (operations: FavoriteSyncOp[], bearer?: string) =>
-    request<{ added: number; removed: number; skipped: number }>(`${FAVORITES_URL}/sync`, {
-      method: "POST",
-      body: { operations },
       noCache: true,
       bearer,
     }),
@@ -940,39 +786,6 @@ export const api = {
       { ttl: DEFAULT_TTL },
     ),
 
-  getChannelRecommendations: (limit = 10) =>
-    request<{ channels: Channel[]; personalized: boolean }>(
-      `${RECOMMENDATIONS_URL}/channels${buildQuery({ limit })}`,
-      { ttl: SHORT_TTL },
-    ),
-
-  getUserInsights: () =>
-    request<{ insights: Record<string, unknown> }>(`${RECOMMENDATIONS_URL}/insights`, {
-      ttl: SHORT_TTL,
-    }),
-
-  refreshRecommendations: () =>
-    request<{ status: string; message?: string }>(`${RECOMMENDATIONS_URL}/refresh`, {
-      method: "POST",
-      noCache: true,
-    }),
-
-  // ----- Semantic search (distinct from /catalog/search fulltext) -----
-  searchMoviesSemantic: (query: string, limit = 20) =>
-    request<{ movies: Movie[]; query: string | null; semantic: boolean }>(
-      `${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`,
-      { ttl: SHORT_TTL },
-    ),
-
-  searchSeriesSemantic: (query: string, limit = 20) =>
-    request<{ series: Series[]; query: string | null; semantic: boolean }>(
-      `${SEARCH_URL}/series${buildQuery({ q: query, limit })}`,
-      { ttl: SHORT_TTL },
-    ),
-
-  getSearchStatus: () => request<SearchStatus>(`${SEARCH_URL}/status`, { ttl: SHORT_TTL }),
-  getSearchInfo: () => request<SearchInfo>(`${SEARCH_URL}/info`, { ttl: DEFAULT_TTL }),
-
   // ----- Playback telemetry (best-effort, server accepts batch) -----
   sendPlaybackTelemetry: (event: PlaybackTelemetryEvent | PlaybackTelemetryEvent[]) =>
     request<void>(`${TELEMETRY_URL}/playback`, {
@@ -1012,9 +825,7 @@ export const api = {
     }, PREFETCH_SETTLE_DELAY_MS);
   },
 
-  prefetchMovie: (id: string | number) => api.prefetch(`/movies/${id}`),
   prefetchSeries: (id: string | number) => api.prefetch(`/series/${id}`),
-  prefetchChannel: (id: string | number) => api.prefetch(`/channels/${id}`),
 
   clearCache: () => cache.clear(),
 };

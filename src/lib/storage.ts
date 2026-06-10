@@ -3,7 +3,8 @@
  * Handles favorites, watch history, and user preferences
  */
 
-import { createLogger } from "../shared/logging/logger";
+import type { AuthUser } from "./api";
+import { createLogger } from "@/shared/logging/logger";
 
 const logger = createLogger("Storage");
 
@@ -41,16 +42,6 @@ export interface HistoryItem {
 
 export interface UserPreferences {
   announcer: boolean;
-  highContrast: boolean;
-  parentalPin?: string;
-  blockedCategories: string[];
-}
-
-export interface AuthUser {
-  id: number;
-  email: string;
-  name?: string | null;
-  role: string;
 }
 
 export interface AuthSession {
@@ -158,14 +149,6 @@ export const history = {
       h => h.id === id && h.type === type && (type !== "series" || h.episodeId === episodeId),
     );
   },
-
-  clear(): void {
-    safeSetItem(STORAGE_KEYS.HISTORY, []);
-  },
-
-  replaceAll(items: HistoryItem[]): void {
-    safeSetItem(STORAGE_KEYS.HISTORY, items);
-  },
 };
 
 // User Preferences
@@ -173,36 +156,12 @@ export const preferences = {
   get(): UserPreferences {
     return safeGetItem<UserPreferences>(STORAGE_KEYS.PREFERENCES, {
       announcer: true,
-      highContrast: false,
-      blockedCategories: [],
     });
   },
 
   update(updates: Partial<UserPreferences>): void {
     const current = this.get();
     safeSetItem(STORAGE_KEYS.PREFERENCES, { ...current, ...updates });
-  },
-
-  setParentalPin(pin: string): void {
-    this.update({ parentalPin: pin });
-  },
-
-  verifyPin(pin: string): boolean {
-    return this.get().parentalPin === pin;
-  },
-
-  blockCategory(categoryId: string): void {
-    const prefs = this.get();
-    if (!prefs.blockedCategories.includes(categoryId)) {
-      prefs.blockedCategories.push(categoryId);
-      safeSetItem(STORAGE_KEYS.PREFERENCES, prefs);
-    }
-  },
-
-  unblockCategory(categoryId: string): void {
-    const prefs = this.get();
-    prefs.blockedCategories = prefs.blockedCategories.filter(c => c !== categoryId);
-    safeSetItem(STORAGE_KEYS.PREFERENCES, prefs);
   },
 };
 
