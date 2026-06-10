@@ -247,17 +247,18 @@
       "
     ></div>
     <script>
-      // Toggle the TV-overscan safe-zone padding only on real TV hardware
-      // (Fire TV, Tizen, webOS). Emulators / browsers / signage with no
-      // overscan get the full viewport. Pattern matches Amazon's AFT* model
-      // codes and platform-specific UA strings.
+      // Toggle the TV-overscan safe-zone padding only on hardware that can
+      // actually crop edges (Fire TV sticks behind an HDMI input, webOS).
+      // Samsung Tizen renders web apps straight on the panel compositor with
+      // no overscan — and its emulator carries the same UA — so Tizen gets
+      // the full viewport; the Lightning layout already reserves its own
+      // safe margins (shared/layout.ts SAFE_AREA_*).
       (function () {
         try {
           var ua = navigator.userAgent || "";
           var isFireTV = /AFT/.test(ua);
-          var isTizen = / Tizen /.test(ua);
           var isWebOS = /Web0S|webOS/.test(ua);
-          if (isFireTV || isTizen || isWebOS) {
+          if (isFireTV || isWebOS) {
             document.body.classList.add("tv-overscan");
           }
         } catch (e) {}
