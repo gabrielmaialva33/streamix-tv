@@ -5,8 +5,8 @@ import {
   View,
 } from "@lightningtv/solid";
 import { createSignal } from "solid-js";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../shared/layout";
-import { theme } from "../styles";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
+import { theme } from "@/styles";
 
 // Full-screen dim overlay behind the dialog.
 const OverlayStyle = {

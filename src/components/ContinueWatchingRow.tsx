@@ -2,8 +2,8 @@ import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@light
 import { Row } from "@lightningtv/solid/primitives";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { history, type HistoryItem } from "../lib/storage";
-import { theme } from "../styles";
+import { history, type HistoryItem } from "@/lib/storage";
+import { theme } from "@/styles";
 
 const CardStyle = {
   width: 320,

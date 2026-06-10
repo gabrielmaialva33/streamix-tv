@@ -1,5 +1,5 @@
-import { createLogger } from "../../../shared/logging/logger";
-import { isTizenRuntime } from "../../../platform/runtime";
+import { createLogger } from "@/shared/logging/logger";
+import { isTizenRuntime } from "@/platform/runtime";
 import {
   destroyAVPlayBackend,
   hasAVPlaySupport,

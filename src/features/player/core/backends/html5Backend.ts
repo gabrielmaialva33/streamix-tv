@@ -1,4 +1,4 @@
-import { createLogger } from "../../../../shared/logging/logger";
+import { createLogger } from "@/shared/logging/logger";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("HTML5Player");

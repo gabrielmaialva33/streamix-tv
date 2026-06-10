@@ -11,7 +11,7 @@ import {
 } from "@lightningjs/renderer/webgl/shaders";
 import { merge } from "lodash-es";
 import { config } from "#devices/common";
-import fonts from "../fonts";
+import fonts from "@/fonts";
 
 let appRenderer: ReturnType<typeof createRenderer> | null = null;
 

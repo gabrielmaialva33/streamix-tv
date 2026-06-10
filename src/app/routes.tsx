@@ -3,20 +3,20 @@ import { lazy } from "solid-js";
 import MainLayout from "./MainLayout";
 import RequireAuth from "@/features/auth/RequireAuth";
 
-const HomePage = lazy(() => import("../pages/Home"));
-const MoviesPage = lazy(() => import("../pages/Movies"));
-const SeriesPage = lazy(() => import("../pages/Series"));
-const ChannelsPage = lazy(() => import("../pages/Channels"));
-const GuidePage = lazy(() => import("../pages/Guide"));
-const FavoritesPage = lazy(() => import("../pages/Favorites"));
-const ProfilePage = lazy(() => import("../pages/Profile"));
-const SearchPage = lazy(() => import("../pages/Search"));
-const MovieDetailPage = lazy(() => import("../pages/MovieDetail"));
-const SeriesDetailPage = lazy(() => import("../pages/SeriesDetail"));
-const SeriesEpisodesPage = lazy(() => import("../pages/SeriesEpisodes"));
-const NotFoundPage = lazy(() => import("../pages/NotFound"));
-const PlayerPage = lazy(() => import("../features/player/PlayerPage"));
-const LoginPage = lazy(() => import("../features/auth/LoginPage"));
+const HomePage = lazy(() => import("@/pages/Home"));
+const MoviesPage = lazy(() => import("@/pages/Movies"));
+const SeriesPage = lazy(() => import("@/pages/Series"));
+const ChannelsPage = lazy(() => import("@/pages/Channels"));
+const GuidePage = lazy(() => import("@/pages/Guide"));
+const FavoritesPage = lazy(() => import("@/pages/Favorites"));
+const ProfilePage = lazy(() => import("@/pages/Profile"));
+const SearchPage = lazy(() => import("@/pages/Search"));
+const MovieDetailPage = lazy(() => import("@/pages/MovieDetail"));
+const SeriesDetailPage = lazy(() => import("@/pages/SeriesDetail"));
+const SeriesEpisodesPage = lazy(() => import("@/pages/SeriesEpisodes"));
+const NotFoundPage = lazy(() => import("@/pages/NotFound"));
+const PlayerPage = lazy(() => import("@/features/player/PlayerPage"));
+const LoginPage = lazy(() => import("@/features/auth/LoginPage"));
 
 export default function AppRoutes() {
   return (

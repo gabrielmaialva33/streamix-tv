@@ -13,7 +13,7 @@ const logger = createLogger("AppBootstrap");
 
 export async function bootstrapApp() {
   if (isDebugOverlayEnabled) {
-    const { installDebugCapture } = await import("../components/DebugOverlay");
+    const { installDebugCapture } = await import("@/components/DebugOverlay");
     installDebugCapture();
   }
 

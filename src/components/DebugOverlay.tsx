@@ -1,7 +1,7 @@
 import { Text, View } from "@lightningtv/solid";
 import { createSignal, For, onCleanup, onMount } from "solid-js";
-import { isDebugOverlayVisible, toggleDebugOverlay } from "../debug/overlayState";
-import { SCREEN_WIDTH } from "../shared/layout";
+import { isDebugOverlayVisible, toggleDebugOverlay } from "@/debug/overlayState";
+import { SCREEN_WIDTH } from "@/shared/layout";
 
 // In-TV debug overlay toggled with the remote "0" key.
 // It mirrors console output and intercepted fetch calls for environments without DevTools.

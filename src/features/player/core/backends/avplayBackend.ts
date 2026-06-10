@@ -1,6 +1,6 @@
-import { createLogger } from "../../../../shared/logging/logger";
-import { getTizen, isTizenRuntime } from "../../../../platform/runtime";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../../../shared/layout";
+import { createLogger } from "@/shared/logging/logger";
+import { getTizen, isTizenRuntime } from "@/platform/runtime";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("AVPlay");

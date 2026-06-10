@@ -7,7 +7,7 @@ import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState"
 import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 
-const DebugOverlay = lazy(() => import("../components/DebugOverlay"));
+const DebugOverlay = lazy(() => import("@/components/DebugOverlay"));
 
 declare global {
   interface Window {
