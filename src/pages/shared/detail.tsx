@@ -6,7 +6,26 @@ import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Show } from "solid-js";
 import api, { type SimilarContentItem } from "@/lib/api";
 import type { RelatedItem } from "@/lib/contentMeta";
-import { theme } from "@/styles";
+import { linearGradientTexture } from "@/lib/gradientTexture";
+import { cssRgb, theme } from "@/styles";
+
+// Canvas gradient textures for the banner overlays — the gradient shaders
+// can't darken a transparent overlay View (additive blend), textures can.
+// Diagonal shade inspired by the legacy player's 35° detail-page overlay.
+const detailDiagonalShade = linearGradientTexture(
+  [
+    [0, `rgba(${cssRgb.heroShade}, 0.92)`],
+    [0.45, `rgba(${cssRgb.heroShade}, 0.5)`],
+    [0.75, `rgba(${cssRgb.heroShade}, 0.12)`],
+    [1, `rgba(${cssRgb.heroShade}, 0)`],
+  ],
+  { width: 256, height: 64, from: [0, 1], to: [1, 0] },
+);
+const detailBottomFade = linearGradientTexture([
+  [0, `rgba(${cssRgb.background}, 0)`],
+  [0.6, `rgba(${cssRgb.background}, 0.4)`],
+  [1, `rgba(${cssRgb.background}, 0.92)`],
+]);
 
 export const HERO_STYLE = {
   width: 1620,
@@ -116,26 +135,12 @@ const DetailHero = (props: DetailHeroProps) => {
       <Show when={!props.backdropUrl}>
         <View x={40} y={40} style={HERO_STYLE} color={theme.backgroundLight} />
       </Show>
-      <View
-        x={40}
-        y={40}
-        style={HERO_STYLE}
-        shader={{
-          type: "linearGradient",
-          colors: [0x07080eff, 0x07080ecc, 0x07080e22],
-          angle: 0,
-        }}
-      />
-      <View
-        x={40}
-        y={40}
-        style={HERO_STYLE}
-        shader={{
-          type: "linearGradient",
-          colors: [0x07080e00, 0x07080e77, 0x07080eff],
-          angle: 180,
-        }}
-      />
+      <Show when={detailDiagonalShade}>
+        <View x={40} y={40} src={detailDiagonalShade} color={0xffffffff} style={HERO_STYLE} />
+      </Show>
+      <Show when={detailBottomFade}>
+        <View x={40} y={40} src={detailBottomFade} color={0xffffffff} style={HERO_STYLE} />
+      </Show>
 
       <Show when={props.backdropUrl}>
         <View
