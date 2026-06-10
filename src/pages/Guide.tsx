@@ -1,10 +1,10 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import api, { type Channel, type EpgProgram } from "../lib/api";
-import { proxyImageUrl } from "../lib/imageUrl";
-import { navResetTick } from "../shared/navReset";
+import api, { type Channel, type EpgProgram } from "@/lib/api";
+import { proxyImageUrl } from "@/lib/imageUrl";
+import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const EPG_WINDOW_HOURS = 8;
@@ -64,21 +64,11 @@ const toProgram = (p: EpgProgram): Program => ({
 const Guide = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = createSignal(new Date());
-  const [timelineOffset, _setTimelineOffset] = createSignal(0);
 
   let guideGrid: ElementNode | undefined;
 
   // Reset to the grid when the user re-clicks "Guia TV" in the sidebar.
-  let navResetSeen = 0;
-  createEffect(() => {
-    const t = navResetTick();
-    if (navResetSeen === 0) {
-      navResetSeen = t;
-      return;
-    }
-    navResetSeen = t;
-    guideGrid?.setFocus();
-  });
+  onNavReset(() => guideGrid?.setFocus());
 
   // Fetch the first page of channels for the grid.
   const [channels] = createResource(() => api.getChannels({ limit: 50 }));
@@ -176,7 +166,7 @@ const Guide = () => {
 
         {/* Time slots */}
         <View x={CHANNEL_COLUMN_WIDTH} width={PROGRAM_AREA_WIDTH} clipping>
-          <Row x={-timelineOffset()} width={timeSlots().length * TIME_SLOT_WIDTH} height={50} gap={0}>
+          <Row x={0} width={timeSlots().length * TIME_SLOT_WIDTH} height={50} gap={0}>
             <For each={timeSlots()}>
               {slot => (
                 <View width={TIME_SLOT_WIDTH} height={50}>

@@ -1,9 +1,9 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, Show } from "solid-js";
+import { Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { authState, signOut } from "@/features/auth/auth";
-import { navResetTick } from "@/shared/navReset";
+import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ActionButtonStyle = {
@@ -33,16 +33,7 @@ const Profile = () => {
   let actionsColumn: ElementNode | undefined;
 
   // Re-click "Perfil" in the sidebar → snap focus back to the first action.
-  let navResetSeen = 0;
-  createEffect(() => {
-    const t = navResetTick();
-    if (navResetSeen === 0) {
-      navResetSeen = t;
-      return;
-    }
-    navResetSeen = t;
-    actionsColumn?.setFocus();
-  });
+  onNavReset(() => actionsColumn?.setFocus());
 
   const initial = () => {
     const name = authState.user()?.name || authState.user()?.email || "";
@@ -107,7 +98,7 @@ const Profile = () => {
             {authState.user()?.email || ""}
           </Text>
           <Text y={authState.user()?.name ? 84 : 36} fontSize={16} color={theme.textMuted}>
-            v1.0.0
+            {`v${__APP_VERSION__}`}
           </Text>
         </View>
       </Row>
