@@ -1,12 +1,13 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
-import { createEffect, createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card } from "../components";
-import { type FavoriteItem, favorites } from "@/lib/storage";
-import { navResetTick } from "@/shared/navReset";
-import { theme } from "@/styles";
+import { Card } from "@/components";
 import { authState } from "@/features/auth/auth";
+import { chunkIntoRows } from "@/lib/contentMeta";
+import { type FavoriteItem, favorites } from "@/lib/storage";
+import { onNavReset } from "@/shared/navReset";
+import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 
@@ -39,6 +40,13 @@ const ActiveTabStyle = {
 
 type FilterType = "all" | "movie" | "series" | "channel";
 
+const FILTER_TABS: Array<{ value: FilterType; label: string; width: number }> = [
+  { value: "all", label: "Todos", width: 100 },
+  { value: "movie", label: "Filmes", width: 100 },
+  { value: "series", label: "Séries", width: 100 },
+  { value: "channel", label: "Canais", width: 120 },
+];
+
 const Favorites = () => {
   const navigate = useNavigate();
   const [items, setItems] = createSignal<FavoriteItem[]>([]);
@@ -48,23 +56,9 @@ const Favorites = () => {
   let contentGrid: ElementNode | undefined;
 
   // Reset to tabs when the user re-clicks "Favoritos" in the sidebar.
-  let navResetSeen = 0;
-  createEffect(() => {
-    const t = navResetTick();
-    if (navResetSeen === 0) {
-      navResetSeen = t;
-      return;
-    }
-    navResetSeen = t;
-    tabsRow?.setFocus();
-  });
+  onNavReset(() => tabsRow?.setFocus());
 
-  // Load favorites
-  const loadFavorites = () => {
-    setItems(favorites.getAll());
-  };
-
-  onMount(loadFavorites);
+  onMount(() => setItems(favorites.getAll()));
 
   // Filtered items
   const filteredItems = () => {
@@ -73,15 +67,7 @@ const Favorites = () => {
     return all.filter(item => item.type === filter());
   };
 
-  // Chunk items into rows
-  const itemRows = () => {
-    const data = filteredItems();
-    const rows: FavoriteItem[][] = [];
-    for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
-      rows.push(data.slice(i, i + ITEMS_PER_ROW));
-    }
-    return rows;
-  };
+  const itemRows = () => chunkIntoRows(filteredItems(), ITEMS_PER_ROW);
 
   // Handle item selection
   const handleSelect = (item: FavoriteItem) => {
@@ -96,12 +82,6 @@ const Favorites = () => {
         navigate(`/player/channel/${item.id}`);
         break;
     }
-  };
-
-  // Handle remove from favorites
-  const _handleRemove = (item: FavoriteItem) => {
-    favorites.remove(item.id, item.type);
-    loadFavorites();
   };
 
   return (
@@ -143,54 +123,22 @@ const Favorites = () => {
         autofocus
         onDown={() => contentGrid?.setFocus()}
       >
-        <View
-          width={100}
-          style={filter() === "all" ? ActiveTabStyle : TabStyle}
-          onEnter={() => {
-            setFilter("all");
-            return true;
-          }}
-        >
-          <Text fontSize={16} color={0xffffffff}>
-            Todos
-          </Text>
-        </View>
-        <View
-          width={100}
-          style={filter() === "movie" ? ActiveTabStyle : TabStyle}
-          onEnter={() => {
-            setFilter("movie");
-            return true;
-          }}
-        >
-          <Text fontSize={16} color={0xffffffff}>
-            Filmes
-          </Text>
-        </View>
-        <View
-          width={100}
-          style={filter() === "series" ? ActiveTabStyle : TabStyle}
-          onEnter={() => {
-            setFilter("series");
-            return true;
-          }}
-        >
-          <Text fontSize={16} color={0xffffffff}>
-            Séries
-          </Text>
-        </View>
-        <View
-          width={120}
-          style={filter() === "channel" ? ActiveTabStyle : TabStyle}
-          onEnter={() => {
-            setFilter("channel");
-            return true;
-          }}
-        >
-          <Text fontSize={16} color={0xffffffff}>
-            Canais
-          </Text>
-        </View>
+        <For each={FILTER_TABS}>
+          {tab => (
+            <View
+              width={tab.width}
+              style={filter() === tab.value ? ActiveTabStyle : TabStyle}
+              onEnter={() => {
+                setFilter(tab.value);
+                return true;
+              }}
+            >
+              <Text fontSize={16} color={0xffffffff}>
+                {tab.label}
+              </Text>
+            </View>
+          )}
+        </For>
       </Row>
 
       {/* Content Grid */}

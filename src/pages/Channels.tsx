@@ -2,10 +2,11 @@ import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightnin
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createEffect, createMemo, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { CategoryChip, SkeletonLoader } from "../components";
-import api, { type Category, type Channel } from "../lib/api";
+import { CategoryChip, LoadMoreButton, SkeletonLoader } from "@/components";
+import api, { type Category, type Channel } from "@/lib/api";
+import { chunkIntoRows } from "@/lib/contentMeta";
 import { proxyImageUrl } from "@/lib/imageUrl";
-import { navResetTick } from "@/shared/navReset";
+import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
@@ -71,16 +72,7 @@ const Channels = () => {
   let seenChannelIds = new Set<Channel["id"]>();
 
   // Reset to categories when the user re-clicks "Canais" in the sidebar.
-  let navResetSeen = 0;
-  createEffect(() => {
-    const t = navResetTick();
-    if (navResetSeen === 0) {
-      navResetSeen = t;
-      return;
-    }
-    navResetSeen = t;
-    categoriesRow?.setFocus();
-  });
+  onNavReset(() => categoriesRow?.setFocus());
 
   const [offset, setOffset] = createSignal(0);
   const [hasMore, setHasMore] = createSignal(false);
@@ -160,14 +152,7 @@ const Channels = () => {
   });
 
   // Chunk channels into rows
-  const channelRows = createMemo(() => {
-    const data = channelsData();
-    const rows: Channel[][] = [];
-    for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
-      rows.push(data.slice(i, i + ITEMS_PER_ROW));
-    }
-    return rows;
-  });
+  const channelRows = createMemo(() => chunkIntoRows(channelsData(), ITEMS_PER_ROW));
 
   // Navigate to channel player
   const handleChannelSelect = (channel: Channel) => {
@@ -178,6 +163,17 @@ const Channels = () => {
     if (!channels.loading && hasMore()) {
       setOffset(prev => prev + PAGE_SIZE);
     }
+  };
+
+  const selectCategory = (categoryId: number | undefined) => {
+    if (selectedCategory() === categoryId && !searchQuery()) return;
+    seenChannelIds = new Set<Channel["id"]>();
+    setChannelsData([]);
+    setRevealedLogoCount(Number.POSITIVE_INFINITY);
+    setSelectedCategory(categoryId);
+    setSearchQuery(undefined);
+    setOffset(0);
+    setHasMore(false);
   };
 
   return (
@@ -215,32 +211,14 @@ const Channels = () => {
             label="Todos"
             width={100}
             active={selectedCategory() === undefined && !searchQuery()}
-            onSelect={() => {
-              if (selectedCategory() === undefined && !searchQuery()) return;
-              seenChannelIds = new Set();
-              setChannelsData([]);
-              setRevealedLogoCount(Number.POSITIVE_INFINITY);
-              setSelectedCategory(undefined);
-              setSearchQuery(undefined);
-              setOffset(0);
-              setHasMore(false);
-            }}
+            onSelect={() => selectCategory(undefined)}
           />
           <For each={categories()}>
             {(category: Category) => (
               <CategoryChip
                 label={category.name}
                 active={selectedCategory() === category.id && !searchQuery()}
-                onSelect={() => {
-                  if (selectedCategory() === category.id && !searchQuery()) return;
-                  seenChannelIds = new Set();
-                  setChannelsData([]);
-                  setRevealedLogoCount(Number.POSITIVE_INFINITY);
-                  setSelectedCategory(category.id);
-                  setSearchQuery(undefined);
-                  setOffset(0);
-                  setHasMore(false);
-                }}
+                onSelect={() => selectCategory(category.id)}
               />
             )}
           </For>
@@ -341,31 +319,7 @@ const Channels = () => {
         </For>
 
         <Show when={hasMore()}>
-          <Row width={1640} height={60} justifyContent="center">
-            <View
-              ref={loadMoreButton}
-              width={200}
-              height={50}
-              borderRadius={8}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-              style={{
-                color: theme.surfaceLight,
-                border: { color: theme.border, width: 1 },
-                transition: { scale: { duration: 150 }, color: { duration: 150 } },
-                $focus: { scale: 1.05, color: theme.primary, border: { color: theme.primary, width: 1 } },
-              }}
-              onEnter={() => {
-                loadMore();
-                return true;
-              }}
-            >
-              <Text fontSize={18} color={0xffffffff}>
-                {channels.loading ? "Carregando..." : "Carregar Mais"}
-              </Text>
-            </View>
-          </Row>
+          <LoadMoreButton ref={loadMoreButton} loading={channels.loading} onLoadMore={loadMore} />
         </Show>
       </Column>
     </View>

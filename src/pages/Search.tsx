@@ -11,9 +11,10 @@ import {
   startTransition,
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, VirtualKeyboard } from "../components";
-import api, { type Channel, type Movie, type Series, type SuggestItem } from "../lib/api";
-import { pickPoster, proxyImageUrl } from "../lib/imageUrl";
+import { Card, VirtualKeyboard } from "@/components";
+import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
+import { chunkIntoRows } from "@/lib/contentMeta";
+import { pickPoster, proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
 
 const LEFT_PANEL_X = 20;
@@ -34,17 +35,6 @@ const RESULT_CARD_HEIGHT = 278;
 const RESULT_CARD_GAP = 16;
 const RESULT_ROW_HEIGHT = RESULT_CARD_HEIGHT + 62;
 const RESULT_SECTION_HEADER_HEIGHT = 34;
-
-function chunkItems<T>(items: readonly T[] | undefined, size: number): T[][] {
-  const chunks: T[][] = [];
-  const source = items ?? [];
-
-  for (let i = 0; i < source.length; i += size) {
-    chunks.push(source.slice(i, i + size));
-  }
-
-  return chunks;
-}
 
 const Search = () => {
   const navigate = useNavigate();
@@ -348,9 +338,9 @@ const Search = () => {
         const showResults = () => searchTriggered() && totalResults() > 0;
         const showEmpty = () => searchTriggered() && !results.loading && totalResults() === 0;
         const showLoading = () => searchTriggered() && results.loading && totalResults() === 0;
-        const movieRows = () => chunkItems(results.latest?.movies, RESULT_GRID_COLUMNS);
-        const seriesRows = () => chunkItems(results.latest?.series, RESULT_GRID_COLUMNS);
-        const channelRows = () => chunkItems(results.latest?.channels, 4);
+        const movieRows = () => chunkIntoRows(results.latest?.movies, RESULT_GRID_COLUMNS);
+        const seriesRows = () => chunkIntoRows(results.latest?.series, RESULT_GRID_COLUMNS);
+        const channelRows = () => chunkIntoRows(results.latest?.channels, 4);
         const hasMovies = () => movieRows().length > 0;
         const hasSeries = () => seriesRows().length > 0;
         const hasChannels = () => channelRows().length > 0;

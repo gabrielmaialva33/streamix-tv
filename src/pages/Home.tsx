@@ -2,28 +2,12 @@ import { type ElementNode, View } from "@lightningtv/solid";
 import { Column } from "@lightningtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, ContentRow, ContinueWatchingRow, Hero } from "../components";
-import api, { type FeaturedItem, type Movie, type RecommendationItem, type Series } from "../lib/api";
+import { Card, ContentRow, ContinueWatchingRow, Hero } from "@/components";
+import api, { type FeaturedItem, type Movie, type RecommendationItem, type Series } from "@/lib/api";
+import { ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { pickPoster } from "@/lib/imageUrl";
-import { navResetTick } from "@/shared/navReset";
+import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
-
-function movieCaption(movie: Movie) {
-  return [movie.year ? String(movie.year) : null, movie.rating ? `${movie.rating.toFixed(1)} IMDb` : null]
-    .filter(Boolean)
-    .join(" • ");
-}
-
-function recommendationCaption(item: RecommendationItem) {
-  return [item.year ? String(item.year) : null, item.rating ? `${item.rating.toFixed(1)} IMDb` : null]
-    .filter(Boolean)
-    .join(" • ");
-}
-
-function recommendationPoster(item: RecommendationItem) {
-  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
-  return pickPoster({ poster: raw }, 240);
-}
 
 const Home = () => {
   const navigate = useNavigate();
@@ -34,7 +18,6 @@ const Home = () => {
   const [railTick, setRailTick] = createSignal(0);
 
   let hero: ElementNode | undefined;
-  let railsColumn: ElementNode | undefined;
 
   // Single aggregated request — /catalog/home returns featured + 4 rails in
   // one round-trip. Cuts cold-start latency vs. the 5 parallel fetches.
@@ -57,18 +40,8 @@ const Home = () => {
   // expire on a different cadence than the public rails.
   const [recommendedMovies] = createResource(() => api.getRecommendations("movies", 18).catch(() => null));
 
-  // Reset to Hero when the user re-clicks "Início" in the sidebar. Skip the
-  // first run (that's just the initial mount).
-  let navResetSeen = 0;
-  createEffect(() => {
-    const t = navResetTick();
-    if (navResetSeen === 0) {
-      navResetSeen = t;
-      return;
-    }
-    navResetSeen = t;
-    hero?.setFocus();
-  });
+  // Reset to Hero when the user re-clicks "Início" in the sidebar.
+  onNavReset(() => hero?.setFocus());
 
   // Tell the bootstrap splash to fade as soon as we have paintable data.
   // Guard so we only fire once even though the resource re-runs on refresh.
@@ -157,7 +130,6 @@ const Home = () => {
   return (
     <View width={1700} height={1080} color={theme.background} clipping forwardFocus={0}>
       <Column
-        ref={railsColumn}
         width={1700}
         height={1080}
         gap={28}
@@ -178,8 +150,8 @@ const Home = () => {
               {(movie: RecommendationItem) => (
                 <Card
                   title={movie.title || movie.name || ""}
-                  imageUrl={recommendationPoster(movie)}
-                  subtitle={recommendationCaption(movie)}
+                  imageUrl={relatedPoster(movie)}
+                  subtitle={ratingCaption(movie)}
                   item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                 />
               )}
@@ -194,7 +166,7 @@ const Home = () => {
                 <Card
                   title={movie.title || movie.name || ""}
                   imageUrl={pickPoster(movie, 240)}
-                  subtitle={movieCaption(movie)}
+                  subtitle={ratingCaption(movie)}
                   item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                 />
               )}
@@ -209,7 +181,7 @@ const Home = () => {
                 <Card
                   title={movie.title || movie.name || ""}
                   imageUrl={pickPoster(movie, 240)}
-                  subtitle={movieCaption(movie)}
+                  subtitle={ratingCaption(movie)}
                   item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                 />
               )}
@@ -224,7 +196,7 @@ const Home = () => {
                 <Card
                   title={movie.title || movie.name || ""}
                   imageUrl={pickPoster(movie, 240)}
-                  subtitle={movieCaption(movie)}
+                  subtitle={ratingCaption(movie)}
                   item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
                 />
               )}
