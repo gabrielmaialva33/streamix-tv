@@ -1,62 +1,21 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
-import api, { type Movie, type RecommendationItem, type SimilarContentItem } from "@/lib/api";
+import api, { type Movie } from "@/lib/api";
+import { ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
-
-const HERO_STYLE = {
-  width: 1620,
-  height: 260,
-  borderRadius: 28,
-} satisfies IntrinsicNodeStyleProps;
-
-const PANEL_STYLE = {
-  color: theme.panel,
-  borderRadius: 18,
-  border: { color: theme.panelBorder, width: 1 },
-} satisfies IntrinsicNodeStyleProps;
-
-const PRIMARY_BUTTON_STYLE = {
-  width: 180,
-  height: 56,
-  borderRadius: 18,
-  color: theme.primary,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  $focus: {
-    color: theme.primaryLight,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const SECONDARY_BUTTON_STYLE = {
-  width: 180,
-  height: 56,
-  borderRadius: 18,
-  color: theme.surfaceLight,
-  border: { color: theme.border, width: 2 },
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  $focus: {
-    color: theme.surfaceHover,
-    border: { color: theme.primary, width: 2 },
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const META_CHIP_STYLE = {
-  height: 34,
-  borderRadius: 8,
-  color: theme.surfaceMuted,
-  border: { color: theme.borderSubtle, width: 1 },
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-} satisfies IntrinsicNodeStyleProps;
+import DetailHero, {
+  DetailPoster,
+  fetchSimilar,
+  META_CHIP_STYLE,
+  PANEL_STYLE,
+  PRIMARY_BUTTON_STYLE,
+  SECONDARY_BUTTON_STYLE,
+} from "./shared/detail";
 
 function buildMeta(movie?: Movie) {
   if (!movie) {
@@ -72,19 +31,6 @@ function buildMeta(movie?: Movie) {
   ].filter(Boolean) as string[];
 }
 
-type RelatedMovie = SimilarContentItem | RecommendationItem;
-
-function relatedPoster(item: RelatedMovie) {
-  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
-  return pickPoster({ poster: raw }, 240);
-}
-
-function relatedSubtitle(item: RelatedMovie) {
-  return [item.year ? String(item.year) : null, item.rating ? `${item.rating.toFixed(1)} IMDb` : null]
-    .filter(Boolean)
-    .join(" • ");
-}
-
 const MovieDetail = () => {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -98,18 +44,7 @@ const MovieDetail = () => {
   );
   const [similar] = createResource(
     () => params.id,
-    async id => {
-      try {
-        const personalized = await api.getSimilarRecommendations(id, "movies", 12);
-        if (personalized.similar?.length) {
-          return personalized.similar;
-        }
-      } catch {
-        return api.getSimilarContent("movies", id, 12).catch(() => [] as SimilarContentItem[]);
-      }
-
-      return api.getSimilarContent("movies", id, 12).catch(() => [] as SimilarContentItem[]);
-    },
+    id => fetchSimilar("movies", id),
   );
 
   function handleBack() {
@@ -147,71 +82,8 @@ const MovieDetail = () => {
 
           return (
             <>
-              <Show when={backdropUrl}>
-                <View
-                  x={40}
-                  y={40}
-                  src={backdropUrl}
-                  style={HERO_STYLE}
-                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.28 } }}
-                />
-              </Show>
-              <Show when={!backdropUrl}>
-                <View x={40} y={40} style={HERO_STYLE} color={theme.backgroundLight} />
-              </Show>
-              <View
-                x={40}
-                y={40}
-                style={HERO_STYLE}
-                shader={{
-                  type: "linearGradient",
-                  colors: [0x07080eff, 0x07080ecc, 0x07080e22],
-                  angle: 0,
-                }}
-              />
-              <View
-                x={40}
-                y={40}
-                style={HERO_STYLE}
-                shader={{
-                  type: "linearGradient",
-                  colors: [0x07080e00, 0x07080e77, 0x07080eff],
-                  angle: 180,
-                }}
-              />
-
-              <Show when={backdropUrl}>
-                <View
-                  x={1520}
-                  y={58}
-                  width={112}
-                  height={34}
-                  color={0xe50914dd}
-                  borderRadius={17}
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                  skipFocus
-                >
-                  <Text fontSize={15} fontWeight={700} color={0xffffffff}>
-                    FILME
-                  </Text>
-                </View>
-              </Show>
-
-              <Show when={posterUrl}>
-                <View
-                  x={40}
-                  y={320}
-                  width={188}
-                  height={282}
-                  src={posterUrl}
-                  color={0xffffffff}
-                  borderRadius={22}
-                  border={{ color: theme.panelBorder, width: 2 }}
-                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
-                />
-              </Show>
+              <DetailHero backdropUrl={backdropUrl} badge="FILME" badgeWidth={112} />
+              <DetailPoster posterUrl={posterUrl} />
 
               <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
                 <Show when={currentMovie().tagline}>
@@ -273,6 +145,8 @@ const MovieDetail = () => {
                   }}
                 >
                   <View
+                    width={180}
+                    height={56}
                     style={PRIMARY_BUTTON_STYLE}
                     onEnter={() => {
                       navigate(`/player/movie/${currentMovie().id}`);
@@ -290,7 +164,7 @@ const MovieDetail = () => {
                       Assistir
                     </Text>
                   </View>
-                  <View style={SECONDARY_BUTTON_STYLE} onEnter={handleBack}>
+                  <View width={180} height={56} style={SECONDARY_BUTTON_STYLE} onEnter={handleBack}>
                     <Text
                       width={148}
                       fontSize={20}
@@ -406,7 +280,7 @@ const MovieDetail = () => {
                         <Card
                           title={item.title || item.name || ""}
                           imageUrl={relatedPoster(item)}
-                          subtitle={relatedSubtitle(item)}
+                          subtitle={ratingCaption(item)}
                           width={220}
                           height={330}
                           item={{ id: item.id, type: "movie", href: `/movie/${item.id}` }}

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
+import { chunkIntoRows, seasonLabel } from "@/lib/contentMeta";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -42,10 +43,6 @@ const EPISODE_CARD_STYLE = {
 
 const ITEMS_PER_ROW = 3;
 
-function seasonLabel(season: Season, index: number) {
-  return `Temporada ${season.season_number ?? index + 1}`;
-}
-
 const SeriesEpisodes = () => {
   const params = useParams<{ id: string; season?: string }>();
   const navigate = useNavigate();
@@ -70,15 +67,7 @@ const SeriesEpisodes = () => {
 
   const currentSeason = () => series()?.seasons?.[selectedSeasonIdx()];
   const episodes = (): Episode[] => currentSeason()?.episodes || [];
-
-  const episodeRows = (): Episode[][] => {
-    const data = episodes();
-    const rows: Episode[][] = [];
-    for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
-      rows.push(data.slice(i, i + ITEMS_PER_ROW));
-    }
-    return rows;
-  };
+  const episodeRows = () => chunkIntoRows(episodes(), ITEMS_PER_ROW);
 
   function handlePlay(ep?: Episode) {
     if (!ep) return;

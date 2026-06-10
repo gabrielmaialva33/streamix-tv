@@ -1,64 +1,21 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { ElementNode, Text, View } from "@lightningtv/solid";
 import { Column, Row } from "@lightningtv/solid/primitives";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
-import api, { type RecommendationItem, type Season, type Series, type SimilarContentItem } from "@/lib/api";
+import api, { type Series } from "@/lib/api";
+import { ratingCaption, relatedPoster, seasonLabel } from "@/lib/contentMeta";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
-
-const HERO_STYLE = {
-  width: 1620,
-  height: 260,
-  borderRadius: 28,
-} satisfies IntrinsicNodeStyleProps;
-
-const PANEL_STYLE = {
-  color: theme.panel,
-  borderRadius: 18,
-  border: { color: theme.panelBorder, width: 1 },
-} satisfies IntrinsicNodeStyleProps;
-
-const PRIMARY_BUTTON_STYLE = {
-  width: 220,
-  height: 58,
-  borderRadius: 18,
-  color: theme.primary,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  $focus: {
-    color: theme.primaryLight,
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const SECONDARY_BUTTON_STYLE = {
-  width: 180,
-  height: 58,
-  borderRadius: 18,
-  color: theme.surfaceLight,
-  border: { color: theme.border, width: 2 },
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  $focus: {
-    color: theme.surfaceHover,
-    border: { color: theme.primary, width: 2 },
-  },
-} satisfies IntrinsicNodeStyleProps;
-
-const META_CHIP_STYLE = {
-  height: 34,
-  borderRadius: 8,
-  color: theme.surfaceMuted,
-  border: { color: theme.borderSubtle, width: 1 },
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-} satisfies IntrinsicNodeStyleProps;
-
-type RelatedSeries = SimilarContentItem | RecommendationItem;
+import DetailHero, {
+  DetailPoster,
+  fetchSimilar,
+  META_CHIP_STYLE,
+  PANEL_STYLE,
+  PRIMARY_BUTTON_STYLE,
+  SECONDARY_BUTTON_STYLE,
+} from "./shared/detail";
 
 function buildMeta(show?: Series) {
   if (!show) {
@@ -72,21 +29,6 @@ function buildMeta(show?: Series) {
     show.season_count ? `${show.season_count} temporadas` : null,
     show.episode_count ? `${show.episode_count} episódios` : null,
   ].filter(Boolean) as string[];
-}
-
-function relatedPoster(item: RelatedSeries) {
-  const raw = item.poster || (Array.isArray(item.backdrop) ? item.backdrop[0] : item.backdrop) || undefined;
-  return pickPoster({ poster: raw }, 240);
-}
-
-function relatedSubtitle(item: RelatedSeries) {
-  return [item.year ? String(item.year) : null, item.rating ? `${item.rating.toFixed(1)} IMDb` : null]
-    .filter(Boolean)
-    .join(" • ");
-}
-
-function seasonLabel(season: Season, index: number) {
-  return `Temporada ${season.season_number ?? index + 1}`;
 }
 
 const SeriesDetail = () => {
@@ -103,18 +45,7 @@ const SeriesDetail = () => {
   const [selectedSeasonIdx] = createSignal(0);
   const [similar] = createResource(
     () => params.id,
-    async id => {
-      try {
-        const personalized = await api.getSimilarRecommendations(id, "series", 12);
-        if (personalized.similar?.length) {
-          return personalized.similar;
-        }
-      } catch {
-        return api.getSimilarContent("series", id, 12).catch(() => [] as SimilarContentItem[]);
-      }
-
-      return api.getSimilarContent("series", id, 12).catch(() => [] as SimilarContentItem[]);
-    },
+    id => fetchSimilar("series", id),
   );
 
   function currentSeasonIndex() {
@@ -161,71 +92,8 @@ const SeriesDetail = () => {
 
           return (
             <>
-              <Show when={backdropUrl}>
-                <View
-                  x={40}
-                  y={40}
-                  src={backdropUrl}
-                  style={HERO_STYLE}
-                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.28 } }}
-                />
-              </Show>
-              <Show when={!backdropUrl}>
-                <View x={40} y={40} style={HERO_STYLE} color={theme.backgroundLight} />
-              </Show>
-              <View
-                x={40}
-                y={40}
-                style={HERO_STYLE}
-                shader={{
-                  type: "linearGradient",
-                  colors: [0x07080eff, 0x07080ecc, 0x07080e22],
-                  angle: 0,
-                }}
-              />
-              <View
-                x={40}
-                y={40}
-                style={HERO_STYLE}
-                shader={{
-                  type: "linearGradient",
-                  colors: [0x07080e00, 0x07080e77, 0x07080eff],
-                  angle: 180,
-                }}
-              />
-
-              <Show when={backdropUrl}>
-                <View
-                  x={1510}
-                  y={58}
-                  width={122}
-                  height={34}
-                  color={0xe50914dd}
-                  borderRadius={17}
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                  skipFocus
-                >
-                  <Text fontSize={15} fontWeight={700} color={0xffffffff}>
-                    SÉRIE
-                  </Text>
-                </View>
-              </Show>
-
-              <Show when={posterUrl}>
-                <View
-                  x={40}
-                  y={320}
-                  width={188}
-                  height={282}
-                  src={posterUrl}
-                  color={0xffffffff}
-                  borderRadius={22}
-                  border={{ color: theme.panelBorder, width: 2 }}
-                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
-                />
-              </Show>
+              <DetailHero backdropUrl={backdropUrl} badge="SÉRIE" badgeWidth={122} />
+              <DetailPoster posterUrl={posterUrl} />
 
               <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
                 <Column x={30} y={26} width={1332} gap={14} scroll="none" skipFocus>
@@ -259,6 +127,8 @@ const SeriesDetail = () => {
 
                 <Row ref={actionRow} x={30} y={194} width={1332} height={58} gap={20} scroll="none" autofocus>
                   <View
+                    width={220}
+                    height={58}
                     style={PRIMARY_BUTTON_STYLE}
                     onEnter={() => {
                       navigate(`/series/${params.id}/episodes`);
@@ -276,7 +146,7 @@ const SeriesDetail = () => {
                       Ver episódios
                     </Text>
                   </View>
-                  <View style={SECONDARY_BUTTON_STYLE} onEnter={handleBack}>
+                  <View width={180} height={58} style={SECONDARY_BUTTON_STYLE} onEnter={handleBack}>
                     <Text
                       width={148}
                       fontSize={20}
@@ -409,7 +279,7 @@ const SeriesDetail = () => {
                           <Card
                             title={item.title || item.name || ""}
                             imageUrl={relatedPoster(item)}
-                            subtitle={relatedSubtitle(item)}
+                            subtitle={ratingCaption(item)}
                             width={220}
                             height={330}
                             item={{ id: item.id, type: "series", href: `/series/${item.id}` }}
