@@ -10,8 +10,12 @@ import { Column } from "@lightningtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { bumpNavReset } from "@/shared/navReset";
 import { Show } from "solid-js";
-import { theme } from "@/styles";
+import { radialGlowTexture } from "@/lib/gradientTexture";
+import { cssRgb, theme } from "@/styles";
 import { authState } from "@/features/auth/auth";
+
+// Soft red halo behind the active route indicator.
+const indicatorGlow = radialGlowTexture(cssRgb.primary, 0.4);
 
 // Menu column positioning.
 const ColumnStyle = {
@@ -105,6 +109,9 @@ interface NavButtonProps extends NodeProps {
 function NavButton(props: NavButtonProps) {
   return (
     <View {...props} forwardStates style={props.isActive ? NavButtonActiveStyle : NavButtonStyle}>
+      {props.isActive && indicatorGlow && (
+        <View x={-26} y={-2} width={56} height={56} src={indicatorGlow} color={0xffffffff} skipFocus />
+      )}
       {props.isActive && <View style={ActiveIndicatorStyle} />}
       <Text style={props.isActive ? NavButtonActiveTextStyle : NavButtonTextStyle}>{props.children}</Text>
     </View>

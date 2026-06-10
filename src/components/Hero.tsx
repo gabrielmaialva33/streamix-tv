@@ -8,16 +8,36 @@ import {
 } from "@lightningtv/solid";
 import { createMemo, createResource, Show } from "solid-js";
 import api, { type FeaturedItem, type Movie, type Series } from "@/lib/api";
+import { linearGradientTexture } from "@/lib/gradientTexture";
 import { pickBackdrop, proxyBackdropUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH, SAFE_AREA_X } from "@/shared/layout";
-import { theme } from "@/styles";
+import { cssRgb, theme } from "@/styles";
+
+// Overlay textures (shared GPU texture per data URL). The left shade anchors
+// the text block Netflix-style; the bottom fade dissolves the hero into the
+// page background so it stops reading as a floating card.
+const heroLeftShade = linearGradientTexture(
+  [
+    [0, `rgba(${cssRgb.heroShade}, 0.94)`],
+    [0.34, `rgba(${cssRgb.heroShade}, 0.72)`],
+    [0.62, `rgba(${cssRgb.heroShade}, 0.28)`],
+    [1, `rgba(${cssRgb.heroShade}, 0)`],
+  ],
+  { width: 256, height: 2, from: [0, 0], to: [1, 0] },
+);
+const heroBottomFade = linearGradientTexture([
+  [0, `rgba(${cssRgb.background}, 0)`],
+  [0.55, `rgba(${cssRgb.background}, 0.35)`],
+  [0.85, `rgba(${cssRgb.background}, 0.82)`],
+  [1, `rgba(${cssRgb.background}, 1)`],
+]);
 
 // Hero button styles with $focus
 const PlayButtonStyle = {
-  width: 160,
-  height: 50,
+  width: 176,
+  height: 52,
   color: theme.primary,
-  borderRadius: 8,
+  borderRadius: 26,
   border: { color: 0x00000000, width: 2 },
   display: "flex",
   justifyContent: "center",
@@ -35,11 +55,11 @@ const PlayButtonStyle = {
 } satisfies IntrinsicNodeStyleProps;
 
 const InfoButtonStyle = {
-  width: 160,
-  height: 50,
-  color: theme.surfaceLight,
-  borderRadius: 8,
-  border: { color: theme.border, width: 2 },
+  width: 176,
+  height: 52,
+  color: 0x252631aa,
+  borderRadius: 26,
+  border: { color: theme.borderLight, width: 2 },
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -181,34 +201,28 @@ const Hero = (props: HeroProps) => {
         />
       </Show>
 
-      <Show when={backdrop()}>
+      <Show when={backdrop() && heroLeftShade}>
         <View
           x={0}
           y={0}
+          src={heroLeftShade}
+          color={0xffffffff}
           width={CONTENT_WIDTH}
           height={600}
           borderRadius={16}
-          shader={{
-            type: "linearGradient",
-            colors: [0x06070dff, 0x06070de8, 0x06070d44],
-            angle: 0,
-          }}
           zIndex={1}
         />
       </Show>
 
-      <Show when={backdrop()}>
+      <Show when={backdrop() && heroBottomFade}>
         <View
           x={0}
           y={0}
+          src={heroBottomFade}
+          color={0xffffffff}
           width={CONTENT_WIDTH}
           height={600}
           borderRadius={16}
-          shader={{
-            type: "linearGradient",
-            colors: [0x06070d00, 0x06070d88, 0x06070dff],
-            angle: 180,
-          }}
           zIndex={1}
         />
       </Show>
@@ -224,18 +238,6 @@ const Hero = (props: HeroProps) => {
           zIndex={0}
         />
       </Show>
-
-      <View
-        x={SAFE_AREA_X + 12}
-        y={168}
-        width={820}
-        height={336}
-        color={theme.panel}
-        borderRadius={18}
-        border={{ color: theme.panelBorder, width: 1 }}
-        zIndex={2}
-        skipFocus
-      />
 
       <View x={SAFE_AREA_X + 44} y={200} width={748} zIndex={3} skipFocus>
         <Show when={meta().length > 0}>

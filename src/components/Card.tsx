@@ -6,7 +6,24 @@ import {
   View,
 } from "@lightningtv/solid";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import { theme } from "@/styles";
+import { radialGlowTexture } from "@/lib/gradientTexture";
+import { cssRgb, theme } from "@/styles";
+
+// Soft red halo behind the focused card. One shared 128px texture stretched
+// per card; alpha 0 nodes are skipped by the renderer so idle cards are free.
+const cardGlow = radialGlowTexture(cssRgb.primary, 0.55);
+
+const CardGlowStyle = {
+  color: 0xffffffff,
+  alpha: 0,
+  zIndex: 0,
+  transition: {
+    alpha: { duration: 200, easing: "ease-out" },
+  },
+  $focus: {
+    alpha: 1,
+  },
+} satisfies IntrinsicNodeStyleProps;
 
 // Card image container (also used by the placeholder) - subtle border that
 // highlights on focus.
@@ -21,7 +38,7 @@ const CardImageStyle = {
   zIndex: 1,
   $focus: {
     border: { color: theme.primary, width: 3 },
-    scale: 1.015,
+    scale: 1.04,
     zIndex: 30,
   },
 } satisfies IntrinsicNodeStyleProps;
@@ -93,6 +110,19 @@ const Card = (props: CardProps) => {
 
   return (
     <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
+      {/* Focus glow halo behind the image */}
+      <Show when={cardGlow}>
+        <View
+          x={-32}
+          y={-32}
+          width={width + 64}
+          height={height + 64}
+          src={cardGlow}
+          style={CardGlowStyle}
+          skipFocus
+        />
+      </Show>
+
       {/* Card Image with border - show when image URL exists and no error */}
       <Show when={props.imageUrl && imageReady() && !imageError()}>
         <View
