@@ -53,3 +53,11 @@ export const theme = {
   panel: 0x111219f2,
   panelBorder: 0x2a2b38ff,
 };
+
+// CSS color triplets ("r, g, b") for canvas-generated gradient textures
+// (see lib/gradientTexture.ts). Keep in sync with the hex tokens above.
+export const cssRgb = {
+  primary: "229, 9, 20", // theme.primary
+  background: "9, 10, 16", // theme.background
+  heroShade: "6, 7, 13", // vignette base used over hero backdrops
+};
