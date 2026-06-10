@@ -1,9 +1,12 @@
+import { readFileSync } from "fs";
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import hexColorTransform from "@lightningtv/vite-hex-transform";
 import legacy from "@vitejs/plugin-legacy";
 import path from "path";
 import deviceConfigPlugin from "./devices/deviceConfigPlugin.js";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 const envDir = "./environments";
 
@@ -15,6 +18,7 @@ export default defineConfig(({ mode }) => {
     envDir,
     define: {
       __DEV__: mode !== "production",
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
     plugins: [
       deviceConfigPlugin(process.env.TARGET_DEVICE),
