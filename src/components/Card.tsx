@@ -20,8 +20,11 @@ const CardGlowStyle = {
   transition: {
     alpha: { duration: 200, easing: "ease-out" },
   },
+  // Lift above sibling cards (zIndex 1) while focused, but stay below the
+  // focused image itself (zIndex 30).
   $focus: {
     alpha: 1,
+    zIndex: 25,
   },
 } satisfies IntrinsicNodeStyleProps;
 

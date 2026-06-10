@@ -65,8 +65,11 @@ export function radialGlowTexture(rgb: string, alpha = 0.5, size = 128): string 
 
   const half = size / 2;
   const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
+  // Full-strength plateau out to ~72% so the glow stays bright at the edge of
+  // whatever sits on top of it (a focused card covers the texture center);
+  // only the outer ring fades out.
   gradient.addColorStop(0, `rgba(${rgb}, ${alpha})`);
-  gradient.addColorStop(0.55, `rgba(${rgb}, ${alpha * 0.45})`);
+  gradient.addColorStop(0.72, `rgba(${rgb}, ${alpha})`);
   gradient.addColorStop(1, `rgba(${rgb}, 0)`);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
