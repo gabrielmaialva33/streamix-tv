@@ -75,6 +75,18 @@ export default defineConfig(({ mode }) => {
     server: {
       hmr: true,
       // Removed COEP/COOP headers that were blocking cross-origin fetch
+      // Dev-only reverse proxy: the browser hits same-origin /sx-api, Vite
+      // forwards to the real backend with the Origin rewritten, so CORS never
+      // trips. Image/stream URLs still go direct (see imageUrl.ts). Only the
+      // `development` env file points the API base at /sx-api.
+      proxy: {
+        "/sx-api": {
+          target: "https://streamix.mahina.cloud",
+          changeOrigin: true,
+          secure: true,
+          rewrite: p => p.replace(/^\/sx-api/, ""),
+        },
+      },
     },
   };
 });
