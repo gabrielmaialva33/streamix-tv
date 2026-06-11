@@ -48,6 +48,15 @@ const SeriesDetail = () => {
     id => fetchSimilar("series", id),
   );
 
+  // Guard against stale-while-revalidate: when navigating series→series the
+  // resource holds the previous show's data until the new fetch resolves.
+  // Only treat it as current once its id matches the route so we never paint
+  // a mismatched backdrop/meta. (See MovieDetail for the same pattern.)
+  const loadedSeries = () => {
+    const s = series();
+    return s && String(s.id) === params.id ? s : undefined;
+  };
+
   // Most recent unfinished episode of THIS show — powers the "Continuar"
   // CTA. history is sorted most-recent-first.
   const inProgress = () => {
@@ -81,7 +90,7 @@ const SeriesDetail = () => {
       onBack={handleBack}
       onLast={handleBack}
     >
-      <Show when={series.loading}>
+      <Show when={!loadedSeries()}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
@@ -91,7 +100,7 @@ const SeriesDetail = () => {
         </View>
       </Show>
 
-      <Show when={series()}>
+      <Show when={loadedSeries()}>
         {currentSeries => {
           const metaItems = buildMeta(currentSeries());
           const posterUrl = pickPoster(currentSeries(), 240);

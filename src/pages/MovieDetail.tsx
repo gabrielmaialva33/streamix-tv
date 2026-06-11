@@ -48,6 +48,16 @@ const MovieDetail = () => {
     id => fetchSimilar("movies", id),
   );
 
+  // createResource keeps the previous movie's data during a refetch
+  // (stale-while-revalidate). Navigating detail→detail (e.g. via "Títulos
+  // parecidos") would otherwise paint the prior title's backdrop/meta until
+  // the new fetch lands. Gate the view on the loaded id matching the route so
+  // the page never shows a mismatched movie.
+  const loadedMovie = () => {
+    const m = movie();
+    return m && String(m.id) === params.id ? m : undefined;
+  };
+
   // Saved playback position (the player already auto-resumes; this only
   // surfaces it on the CTA, plus an explicit "from the start" escape hatch).
   const resumePosition = () => {
@@ -73,7 +83,7 @@ const MovieDetail = () => {
       onBack={handleBack}
       onLast={handleBack}
     >
-      <Show when={movie.loading}>
+      <Show when={!loadedMovie()}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
@@ -83,7 +93,7 @@ const MovieDetail = () => {
         </View>
       </Show>
 
-      <Show when={movie()}>
+      <Show when={loadedMovie()}>
         {currentMovie => {
           const metaItems = buildMeta(currentMovie());
           const posterUrl = pickPoster(currentMovie(), 240);
