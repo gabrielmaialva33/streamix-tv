@@ -57,6 +57,12 @@ export async function bootstrapApp() {
     if (dismissed) return;
     dismissed = true;
     dismissSplash();
+    // Clear the index.html splash watchdog even when the first painted route
+    // isn't Home/Login — those are the only pages that dispatch
+    // `streamix:ready` themselves, so a deep-link/refresh on /movie/:id would
+    // otherwise trip the 30s "App did not boot" banner over a working app.
+    // The index.html listener is idempotent, so re-dispatching here is safe.
+    window.dispatchEvent(new Event("streamix:ready"));
   };
 
   // Primary signal — Home and LoginPage fire `streamix:ready` when their

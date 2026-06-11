@@ -65,7 +65,14 @@ export function rendererTuning(profile = detectDeviceProfile()) {
   }
 
   return {
-    criticalThresholdMB: 100, // mid/high-end Fire TV / Tizen / webOS
+    // Bumped 100→180MB: at 100MB a few 1280px backdrops (~3.7MB each in VRAM)
+    // plus a screenful of posters tripped the critical threshold, so rapid
+    // detail→detail navigation churned the texture cache — evicted posters got
+    // re-fetched in bursts and some loads failed (net::ERR_FAILED) with the
+    // main-thread image loader (numImageWorkers:0). 180MB gives headroom on
+    // 2GB+ Tizen/webOS/modern Fire TV without risking the legacy 2GB profile,
+    // which keeps its tighter 64MB budget above.
+    criticalThresholdMB: 180, // mid/high-end Fire TV / Tizen / webOS
     cleanupTargetLevel: 0.6,
     boundsMargin: 240,
     cleanupIntervalMs: 5000,
