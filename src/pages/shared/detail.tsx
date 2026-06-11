@@ -3,7 +3,7 @@
 // "similar titles" fetcher with its public fallback.
 
 import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import api, { type SimilarContentItem } from "@/lib/api";
 import type { RelatedItem } from "@/lib/contentMeta";
 import { linearGradientTexture } from "@/lib/gradientTexture";
@@ -115,25 +115,43 @@ export const DetailPoster = (props: DetailPosterProps) => {
 
 export interface DetailHeroProps {
   backdropUrl?: string;
+  /** Portrait poster, used as an ambient banner when no backdrop exists. */
+  posterUrl?: string;
   /** Type badge shown on the top-right corner ("FILME" / "SÉRIE"). */
   badge: string;
   badgeWidth: number;
 }
 
 const DetailHero = (props: DetailHeroProps) => {
+  // Many catalog entries have no backdrop, and TMDB backdrops occasionally
+  // fail to load. Rather than leaving a dead black box, fall back to the
+  // poster as an ambient banner (cover-cropped + heavily scrimmed below).
+  const [backdropFailed, setBackdropFailed] = createSignal(false);
+  createEffect(() => {
+    // Re-arm the fallback whenever we navigate to a different title.
+    void props.backdropUrl;
+    setBackdropFailed(false);
+  });
+  const heroImage = () => (props.backdropUrl && !backdropFailed() ? props.backdropUrl : props.posterUrl);
+  // A stretched portrait poster reads better pinned to its top third (faces)
+  // than the backdrop's lower crop.
+  const heroClipY = () => (props.backdropUrl && !backdropFailed() ? 0.28 : 0.12);
+
   return (
     <>
-      <Show when={props.backdropUrl}>
+      <Show
+        when={heroImage()}
+        fallback={<View x={40} y={40} style={HERO_STYLE} color={theme.backgroundLight} />}
+      >
         <View
           x={40}
           y={40}
-          src={props.backdropUrl}
+          src={heroImage()}
+          color={0xffffffff}
           style={HERO_STYLE}
-          textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.28 } }}
+          textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: heroClipY() } }}
+          onEvent={{ failed: () => setBackdropFailed(true) }}
         />
-      </Show>
-      <Show when={!props.backdropUrl}>
-        <View x={40} y={40} style={HERO_STYLE} color={theme.backgroundLight} />
       </Show>
       <Show when={detailDiagonalShade}>
         <View x={40} y={40} src={detailDiagonalShade} color={0xffffffff} style={HERO_STYLE} />

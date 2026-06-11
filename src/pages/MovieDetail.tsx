@@ -98,7 +98,7 @@ const MovieDetail = () => {
               {/* Hero block — backdrop, poster and the action panel. Height
                   covers the absolutely-positioned children inside it. */}
               <View width={1620} height={602} skipFocus>
-                <DetailHero backdropUrl={backdropUrl} badge="FILME" badgeWidth={112} />
+                <DetailHero backdropUrl={backdropUrl} posterUrl={posterUrl} badge="FILME" badgeWidth={112} />
                 <DetailPoster posterUrl={posterUrl} />
 
                 <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>

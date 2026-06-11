@@ -99,7 +99,7 @@ const SeriesDetail = () => {
 
           return (
             <>
-              <DetailHero backdropUrl={backdropUrl} badge="SÉRIE" badgeWidth={122} />
+              <DetailHero backdropUrl={backdropUrl} posterUrl={posterUrl} badge="SÉRIE" badgeWidth={122} />
               <DetailPoster posterUrl={posterUrl} />
 
               <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
