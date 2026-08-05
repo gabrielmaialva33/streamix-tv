@@ -1,5 +1,5 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import { createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import api, { type Channel, type EpgProgram } from "@/lib/api";

@@ -1,6 +1,6 @@
-import { SdfTextRenderer, WebGlCoreRenderer } from "@lightningjs/renderer/webgl";
-import { CanvasCoreRenderer, CanvasTextRenderer } from "@lightningjs/renderer/canvas";
-import { Inspector } from "@lightningjs/renderer/inspector";
+import { SdfTextRenderer, WebGlCoreRenderer } from "@solidtv/renderer/webgl";
+import { CanvasCoreRenderer, CanvasTextRenderer } from "@solidtv/renderer/canvas";
+import { Inspector } from "@solidtv/renderer/inspector";
 import { DeviceCommon } from "./device";
 import { detectDeviceProfile, rendererTuning } from "./capabilities";
 
@@ -45,7 +45,7 @@ export const config = {
       inspector: import.meta.env.DEV ? Inspector : undefined,
       // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2.
       // Compute from the actual viewport so the same 1920×1080 lógico fits
-      // any TV without page refactor — same pattern as @lightningtv/solid-demo-app.
+      // any TV without page refactor — same pattern as @solidtv/solid-demo-app.
       deviceLogicalPixelRatio: typeof window === "undefined" ? 1 : window.innerHeight / 1080,
       devicePhysicalPixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
       // Off-screen preload window. Tighter on legacy hardware so we don't
@@ -88,13 +88,6 @@ export const config = {
     Key7: ["7", 103, 55],
     Key8: ["8", 104, 56],
     Key9: ["9", 105, 57],
-  },
-  keyHoldOptions: {
-    userKeyHoldMap: {
-      EnterHold: ["Enter", 13],
-      BackHold: ["b", 66],
-    },
-    holdThreshold: 1000,
   },
   initialize: function (): Promise<DeviceCommon> {
     return DeviceCommon.initialize();

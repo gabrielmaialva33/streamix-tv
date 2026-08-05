@@ -1,5 +1,5 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createMemo, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, LoadMoreButton, SkeletonLoader } from "@/components";

@@ -1,4 +1,4 @@
-import { type NodeProps, View } from "@lightningtv/solid";
+import { type NodeProps, View } from "@solidtv/solid";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { theme } from "@/styles";
 

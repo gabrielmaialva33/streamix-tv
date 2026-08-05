@@ -1,9 +1,4 @@
-import {
-  type IntrinsicNodeStyleProps,
-  type IntrinsicTextNodeStyleProps,
-  Text,
-  View,
-} from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, type IntrinsicTextNodeStyleProps, Text, View } from "@solidtv/solid";
 import { theme } from "@/styles";
 
 // Static shape — Lightning applies `style` once on mount and `$focus` reverts

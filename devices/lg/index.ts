@@ -42,13 +42,6 @@ export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
     Key8: -1,
     Key9: -1,
   },
-  keyHoldOptions: {
-    userKeyHoldMap: {
-      EnterHold: 13,
-      BackHold: 461,
-    },
-    holdThreshold: 1000,
-  },
   initialize: async function () {
     return await LgDevice.initialize();
   },

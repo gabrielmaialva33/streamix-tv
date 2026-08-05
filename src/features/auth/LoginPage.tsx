@@ -4,8 +4,8 @@ import {
   type IntrinsicTextNodeStyleProps,
   Text,
   View,
-} from "@lightningtv/solid";
-import { Row } from "@lightningtv/solid/primitives";
+} from "@solidtv/solid";
+import { Row } from "@solidtv/solid/primitives";
 import { useNavigate } from "@solidjs/router";
 import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
 import { authState, registerAccount, signIn } from "./auth";

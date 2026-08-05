@@ -1,15 +1,4 @@
-import type { Config as LightningConfig, KeyMap } from "@lightningtv/solid";
-
-// KeyHoldOptions is not re-exported from the @lightningtv/solid root package.
-// Keep a local copy based on the package focus key types.
-type KeyNameOrKeyCode = string | number;
-interface KeyHoldMap {
-  [key: string]: KeyNameOrKeyCode | KeyNameOrKeyCode[];
-}
-export type KeyHoldOptions = {
-  userKeyHoldMap: Partial<KeyHoldMap>;
-  holdThreshold?: number;
-};
+import type { Config as LightningConfig, KeyMap } from "@solidtv/solid";
 
 export enum EDevicePlatform {
   CHROME = "CHROME",
@@ -40,7 +29,6 @@ export interface DeviceConfig {
   initialize: () => Promise<Device>;
   quality: QualityConfig;
   keys: Partial<KeyMap>;
-  keyHoldOptions: KeyHoldOptions;
 }
 
 export interface Device {

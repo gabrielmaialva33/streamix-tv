@@ -12,7 +12,7 @@ const envDir = "./environments";
 
 export default defineConfig(({ mode }) => {
   // Get environment variables
-  // const env = loadEnv(mode, path.join(__dirname, envDir));
+  // const env = loadEnv(mode, path.join(import.meta.dirname, envDir));
 
   return {
     envDir,
@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
         // Restricting include to src/** breaks the router silently (Show/Match
         // etc. render as plain strings, so HashRouter never invokes root).
         solid: {
-          moduleName: "@lightningtv/solid",
+          moduleName: "@solidtv/solid",
           generate: "universal",
         },
       }),
@@ -50,17 +50,17 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        theme: path.resolve(__dirname, "./theme.js"),
-        "@": path.resolve(__dirname, "./src"),
-        "#devices": path.resolve(__dirname, "./devices"),
+        theme: path.resolve(import.meta.dirname, "./theme.js"),
+        "@": path.resolve(import.meta.dirname, "./src"),
+        "#devices": path.resolve(import.meta.dirname, "./devices"),
       },
       dedupe: [
         "solid-js",
         "solid-js/universal",
         "@solidjs/router",
-        "@lightningtv/solid",
-        "@lightningtv/solid/primitives",
-        "@lightningjs/renderer",
+        "@solidtv/solid",
+        "@solidtv/solid/primitives",
+        "@solidtv/renderer",
       ],
     },
     build: {
@@ -70,7 +70,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
     },
     optimizeDeps: {
-      exclude: ["@lightningtv/solid", "@lightningtv/solid/primitives", "@lightningjs/renderer"],
+      exclude: ["@solidtv/solid", "@solidtv/solid/primitives", "@solidtv/renderer"],
     },
     server: {
       hmr: true,

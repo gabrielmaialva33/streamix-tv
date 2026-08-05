@@ -1,4 +1,5 @@
-import { FocusStackProvider, HashRouter } from "@lightningtv/solid/primitives";
+import { FocusStackProvider } from "@solidtv/solid/primitives";
+import { HashRouter } from "@solidtv/solid/primitives/router";
 import { config } from "#devices/common";
 import { isDebugOverlayEnabled } from "@/debug/overlayState";
 import { getAppRenderer } from "./lightning";

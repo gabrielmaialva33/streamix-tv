@@ -1,5 +1,5 @@
-import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import { Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { authState, signOut } from "@/features/auth/auth";

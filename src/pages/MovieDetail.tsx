@@ -1,5 +1,5 @@
-import { ElementNode, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { ElementNode, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
 import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";

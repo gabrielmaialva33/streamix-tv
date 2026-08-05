@@ -2,7 +2,7 @@
 // the hero banner (backdrop + gradients + type badge) and the personalized
 // "similar titles" fetcher with its public fallback.
 
-import { type IntrinsicNodeStyleProps, Text, View } from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import api, { type SimilarContentItem } from "@/lib/api";
 import type { RelatedItem } from "@/lib/contentMeta";

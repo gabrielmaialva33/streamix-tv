@@ -1,10 +1,10 @@
-import { ElementNode, View } from "@lightningtv/solid";
-import { useAnnouncer, useFocusManager, useMouse } from "@lightningtv/solid/primitives";
+import { ElementNode, View } from "@solidtv/solid";
+import { useAnnouncer, useFocusManager, useMouse } from "@solidtv/solid/primitives";
 import { lazy, Show } from "solid-js";
-import { Suspense } from "@lightningtv/solid/primitives";
+import { Suspense } from "@solidtv/solid/primitives";
 import { preferences } from "@/lib/storage";
 import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
-import { activeKeyHoldOptions, activeKeys, type AppChildren } from "@/platform/keys";
+import { activeKeys, type AppChildren } from "@/platform/keys";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 
 const DebugOverlay = lazy(() => import("@/components/DebugOverlay"));
@@ -20,7 +20,7 @@ interface AppShellProps {
 }
 
 const AppShell = (props: AppShellProps) => {
-  useFocusManager(activeKeys, activeKeyHoldOptions);
+  useFocusManager(activeKeys);
   useMouse();
 
   const announcer = useAnnouncer();

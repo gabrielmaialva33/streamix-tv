@@ -1,4 +1,4 @@
-import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@solidtv/solid";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { authState, persistFavoriteChange } from "@/features/auth/auth";
 import { type FavoriteItem, favorites } from "@/lib/storage";

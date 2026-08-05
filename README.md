@@ -206,10 +206,10 @@ sequenceDiagram
 
 | Technology             | Version   | Role                                              |
 | ---------------------- | --------- | ------------------------------------------------- |
-| LightningJS Renderer   | `^3.0.1`  | WebGL scene graph and rendering                   |
-| @lightningtv/solid     | `^3.1.18` | SolidJS bindings for Lightning                    |
+| @solidtv/renderer      | `^1.6.4`  | WebGL scene graph and rendering                   |
+| @solidtv/solid         | `^1.5.0`  | SolidJS bindings for Lightning                    |
 | SolidJS                | `^1.9.12` | Reactive UI primitives                            |
-| @solidjs/router        | `^0.16.1` | Client-side routing                               |
+| @solidjs/router        | `^0.16.3` | Client-side routing                               |
 | hls.js                 | `^1.6.16` | Adaptive streaming in browsers without native HLS |
 | @solid-primitives/i18n | `^2.2.1`  | Internationalization                              |
 
@@ -237,7 +237,7 @@ sequenceDiagram
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 20.19+, 22.13+, or 24+
 - pnpm 9+
 - A running Streamix backend (see [Streamix repo](https://github.com/gabrielmaialva33/streamix))
 - For Tizen: Tizen Studio CLI + certificate profile `StreamixTV`
@@ -357,8 +357,7 @@ pnpm firetv:apk         # build Android debug APK from dist/firetv/
 
 ## :memo: Project Notes
 
-- The app is pinned to `@lightningtv/solid@3.1.18` because 3.2.x calls `animateProp`, which the pinned renderer `3.0.x`
-  does not expose. Do not bump solid bindings without also bumping the renderer.
+- Keep `@solidtv/solid` and `@solidtv/renderer` aligned with the peer dependency range published by SolidTV.
 - MSDF fonts are required; the Tizen 4 Chromium (M56) cannot `fetch` `file://` URLs, so the font config uses relative
   URLs and registers NotoSans with explicit style/stretch descriptors.
 - All code and comments are English-only; pt-BR is reserved for chat and commit messages.

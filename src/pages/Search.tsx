@@ -1,5 +1,5 @@
-import { type ElementNode, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { type ElementNode, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import {
   createEffect,
   createResource,

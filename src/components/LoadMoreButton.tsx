@@ -1,5 +1,5 @@
-import { Text, View } from "@lightningtv/solid";
-import { Row } from "@lightningtv/solid/primitives";
+import { Text, View } from "@solidtv/solid";
+import { Row } from "@solidtv/solid/primitives";
 import { theme } from "@/styles";
 
 export interface LoadMoreButtonProps {

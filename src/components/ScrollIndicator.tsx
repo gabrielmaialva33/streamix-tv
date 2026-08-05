@@ -1,4 +1,4 @@
-import { type IntrinsicNodeStyleProps, type NodeProps, View } from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, type NodeProps, View } from "@solidtv/solid";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { theme } from "@/styles";
 

@@ -1,5 +1,5 @@
-import { ElementNode, type NodeProps, Text, View } from "@lightningtv/solid";
-import { Row as LightningRow } from "@lightningtv/solid/primitives";
+import { ElementNode, type NodeProps, Text, View } from "@solidtv/solid";
+import { Row as LightningRow } from "@solidtv/solid/primitives";
 import { children as resolveChildren, type JSX, Show } from "solid-js";
 
 export interface ContentRowProps extends NodeProps {

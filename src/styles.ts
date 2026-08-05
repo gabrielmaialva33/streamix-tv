@@ -1,5 +1,5 @@
 // Augment existing intrinsic style prop interfaces to include focus and active states
-declare module "@lightningtv/solid" {
+declare module "@solidtv/solid" {
   interface IntrinsicNodeStyleProps {
     $focus?: IntrinsicNodeStyleProps;
     $active?: IntrinsicNodeStyleProps;

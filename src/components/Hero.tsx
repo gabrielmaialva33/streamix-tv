@@ -5,7 +5,7 @@ import {
   type NodeProps,
   Text,
   View,
-} from "@lightningtv/solid";
+} from "@solidtv/solid";
 import { createMemo, createResource, Show } from "solid-js";
 import api, { type FeaturedItem, type Movie, type Series } from "@/lib/api";
 import { linearGradientTexture } from "@/lib/gradientTexture";

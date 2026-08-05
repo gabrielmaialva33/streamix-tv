@@ -1,9 +1,4 @@
-import {
-  type IntrinsicNodeStyleProps,
-  type IntrinsicTextNodeStyleProps,
-  Text,
-  View,
-} from "@lightningtv/solid";
+import { type IntrinsicNodeStyleProps, type IntrinsicTextNodeStyleProps, Text, View } from "@solidtv/solid";
 import { createSignal } from "solid-js";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -70,7 +65,6 @@ const ExitDialog = (props: ExitDialogProps) => {
     <View style={OverlayStyle}>
       <View
         style={DialogStyle}
-        autofocus
         onBack={props.onCancel}
         onLast={props.onCancel}
         onLeft={() => {

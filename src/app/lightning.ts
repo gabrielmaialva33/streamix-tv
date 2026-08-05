@@ -1,4 +1,4 @@
-import { Config as LightningConfig, createRenderer, loadFonts } from "@lightningtv/solid";
+import { Config as LightningConfig, createRenderer, loadFonts } from "@solidtv/solid";
 import {
   HolePunch,
   LinearGradient,
@@ -8,7 +8,7 @@ import {
   RoundedWithBorderAndShadow,
   RoundedWithShadow,
   Shadow,
-} from "@lightningjs/renderer/webgl/shaders";
+} from "@solidtv/renderer/webgl/shaders";
 import { merge } from "lodash-es";
 import { config } from "#devices/common";
 import fonts from "@/fonts";

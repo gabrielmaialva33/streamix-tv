@@ -1,4 +1,4 @@
-import { Text, View } from "@lightningtv/solid";
+import { Text, View } from "@solidtv/solid";
 import { createSignal, For, onCleanup, onMount } from "solid-js";
 import { isDebugOverlayVisible, toggleDebugOverlay } from "@/debug/overlayState";
 import { SCREEN_WIDTH } from "@/shared/layout";

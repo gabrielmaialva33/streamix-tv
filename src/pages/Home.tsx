@@ -1,5 +1,5 @@
-import { type ElementNode, View } from "@lightningtv/solid";
-import { Column } from "@lightningtv/solid/primitives";
+import { type ElementNode, View } from "@solidtv/solid";
+import { Column } from "@solidtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, ContentRow, ContinueWatchingRow, Hero } from "@/components";

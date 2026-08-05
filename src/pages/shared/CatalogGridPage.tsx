@@ -1,5 +1,5 @@
-import { ElementNode, Text, View } from "@lightningtv/solid";
-import { Column, Row } from "@lightningtv/solid/primitives";
+import { ElementNode, Text, View } from "@solidtv/solid";
+import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, LoadMoreButton, ScrollIndicator, SkeletonLoader } from "@/components";
@@ -143,8 +143,8 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
   });
 
   const focusItemAt = (index: number) => {
-    const row = contentGrid?.children[Math.floor(index / ITEMS_PER_ROW)];
-    const card = row?.children[index % ITEMS_PER_ROW];
+    const row = contentGrid?.children[Math.floor(index / ITEMS_PER_ROW)] as ElementNode | undefined;
+    const card = row?.children[index % ITEMS_PER_ROW] as ElementNode | undefined;
     card?.setFocus();
   };
 

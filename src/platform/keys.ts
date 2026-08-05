@@ -31,11 +31,7 @@ const tizenRemoteKeys = {
 
 export const activeKeys = isTizenRuntime() ? { ...config.keys, ...tizenRemoteKeys } : config.keys;
 
-export const activeKeyHoldOptions = isTizenRuntime()
-  ? { ...config.keyHoldOptions, userKeyHoldMap: { EnterHold: 13, BackHold: 10009 } }
-  : config.keyHoldOptions;
-
-declare module "@lightningtv/solid/primitives" {
+declare module "@solidtv/solid/primitives" {
   interface KeyMap {
     Announcer: KeyValue;
     Menu: KeyValue;

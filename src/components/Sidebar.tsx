@@ -5,8 +5,8 @@ import {
   type NodeProps,
   Text,
   View,
-} from "@lightningtv/solid";
-import { Column } from "@lightningtv/solid/primitives";
+} from "@solidtv/solid";
+import { Column } from "@solidtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { bumpNavReset } from "@/shared/navReset";
 import { Show } from "solid-js";

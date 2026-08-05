@@ -1,4 +1,4 @@
-import { Text, View } from "@lightningtv/solid";
+import { Text, View } from "@solidtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { children, createEffect, type JSX, onMount, Show } from "solid-js";
 import { authState, initializeAuth } from "./auth";

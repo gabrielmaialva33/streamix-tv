@@ -1,8 +1,8 @@
-import { activeElement, ElementNode, View } from "@lightningtv/solid";
+import { activeElement, ElementNode, View } from "@solidtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { children, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
-import { Suspense } from "@lightningtv/solid/primitives";
-import { ExitDialog, Sidebar } from "@/components";
+import { Suspense } from "@solidtv/solid/primitives";
+import { ExitDialog, ProviderHealthBanner, Sidebar } from "@/components";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
 import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -129,6 +129,7 @@ const MainLayout = (props: MainLayoutProps) => {
           {resolvedChildren()}
         </Suspense>
       </View>
+      <ProviderHealthBanner />
       <Show when={showExitDialog()}>
         <ExitDialog onConfirm={handleExit} onCancel={() => setShowExitDialog(false)} />
       </Show>

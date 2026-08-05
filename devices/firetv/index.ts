@@ -27,13 +27,6 @@ export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
     Rewind: 227,
     Stop: 178,
   },
-  keyHoldOptions: {
-    userKeyHoldMap: {
-      EnterHold: 13,
-      BackHold: [27, 8, 166],
-    },
-    holdThreshold: 1000,
-  },
   initialize: async function () {
     return await FireTVDevice.initialize();
   },

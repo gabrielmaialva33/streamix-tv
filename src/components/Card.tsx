@@ -4,7 +4,7 @@ import {
   type NodeProps,
   Text,
   View,
-} from "@lightningtv/solid";
+} from "@solidtv/solid";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { radialGlowTexture } from "@/lib/gradientTexture";
 import { cssRgb, theme } from "@/styles";

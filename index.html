@@ -338,7 +338,7 @@
     <script>
       // Older WebView versions on Fire OS / Tizen don't ship the
       // SpeechSynthesisErrorEvent constructor at all, so any `instanceof`
-      // check crashes with ReferenceError. @lightningtv/solid uses it in
+      // check crashes with ReferenceError. @solidtv/solid uses it in
       // its announcer's catch block, which is enabled by default in
       // AppShell. Provide a no-op shim before any bundle code runs.
       if (typeof SpeechSynthesisErrorEvent === "undefined") {
