@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import api, { ApiError, type AuthResponse, type AuthUser, type FavoriteRecord } from "@/lib/api";
 import { authSession, type FavoriteItem, favorites } from "@/lib/storage";
 import { createLogger } from "@/shared/logging/logger";
+import { syncHistoryFromRemote } from "./historySync";
 
 export type AuthStatus = "checking" | "authenticated" | "anonymous";
 
@@ -13,14 +14,18 @@ const [token, setToken] = createSignal<string | null>(authSession.getToken());
 
 let initPromise: Promise<void> | null = null;
 
-function toLocalFavoriteType(type: FavoriteRecord["content_type"]): FavoriteItem["type"] {
+function toLocalFavoriteType(type: FavoriteRecord["content_type"]): FavoriteItem["type"] | null {
   switch (type) {
     case "live_channel":
       return "channel";
     case "series":
       return "series";
-    default:
+    case "movie":
       return "movie";
+    case "episode":
+      // The TV favorites screen navigates shows, not standalone episodes,
+      // and the legacy response does not include the owning series id.
+      return null;
   }
 }
 
@@ -48,17 +53,29 @@ async function syncFavoritesFromRemote() {
 
   try {
     const response = await api.getFavorites(undefined, token() ?? undefined);
-    const nextItems: FavoriteItem[] = response.favorites.map(item => ({
-      id: item.content_id,
-      type: toLocalFavoriteType(item.content_type),
-      title: item.content_name || "Untitled",
-      posterUrl: item.content_icon,
-      addedAt: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
-    }));
+    const nextItems: FavoriteItem[] = response.favorites.flatMap(item => {
+      const type = toLocalFavoriteType(item.content_type);
+      if (!type) return [];
+      return [
+        {
+          id: item.content_id,
+          type,
+          title: item.content_name || "Untitled",
+          posterUrl: item.content_icon,
+          addedAt: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+        },
+      ];
+    });
     favorites.replaceAll(nextItems);
   } catch (error) {
     logger.warn("Failed to sync remote favorites", error);
   }
+}
+
+async function syncAccountDataFromRemote() {
+  const bearer = token();
+  if (!bearer) return;
+  await Promise.all([syncFavoritesFromRemote(), syncHistoryFromRemote(bearer)]);
 }
 
 function clearSession() {
@@ -97,7 +114,7 @@ export async function initializeAuth() {
       const nextSession = { token: session.token, user: response.user };
       authSession.save(nextSession);
       setUser(response.user);
-      await syncFavoritesFromRemote();
+      await syncAccountDataFromRemote();
       setStatus("authenticated");
     } catch (error) {
       // Only drop the stored session on real auth failures. Rate limits,
@@ -131,7 +148,7 @@ export async function signIn(email: string, password: string) {
   try {
     const response = await api.login({ email, password });
     applySession(response);
-    await syncFavoritesFromRemote();
+    await syncAccountDataFromRemote();
     setStatus("authenticated");
   } catch (error) {
     clearSession();
@@ -144,7 +161,7 @@ export async function registerAccount(name: string, email: string, password: str
   try {
     const response = await api.register({ name, email, password });
     applySession(response);
-    await syncFavoritesFromRemote();
+    await syncAccountDataFromRemote();
     setStatus("authenticated");
   } catch (error) {
     clearSession();

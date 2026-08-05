@@ -76,7 +76,7 @@ export const favorites = {
 
   add(item: Omit<FavoriteItem, "addedAt">): void {
     const items = this.getAll();
-    const exists = items.find(f => f.id === item.id && f.type === item.type);
+    const exists = items.find(f => String(f.id) === String(item.id) && f.type === item.type);
     if (!exists) {
       items.unshift({ ...item, addedAt: Date.now() });
       safeSetItem(STORAGE_KEYS.FAVORITES, items);
@@ -84,12 +84,12 @@ export const favorites = {
   },
 
   remove(id: string | number, type: string): void {
-    const items = this.getAll().filter(f => !(f.id === id && f.type === type));
+    const items = this.getAll().filter(f => !(String(f.id) === String(id) && f.type === type));
     safeSetItem(STORAGE_KEYS.FAVORITES, items);
   },
 
   isFavorite(id: string | number, type: string): boolean {
-    return this.getAll().some(f => f.id === id && f.type === type);
+    return this.getAll().some(f => String(f.id) === String(id) && f.type === type);
   },
 
   toggle(item: Omit<FavoriteItem, "addedAt">): boolean {
@@ -124,9 +124,9 @@ export const history = {
     const items = this.getAll();
     const existingIndex = items.findIndex(
       h =>
-        h.id === item.id &&
+        String(h.id) === String(item.id) &&
         h.type === item.type &&
-        (item.type !== "series" || h.episodeId === item.episodeId),
+        (item.type !== "series" || String(h.episodeId) === String(item.episodeId)),
     );
 
     const newItem: HistoryItem = { ...item, watchedAt: Date.now() };
@@ -147,7 +147,29 @@ export const history = {
 
   getProgress(id: string | number, type: string, episodeId?: string): HistoryItem | undefined {
     return this.getAll().find(
-      h => h.id === id && h.type === type && (type !== "series" || h.episodeId === episodeId),
+      h =>
+        String(h.id) === String(id) &&
+        h.type === type &&
+        (type !== "series" || String(h.episodeId) === String(episodeId)),
+    );
+  },
+
+  mergeRemote(remoteItems: HistoryItem[]): void {
+    const keyFor = (item: HistoryItem) =>
+      `${item.type}:${String(item.id)}:${item.type === "series" ? String(item.episodeId ?? item.id) : ""}`;
+    const merged = new Map(this.getAll().map(item => [keyFor(item), item]));
+
+    for (const remote of remoteItems) {
+      const key = keyFor(remote);
+      const local = merged.get(key);
+      if (!local || remote.watchedAt >= local.watchedAt) {
+        merged.set(key, local ? { ...local, ...remote } : remote);
+      }
+    }
+
+    safeSetItem(
+      STORAGE_KEYS.HISTORY,
+      [...merged.values()].sort((a, b) => b.watchedAt - a.watchedAt).slice(0, 100),
     );
   },
 };
