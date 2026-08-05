@@ -1,4 +1,4 @@
-import { type ElementNode, Text, View } from "@lightningtv/solid";
+import { type ElementNode, Text, View } from "@solidtv/solid";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
@@ -23,6 +23,28 @@ const SEEK_ACCELERATION_WINDOW_MS = 1400;
 const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 5;
 type PlayerControl = "timeline" | "back" | "play" | "forward";
+type PlaybackTelemetrySignal = "start" | "progress" | "pause" | "resume" | "complete" | "error";
+
+const TELEMETRY_OUTCOMES: Record<PlaybackTelemetrySignal, PlaybackTelemetryEvent["outcome"]> = {
+  start: "started",
+  progress: "playing",
+  pause: "cancelled",
+  resume: "restarted",
+  complete: "completed",
+  error: "error",
+};
+
+function streamTypeFromUrl(url: string | null): PlaybackTelemetryEvent["stream_type"] {
+  if (!url) return "unknown";
+  const path = url.split("?", 1)[0].toLowerCase();
+  if (path.endsWith(".m3u8")) return "hls";
+  if (path.endsWith(".mpd")) return "dash";
+  if (path.endsWith(".mp4")) return "mp4";
+  if (path.endsWith(".mkv")) return "mkv";
+  if (path.endsWith(".flv")) return "flv";
+  if (path.endsWith(".ts")) return "ts";
+  return "unknown";
+}
 
 const PlayerPage = () => {
   const params = useParams<{ type: PlayerType; id: string }>();
@@ -52,6 +74,10 @@ const PlayerPage = () => {
   let loadedUrl: string | null = null;
   let telemetryStarted = false;
   let lastTelemetryPosition = -1;
+  let playbackRequestedAt = 0;
+  let playbackSessionStartedAt = 0;
+  let telemetryErrorCount = 0;
+  let telemetryFallbackCount = 0;
   let historySyncWarningShown = false;
   let pendingResumePosition: number | null = null;
   let lastWatchdogPosition = 0;
@@ -231,34 +257,36 @@ const PlayerPage = () => {
       });
   }
 
-  function sendTelemetry(
-    event: PlaybackTelemetryEvent["event"],
-    overrides: Partial<PlaybackTelemetryEvent> = {},
-  ) {
+  function sendTelemetry(signal: PlaybackTelemetrySignal) {
     if (!authState.isAuthenticated()) {
       return;
     }
 
-    const current = state();
-    void api
-      .sendPlaybackTelemetry({
-        content_type:
-          params.type === "channel" ? "live_channel" : params.type === "series" ? "episode" : "movie",
-        content_id: params.id,
-        event,
-        position_seconds: Math.floor(current.currentTime),
-        duration_seconds: current.duration > 0 ? Math.floor(current.duration) : undefined,
-        ...overrides,
-      })
-      .catch(error => {
-        logger.warn("Failed to send playback telemetry", error);
-      });
-  }
+    const now = Date.now();
+    if (signal === "error") telemetryErrorCount += 1;
+    if (signal === "start" && playbackSessionStartedAt === 0) playbackSessionStartedAt = now;
 
-  function toErrorMessage(error: unknown) {
-    return typeof error === "object" && error && "message" in error
-      ? String((error as { message?: unknown }).message ?? "Unknown error")
-      : String(error);
+    const metric: PlaybackTelemetryEvent = {
+      kind: "playback",
+      event: signal === "error" ? "player_error" : "playback_session",
+      outcome: TELEMETRY_OUTCOMES[signal],
+      engine: PlayerManager.getBackend() === "avplay" ? "avplayer" : "native",
+      content_type: params.type === "channel" ? "channel" : params.type === "series" ? "episode" : "movie",
+      stream_type: streamTypeFromUrl(loadedUrl),
+      surface: "other",
+      session_duration_ms:
+        playbackSessionStartedAt > 0 ? Math.max(0, now - playbackSessionStartedAt) : undefined,
+      error_count: telemetryErrorCount,
+      fallback_count: telemetryFallbackCount,
+    };
+
+    if (signal === "start" && playbackRequestedAt > 0) {
+      metric.time_to_first_frame_ms = Math.max(0, now - playbackRequestedAt);
+    }
+
+    void api.sendPlaybackTelemetry(metric).catch(error => {
+      logger.warn("Failed to send playback telemetry", error);
+    });
   }
 
   function showSyncMessage(message: string) {
@@ -396,6 +424,7 @@ const PlayerPage = () => {
     }
 
     recoveryInFlight = true;
+    telemetryFallbackCount += 1;
     resetControlsTimeout();
     setState({ ...state(), error: null, buffering: true });
     pendingResumePosition = state().currentTime > 5 ? state().currentTime : getSavedResumePosition();
@@ -403,9 +432,7 @@ const PlayerPage = () => {
     void PlayerManager.load(loadedUrl)
       .catch(error => {
         logger.error("Failed to retry playback", error);
-        sendTelemetry("error", {
-          error_message: toErrorMessage(error),
-        });
+        sendTelemetry("error");
       })
       .finally(() => {
         recoveryInFlight = false;
@@ -597,15 +624,14 @@ const PlayerPage = () => {
     stalledWatchdogChecks = 0;
     lastWatchdogRecoveryAt = Date.now();
     recoveryInFlight = true;
+    telemetryFallbackCount += 1;
     pendingResumePosition = current.currentTime > 5 ? Math.max(0, current.currentTime - 2) : null;
     showSyncMessage("A reprodução parece travada. Recarregando...");
 
     void PlayerManager.load(loadedUrl)
       .catch(error => {
         logger.error("Failed to recover stalled playback", error);
-        sendTelemetry("error", {
-          error_message: toErrorMessage(error),
-        });
+        sendTelemetry("error");
       })
       .finally(() => {
         recoveryInFlight = false;
@@ -619,6 +645,12 @@ const PlayerPage = () => {
     }
 
     loadedUrl = source.streamUrl;
+    telemetryStarted = false;
+    lastTelemetryPosition = -1;
+    playbackRequestedAt = Date.now();
+    playbackSessionStartedAt = 0;
+    telemetryErrorCount = 0;
+    telemetryFallbackCount = 0;
     pendingResumePosition = getSavedResumePosition();
     void PlayerManager.init({
       onStateChange: nextState => {
@@ -638,9 +670,7 @@ const PlayerPage = () => {
       },
       onError: error => {
         logger.error("Playback callback error", error);
-        sendTelemetry("error", {
-          error_message: toErrorMessage(error),
-        });
+        sendTelemetry("error");
       },
     })
       .then(() => {
@@ -653,9 +683,7 @@ const PlayerPage = () => {
       })
       .catch(error => {
         logger.error("Failed to initialize player", error);
-        sendTelemetry("error", {
-          error_message: toErrorMessage(error),
-        });
+        sendTelemetry("error");
       });
   });
 
