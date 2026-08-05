@@ -50,8 +50,15 @@ function responseForType(
 
 function toNativeRequestUrl(url: string): string {
   if (!/^http:\/\//i.test(url)) return url;
-  const keyParam = RESIZE_API_KEY ? `&api_key=${encodeURIComponent(RESIZE_API_KEY)}` : "";
-  return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=480${keyParam}`;
+  return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=480`;
+}
+
+function headersForNativeImage(url: string, headers: Record<string, string>): Record<string, string> {
+  if (!RESIZE_API_KEY || !url.startsWith(RESIZE_ENDPOINT) || getHeader(headers, "x-api-key")) {
+    return headers;
+  }
+
+  return { ...headers, "X-API-Key": RESIZE_API_KEY };
 }
 
 function setReadonly<T extends keyof XMLHttpRequest>(xhr: XMLHttpRequest, key: T, value: XMLHttpRequest[T]) {
@@ -136,10 +143,11 @@ export function installNativeImageXhrBridge() {
 
       void (async () => {
         try {
+          const nativeUrl = toNativeRequestUrl(requestUrl);
           const response = await CapacitorHttp.request({
-            url: toNativeRequestUrl(requestUrl),
+            url: nativeUrl,
             method: requestMethod,
-            headers: requestHeaders,
+            headers: headersForNativeImage(nativeUrl, requestHeaders),
             responseType: "arraybuffer",
           });
           responseHeaders = response.headers;

@@ -3,15 +3,15 @@
 // plus an internal resize proxy for raw URLs.
 //
 // Picking strategy:
-// 1. If the item carries a pre-sized variant for the bucket we need, use it.
-// 2. Otherwise route the raw URL through /catalog/images/resize.
-// 3. TMDB URLs keep their native size rewriting (cheaper than a round trip).
+// 1. TMDB URLs use their public native size buckets.
+// 2. Pre-sized backend variants are used when the API is running without a
+//    key (local development).
+// 3. With header-only API auth enabled, Lightning loads the public raw URL;
+//    it cannot attach X-API-Key to a View texture request.
 
 const RESIZE_ENDPOINT =
   (import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog").replace(/\/$/, "") +
   "/images/resize";
-// Lightning's <View src> uses a raw browser fetch with no custom headers. The
-// resize proxy also accepts ?api_key= so we can embed it directly in the URL.
 const RESIZE_API_KEY = import.meta.env.VITE_API_KEY || "";
 
 // Streamix resize ladder — anything outside these widths is coerced server-side
@@ -36,11 +36,13 @@ export function proxyImageUrl(url: string | undefined | null, maxWidth = 480): s
     return url.replace(/\/t\/p\/[^/]+\//, `/t/p/${bucket}/`);
   }
 
-  // Everything else goes through the backend proxy — it caches to disk and
-  // serves a JPEG bounded to the ladder above.
+  // API keys are header-only. A Lightning View cannot set request headers, so
+  // keep the original public URL rather than leaking a credential in the URL.
+  if (RESIZE_API_KEY) return url;
+
+  // Keyless development can use the backend resize cache directly.
   const snapped = snapToLadder(maxWidth);
-  const keyParam = RESIZE_API_KEY ? `&api_key=${encodeURIComponent(RESIZE_API_KEY)}` : "";
-  return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=${snapped}${keyParam}`;
+  return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=${snapped}`;
 }
 
 /** Variant that targets a landscape hero/backdrop at 1280px wide. */
@@ -73,15 +75,10 @@ function isTmdb(url?: string | null): boolean {
   }
 }
 
-// Pre-sized variants from the backend point at /catalog/images/resize without
-// auth params. Lightning can't attach an X-API-Key header, so sign the URL.
-function withResizeKey(url: string | undefined | null): string | undefined {
+function accessibleResizeVariant(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
-  if (!RESIZE_API_KEY) return url;
-  if (!url.includes("/catalog/images/resize")) return url;
-  if (url.includes("api_key=")) return url;
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}api_key=${encodeURIComponent(RESIZE_API_KEY)}`;
+  if (RESIZE_API_KEY && url.includes("/catalog/images/resize")) return undefined;
+  return url;
 }
 
 /**
@@ -96,9 +93,18 @@ export function pickPoster(item: PosterVariants | undefined | null, targetWidth 
   if (!item) return undefined;
   const raw = item.poster_url || item.poster || undefined;
   if (isTmdb(raw)) return proxyImageUrl(raw, targetWidth);
-  if (targetWidth <= 240 && item.poster_w240) return withResizeKey(item.poster_w240);
-  if (targetWidth <= 480 && item.poster_w480) return withResizeKey(item.poster_w480);
-  if (item.poster_w720) return withResizeKey(item.poster_w720);
+  if (targetWidth <= 240 && item.poster_w240) {
+    const variant = accessibleResizeVariant(item.poster_w240);
+    if (variant) return variant;
+  }
+  if (targetWidth <= 480 && item.poster_w480) {
+    const variant = accessibleResizeVariant(item.poster_w480);
+    if (variant) return variant;
+  }
+  if (item.poster_w720) {
+    const variant = accessibleResizeVariant(item.poster_w720);
+    if (variant) return variant;
+  }
   return proxyImageUrl(raw, targetWidth);
 }
 
@@ -112,7 +118,13 @@ export function pickBackdrop(
     ? item.backdrop[item.backdrop.length - 1]
     : item.backdrop || item.backdrop_url || undefined;
   if (isTmdb(raw)) return proxyImageUrl(raw, targetWidth);
-  if (targetWidth <= 720 && item.backdrop_w720) return withResizeKey(item.backdrop_w720);
-  if (item.backdrop_w1280) return withResizeKey(item.backdrop_w1280);
+  if (targetWidth <= 720 && item.backdrop_w720) {
+    const variant = accessibleResizeVariant(item.backdrop_w720);
+    if (variant) return variant;
+  }
+  if (item.backdrop_w1280) {
+    const variant = accessibleResizeVariant(item.backdrop_w1280);
+    if (variant) return variant;
+  }
   return proxyImageUrl(raw, targetWidth);
 }
