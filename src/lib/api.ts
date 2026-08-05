@@ -1,10 +1,9 @@
 /**
  * Streamix API Client — TypeScript / SolidJS
  *
- * Source: https://streamix.mahina.cloud/api/v1
- *   /catalog  -> movies, series, channels, search, categories
- *   /epg      -> electronic program guide
- *   /history  -> watch history (Bearer handled by the controller)
+ * Source of truth: StreamixWeb.Router and the `/api/v1` controllers in the
+ * sibling `streamix` repository. Public catalog calls require X-API-Key in
+ * production; account-scoped resources additionally require a Bearer token.
  */
 
 import { createLogger } from "@/shared/logging/logger";
@@ -13,15 +12,23 @@ import { authSession } from "./storage";
 
 const logger = createLogger("API");
 
-const CATALOG_URL = import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog";
-const EPG_URL = import.meta.env.VITE_EPG_URL || "https://streamix.mahina.cloud/api/v1/epg";
-const HISTORY_URL = import.meta.env.VITE_HISTORY_URL || "https://streamix.mahina.cloud/api/v1/history";
-const AUTH_URL = import.meta.env.VITE_AUTH_URL || "https://streamix.mahina.cloud/api/v1/auth";
-const FAVORITES_URL = import.meta.env.VITE_FAVORITES_URL || "https://streamix.mahina.cloud/api/v1/favorites";
-const SEARCH_URL = import.meta.env.VITE_SEARCH_URL || "https://streamix.mahina.cloud/api/v1/search";
-const RECOMMENDATIONS_URL =
-  import.meta.env.VITE_RECOMMENDATIONS_URL || "https://streamix.mahina.cloud/api/v1/recommendations";
-const TELEMETRY_URL = import.meta.env.VITE_TELEMETRY_URL || "https://streamix.mahina.cloud/api/v1/telemetry";
+const DEFAULT_API_V1_URL = "https://streamix.mahina.cloud/api/v1";
+const CATALOG_URL = (import.meta.env.VITE_API_URL || `${DEFAULT_API_V1_URL}/catalog`).replace(/\/$/, "");
+const API_V1_URL = (import.meta.env.VITE_API_BASE_URL || CATALOG_URL.replace(/\/catalog$/, "")).replace(
+  /\/$/,
+  "",
+);
+const API_ROOT_URL = API_V1_URL.replace(/\/v1$/, "");
+const EPG_URL = (import.meta.env.VITE_EPG_URL || `${API_V1_URL}/epg`).replace(/\/$/, "");
+const HISTORY_URL = (import.meta.env.VITE_HISTORY_URL || `${API_V1_URL}/history`).replace(/\/$/, "");
+const AUTH_URL = (import.meta.env.VITE_AUTH_URL || `${API_V1_URL}/auth`).replace(/\/$/, "");
+const FAVORITES_URL = (import.meta.env.VITE_FAVORITES_URL || `${API_V1_URL}/favorites`).replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_URL || `${API_V1_URL}/search`).replace(/\/$/, "");
+const RECOMMENDATIONS_URL = (
+  import.meta.env.VITE_RECOMMENDATIONS_URL || `${API_V1_URL}/recommendations`
+).replace(/\/$/, "");
+const TELEMETRY_URL = (import.meta.env.VITE_TELEMETRY_URL || `${API_V1_URL}/telemetry`).replace(/\/$/, "");
+const PROVIDERS_URL = (import.meta.env.VITE_PROVIDERS_URL || `${API_V1_URL}/providers`).replace(/\/$/, "");
 const API_KEY = import.meta.env.VITE_API_KEY || "";
 
 // ============ Cache + dedup ============
@@ -51,11 +58,14 @@ function buildQuery(params: Record<string, unknown>): string {
 
 interface RequestOpts {
   ttl?: number;
-  method?: "GET" | "POST" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   noCache?: boolean;
   bearer?: string | null;
   auth?: boolean;
+  apiKey?: boolean;
+  accept?: string;
+  responseType?: "json" | "text";
 }
 
 /**
@@ -124,8 +134,9 @@ function getHeader(headers: Record<string, string> | undefined, name: string): s
   return entry?.[1] ?? "";
 }
 
-function normalizeNativePayload(response: HttpResponse): unknown {
+function normalizeNativePayload(response: HttpResponse, responseType: RequestOpts["responseType"]): unknown {
   if (typeof response.data !== "string") return response.data;
+  if (responseType === "text") return response.data;
 
   const contentType = getHeader(response.headers, "content-type");
   if (!contentType.includes("application/json")) return response.data;
@@ -150,6 +161,7 @@ async function sendRequest(
   method: RequestOpts["method"],
   headers: Record<string, string>,
   body: unknown,
+  responseType: RequestOpts["responseType"],
 ): Promise<ApiTransportResponse> {
   if (shouldUseNativeHttp(url)) {
     const response = await CapacitorHttp.request({
@@ -164,7 +176,7 @@ async function sendRequest(
       status: response.status,
       statusText: String(response.status),
       contentType: getHeader(response.headers, "content-type"),
-      payload: normalizeNativePayload(response),
+      payload: normalizeNativePayload(response, responseType),
     };
   }
 
@@ -174,19 +186,37 @@ async function sendRequest(
   const response = await fetch(url, init);
   const contentType = response.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
+  const payload =
+    responseType === "text"
+      ? await response.text()
+      : isJson
+        ? await response.json().catch(() => null)
+        : undefined;
 
   return {
     ok: response.ok,
     status: response.status,
     statusText: response.statusText,
     contentType,
-    payload: isJson ? await response.json().catch(() => null) : undefined,
+    payload,
   };
 }
 
 async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
-  const { ttl = DEFAULT_TTL, method = "GET", body, noCache = false, bearer, auth = true } = opts;
-  const cacheKey = `${method} ${url}`;
+  const {
+    ttl = DEFAULT_TTL,
+    method = "GET",
+    body,
+    noCache = false,
+    bearer,
+    auth = true,
+    apiKey = true,
+    accept = "application/json",
+    responseType = "json",
+  } = opts;
+  const sessionToken = auth ? (bearer === undefined ? authSession.getToken() : bearer) : null;
+  // Account-scoped GETs must never share cache entries across sessions.
+  const cacheKey = `${method} ${url} bearer=${sessionToken ?? "anonymous"}`;
 
   if (!noCache && method === "GET") {
     const cached = cache.get(cacheKey) as CacheEntry<T> | undefined;
@@ -196,12 +226,12 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
     if (existing) return existing;
   }
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (API_KEY) headers["X-API-Key"] = API_KEY;
-  const sessionToken = auth ? (bearer === undefined ? authSession.getToken() : bearer) : null;
+  const headers: Record<string, string> = { Accept: accept };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (apiKey && API_KEY) headers["X-API-Key"] = API_KEY;
   if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
 
-  const promise = sendRequest(url, method, headers, body)
+  const promise = sendRequest(url, method, headers, body, responseType)
     .then(response => {
       const isJson =
         response.contentType.includes("application/json") ||
@@ -237,6 +267,12 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
   return promise;
 }
 
+function invalidateCache(urlPrefix: string) {
+  for (const key of cache.keys()) {
+    if (key.includes(` ${urlPrefix}`)) cache.delete(key);
+  }
+}
+
 // ============ Types matching the current API ============
 
 export type ContentType = "movie" | "series" | "channel";
@@ -260,6 +296,25 @@ export interface FeaturedItem {
   year?: number | null;
   rating?: number | null;
   genre?: string | null;
+}
+
+export interface PublicCatalogStats {
+  channels_count: number;
+  movies_count: number;
+  series_count: number;
+}
+
+export interface FeaturedResponse {
+  featured: FeaturedItem | null;
+  stats: PublicCatalogStats;
+}
+
+export interface HomeResponse {
+  featured: FeaturedItem | null;
+  trending_movies: Movie[];
+  recent_movies: Movie[];
+  top_rated_movies: Movie[];
+  trending_series: Series[];
 }
 
 // Backend stores VOD movies under type "vod"; the query param accepts the
@@ -306,16 +361,16 @@ export interface Series {
   name: string;
   title: string | null;
   year: number | null;
-  plot: string | null;
+  plot?: string | null;
   tagline?: string | null;
   genre: string | null;
-  director: string | null;
+  director?: string | null;
   cast?: string | null;
   rating: number | null;
-  episode_count: number;
-  season_count: number;
-  seasons: Season[];
-  backdrop: string[];
+  episode_count?: number;
+  season_count?: number;
+  seasons?: Season[];
+  backdrop?: string[];
   backdrop_url?: string;
   backdrop_w720?: string | null;
   backdrop_w1280?: string | null;
@@ -348,6 +403,8 @@ export interface Episode {
   description?: string;
   number?: number;
   season_number?: number;
+  series_id?: number;
+  series_name?: string;
 }
 
 export interface Channel {
@@ -406,6 +463,13 @@ export interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
+export type CatalogShelfType = "movie" | "series";
+
+export interface CatalogShelfResponse<T extends Movie | Series = Movie | Series> {
+  type: CatalogShelfType;
+  items: T[];
+}
+
 // EPG — listings from /epg/programs
 export interface EpgProgram {
   id: string | number;
@@ -416,18 +480,35 @@ export interface EpgProgram {
   category: string | null;
 }
 
+export interface EpgCurrentProgram extends Omit<EpgProgram, "id"> {
+  progress: number;
+}
+
 // History (backend /history)
 export interface HistoryRecord {
   id: string | number;
   content_type: "movie" | "episode" | "live_channel";
   content_id: number;
   progress_seconds: number;
-  duration_seconds: number;
+  duration_seconds: number | null;
   completed: boolean;
-  watched_at?: string;
+  watched_at?: string | null;
 }
 
-export type FavoriteKind = "movie" | "series" | "live_channel";
+export type FavoriteKind = "movie" | "series" | "episode" | "live_channel";
+
+export interface ApiEnvelope<T> {
+  data: T;
+  meta: {
+    version: "v1" | string;
+    pagination?: {
+      total: number;
+      limit: number;
+      offset: number;
+      has_more: boolean;
+    };
+  };
+}
 
 // Minimal shape returned by POST /favorites (no enriched fields).
 export interface FavoriteBase {
@@ -482,17 +563,154 @@ export interface SimilarRecommendationsResponse {
   type: string;
 }
 
+export interface SemanticMovieSearchResponse {
+  movies: Movie[];
+  query: string | null;
+  semantic: boolean;
+}
+
+export interface SemanticSeriesSearchResponse {
+  series: Series[];
+  query: string | null;
+  semantic: boolean;
+}
+
+export interface SemanticSearchStatus {
+  available: boolean;
+  stats: Record<string, unknown>;
+}
+
+export interface RecommendationChannel {
+  id: number;
+  name: string;
+  category?: string | null;
+  categories?: string[];
+  logo?: string | null;
+  logo_url?: string;
+  provider_id?: number;
+}
+
+export interface RecommendationChannelsResponse {
+  channels: RecommendationChannel[];
+  personalized: boolean;
+}
+
+export interface ViewingInsights {
+  has_data: boolean;
+  total_items?: number;
+  content_breakdown?: Record<string, number>;
+  completion_rate?: number;
+  favorite_genres?: string[];
+  watch_patterns?: {
+    peak_hour: number | null;
+    weekend_preference: boolean;
+    weekday_count: number;
+    weekend_count: number;
+  };
+  most_watched_day?: string;
+  avg_session_length?: number;
+}
+
+export interface Provider {
+  id: number;
+  name: string;
+  url: string | null;
+  provider_type: string;
+  is_active: boolean;
+  last_synced_at: string | null;
+  channels_count: number;
+  movies_count: number;
+  series_count: number;
+  inserted_at: string;
+}
+
+export interface CreateProviderInput {
+  name: string;
+  url: string;
+  username: string;
+  password: string;
+}
+
+export type ProviderHealthStatus = "healthy" | "degraded" | "unhealthy" | "unknown";
+
+export interface ProviderHealthReport {
+  id: number;
+  name: string;
+  provider_type: string;
+  visibility: string;
+  is_active: boolean;
+  status: ProviderHealthStatus;
+  circuit_state: string | null;
+  last_error_at: string | null;
+  last_success_at: string | null;
+  error_count: number;
+  dimensions: Record<string, unknown>;
+  capabilities: Record<string, unknown> | null;
+  capacity: Record<string, unknown>;
+  message: string;
+}
+
+export interface ProviderHealthResponse {
+  overall: {
+    status: ProviderHealthStatus;
+    counts: Partial<Record<ProviderHealthStatus, number>>;
+  };
+  providers: ProviderHealthReport[];
+}
+
 // ----- Telemetry -----
 export interface PlaybackTelemetryEvent {
-  content_type: "movie" | "episode" | "live_channel";
+  kind?: "playback";
+  event: "playback_session" | "player_error";
+  outcome: "started" | "playing" | "completed" | "error" | "cancelled" | "restarted" | "unknown";
+  engine?: "native" | "hls" | "dash" | "shaka" | "mpegts" | "avplayer" | "vlc" | "unknown";
+  content_type: "movie" | "episode" | "channel";
+  stream_type?: "hls" | "mpegts" | "ts" | "mp4" | "mkv" | "flv" | "dash" | "torrent" | "unknown";
+  surface?: "other";
+  time_to_first_frame_ms?: number;
+  buffer_count?: number;
+  total_buffer_duration_ms?: number;
+  session_duration_ms?: number;
+  error_count?: number;
+  fallback_count?: number;
+  muted_mismatch?: boolean;
+}
+
+export interface TelemetryIngestResponse {
+  accepted: number;
+  batch_id: string;
+}
+
+export interface FavoriteSyncOperation {
+  type: FavoriteKind;
   content_id: string | number;
-  event: "start" | "progress" | "pause" | "resume" | "complete" | "error";
-  position_seconds?: number;
-  duration_seconds?: number;
-  bitrate?: number;
-  error_code?: string;
-  error_message?: string;
+  action: "add" | "remove";
   at?: string;
+}
+
+export interface FavoriteSyncResponse {
+  added: number;
+  removed: number;
+  skipped: number;
+}
+
+export interface GindexTrack {
+  index: number;
+  type?: "audio" | "subtitle";
+  language?: string | null;
+  codec?: string | null;
+  title?: string | null;
+  [key: string]: unknown;
+}
+
+export interface HealthResponse {
+  status: "ok";
+  timestamp: string;
+}
+
+export interface ReadinessResponse {
+  status: "ok" | "degraded" | "unavailable" | string;
+  [key: string]: unknown;
 }
 
 // ============ Normalization helpers ============
@@ -528,6 +746,35 @@ const normSimilarItem = (item: SimilarContentItem): SimilarContentItem => ({
   backdrop: Array.isArray(item.backdrop) ? item.backdrop : item.backdrop ? [item.backdrop] : [],
 });
 
+const normFeatured = (item: FeaturedItem | null): FeaturedItem | null => {
+  if (!item) return null;
+  return {
+    ...item,
+    poster_url: item.poster ?? item.poster_url,
+    backdrop_url: item.backdrop?.[0] ?? item.backdrop_url,
+  };
+};
+
+const normRecommendationChannel = (channel: RecommendationChannel): RecommendationChannel => ({
+  ...channel,
+  logo_url: channel.logo ?? channel.logo_url,
+});
+
+function mergeById<T extends { id: string | number }>(preferred: T[], fallback: T[], limit: number): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+
+  for (const item of [...preferred, ...fallback]) {
+    const key = String(item.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+    if (merged.length >= limit) break;
+  }
+
+  return merged;
+}
+
 // ============ API ============
 
 interface MoviesListResponse {
@@ -561,6 +808,53 @@ export const api = {
   getCategories: (type?: CategoryFilter) =>
     request<Category[]>(`${CATALOG_URL}/categories${buildQuery({ type })}`),
 
+  getFeatured: async (): Promise<FeaturedResponse> => {
+    const response = await request<FeaturedResponse>(`${CATALOG_URL}/featured`, { ttl: SHORT_TTL });
+    return { ...response, featured: normFeatured(response.featured) };
+  },
+
+  getTrending: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfResponse>(
+      `${CATALOG_URL}/trending${buildQuery({ type, limit })}`,
+      { ttl: SHORT_TTL },
+    );
+    return {
+      ...response,
+      items:
+        response.type === "series"
+          ? (response.items as Series[]).map(normSeries)
+          : (response.items as Movie[]).map(normMovie),
+    };
+  },
+
+  getRecent: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfResponse>(
+      `${CATALOG_URL}/recent${buildQuery({ type, limit })}`,
+      { ttl: SHORT_TTL },
+    );
+    return {
+      ...response,
+      items:
+        response.type === "series"
+          ? (response.items as Series[]).map(normSeries)
+          : (response.items as Movie[]).map(normMovie),
+    };
+  },
+
+  getTopRated: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfResponse>(
+      `${CATALOG_URL}/top-rated${buildQuery({ type, limit })}`,
+      { ttl: SHORT_TTL },
+    );
+    return {
+      ...response,
+      items:
+        response.type === "series"
+          ? (response.items as Series[]).map(normSeries)
+          : (response.items as Movie[]).map(normMovie),
+    };
+  },
+
   // ----- Movies -----
   getMovies: async (params: MovieListParams = {}): Promise<PaginatedResponse<Movie>> => {
     const r = await request<MoviesListResponse>(
@@ -585,21 +879,16 @@ export const api = {
 
   // ----- Series -----
   getSeries: async (params: MovieListParams = {}): Promise<PaginatedResponse<Series>> => {
-    try {
-      const r = await request<SeriesListResponse>(
-        `${CATALOG_URL}/series${buildQuery(params as Record<string, unknown>)}`,
-      );
-      return {
-        data: (r.series || []).map(normSeries),
-        total: r.total ?? 0,
-        offset: params.offset ?? 0,
-        limit: params.limit ?? 20,
-        has_more: r.has_more ?? false,
-      };
-    } catch (e) {
-      logger.error("getSeries failed", { params, error: e });
-      return { data: [], total: 0, offset: params.offset ?? 0, limit: params.limit ?? 20, has_more: false };
-    }
+    const r = await request<SeriesListResponse>(
+      `${CATALOG_URL}/series${buildQuery(params as Record<string, unknown>)}`,
+    );
+    return {
+      data: (r.series || []).map(normSeries),
+      total: r.total ?? 0,
+      offset: params.offset ?? 0,
+      limit: params.limit ?? 20,
+      has_more: r.has_more ?? false,
+    };
   },
 
   getSeriesDetail: async (id: string | number): Promise<Series> => {
@@ -642,18 +931,62 @@ export const api = {
     request<StreamUrl>(`${CATALOG_URL}/channels/${id}/stream`, { ttl: SHORT_TTL }),
 
   // ----- Search -----
-  // Ranked catalog search: exact > prefix > substring > trigram. Each item
-  // carries a `score` so the UI can order across sections if needed.
+  // Full search combines semantic movie/series results with the ranked
+  // catalog response. The lexical response remains authoritative if the AI
+  // service is temporarily unavailable and is also the source for channels.
   search: async (query: string, limit = 10): Promise<SearchResults> => {
-    const r = await request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query, limit })}`, {
-      ttl: SHORT_TTL,
-    });
+    const [catalogResult, movieResult, seriesResult] = await Promise.allSettled([
+      request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query, limit })}`, {
+        ttl: SHORT_TTL,
+      }),
+      request<SemanticMovieSearchResponse>(`${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`, {
+        ttl: SHORT_TTL,
+      }),
+      request<SemanticSeriesSearchResponse>(`${SEARCH_URL}/series${buildQuery({ q: query, limit })}`, {
+        ttl: SHORT_TTL,
+      }),
+    ]);
+
+    if (catalogResult.status === "rejected") throw catalogResult.reason;
+    const catalog = catalogResult.value;
+    if (movieResult.status === "rejected") logger.warn("Semantic movie search unavailable");
+    if (seriesResult.status === "rejected") logger.warn("Semantic series search unavailable");
+
     return {
-      movies: (r.movies || []).map(normMovie),
-      series: (r.series || []).map(normSeries),
-      channels: (r.channels || []).map(normChannel),
+      query: catalog.query ?? query,
+      movies: mergeById(
+        movieResult.status === "fulfilled" ? (movieResult.value.movies || []).map(normMovie) : [],
+        (catalog.movies || []).map(normMovie),
+        limit,
+      ),
+      series: mergeById(
+        seriesResult.status === "fulfilled" ? (seriesResult.value.series || []).map(normSeries) : [],
+        (catalog.series || []).map(normSeries),
+        limit,
+      ),
+      channels: (catalog.channels || []).map(normChannel).slice(0, limit),
     };
   },
+
+  searchMovies: async (query: string, limit = 20, minScore = 0.6) => {
+    const response = await request<SemanticMovieSearchResponse>(
+      `${SEARCH_URL}/movies${buildQuery({ q: query, limit, min_score: minScore })}`,
+      { ttl: SHORT_TTL },
+    );
+    return { ...response, movies: (response.movies || []).map(normMovie) };
+  },
+
+  searchSeries: async (query: string, limit = 20, minScore = 0.6) => {
+    const response = await request<SemanticSeriesSearchResponse>(
+      `${SEARCH_URL}/series${buildQuery({ q: query, limit, min_score: minScore })}`,
+      { ttl: SHORT_TTL },
+    );
+    return { ...response, series: (response.series || []).map(normSeries) };
+  },
+
+  getSearchStatus: () => request<SemanticSearchStatus>(`${SEARCH_URL}/status`, { ttl: SHORT_TTL }),
+
+  getSearchInfo: () => request<Record<string, unknown>>(`${SEARCH_URL}/info`, { ttl: SHORT_TTL }),
 
   // Typeahead — lightweight, mixed list of {id, type, title, year, poster}.
   suggest: (query: string, limit = 10) =>
@@ -675,17 +1008,19 @@ export const api = {
   },
 
   // ----- Home rails -----
-  // One-shot aggregator — Home fires 5 rails in parallel today, this endpoint
-  // returns them all in a single request (~124ms on prod). Falls back to the
-  // individual endpoints if the server is older.
-  getHome: (limit = 20) =>
-    request<{
-      featured: FeaturedItem | null;
-      trending_movies: Movie[];
-      recent_movies: Movie[];
-      top_rated_movies: Movie[];
-      trending_series: Series[];
-    }>(`${CATALOG_URL}/home${buildQuery({ limit })}`, { ttl: SHORT_TTL }),
+  getHome: async (limit = 20): Promise<HomeResponse> => {
+    const response = await request<HomeResponse>(`${CATALOG_URL}/home${buildQuery({ limit })}`, {
+      ttl: SHORT_TTL,
+    });
+    return {
+      ...response,
+      featured: normFeatured(response.featured),
+      trending_movies: (response.trending_movies || []).map(normMovie),
+      recent_movies: (response.recent_movies || []).map(normMovie),
+      top_rated_movies: (response.top_rated_movies || []).map(normMovie),
+      trending_series: (response.trending_series || []).map(normSeries),
+    };
+  },
 
   // ----- EPG -----
   /**
@@ -703,7 +1038,27 @@ export const api = {
     return r.programs || {};
   },
 
+  getEpgNow: async (
+    channelIds: Array<number | string>,
+  ): Promise<Record<string, EpgCurrentProgram | null>> => {
+    if (channelIds.length === 0) return {};
+    const response = await request<{ now: Record<string, EpgCurrentProgram | null> }>(
+      `${EPG_URL}/now${buildQuery({ channel_ids: channelIds.join(",") })}`,
+      { ttl: SHORT_TTL },
+    );
+    return response.now || {};
+  },
+
   // ----- History (Bearer auth) -----
+  getHistory: (
+    params: { type?: HistoryRecord["content_type"]; limit?: number; offset?: number } = {},
+    bearer?: string,
+  ) =>
+    request<{ items: HistoryRecord[] }>(`${HISTORY_URL}${buildQuery(params)}`, {
+      ttl: SHORT_TTL,
+      bearer,
+    }),
+
   upsertHistory: (
     record: {
       type: "movie" | "episode" | "live_channel";
@@ -713,35 +1068,76 @@ export const api = {
       completed?: boolean;
     },
     bearer?: string,
-  ) =>
-    request<HistoryRecord>(HISTORY_URL, {
+  ) => {
+    const pending = request<HistoryRecord>(HISTORY_URL, {
       method: "POST",
       body: record,
       noCache: true,
       bearer,
-    }),
+    });
+    invalidateCache(HISTORY_URL);
+    return pending;
+  },
+
+  removeHistory: (id: string | number, bearer?: string) => {
+    const pending = request<void>(`${HISTORY_URL}/${id}`, {
+      method: "DELETE",
+      noCache: true,
+      bearer,
+    });
+    invalidateCache(HISTORY_URL);
+    return pending;
+  },
 
   // ----- Favorites (Bearer auth) -----
-  getFavorites: (type?: FavoriteKind, bearer?: string) =>
-    request<{ favorites: FavoriteRecord[] }>(`${FAVORITES_URL}${buildQuery({ type })}`, {
+  getFavorites: (type?: FavoriteKind, bearer?: string, limit = 100) =>
+    request<{ favorites: FavoriteRecord[] }>(`${FAVORITES_URL}${buildQuery({ type, limit })}`, {
       ttl: SHORT_TTL,
       bearer,
     }),
 
-  addFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
-    request<FavoriteBase>(FAVORITES_URL, {
+  addFavorite: async (type: FavoriteKind, contentId: string | number, bearer?: string) => {
+    const response = await request<ApiEnvelope<FavoriteBase>>(FAVORITES_URL, {
       method: "POST",
       body: { type, content_id: contentId },
       noCache: true,
       bearer,
-    }),
+    });
+    invalidateCache(FAVORITES_URL);
+    return response.data;
+  },
 
-  removeFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) =>
-    request<void>(`${FAVORITES_URL}/${type}/${contentId}`, {
+  removeFavorite: (type: FavoriteKind, contentId: string | number, bearer?: string) => {
+    const pending = request<void>(`${FAVORITES_URL}/${type}/${contentId}`, {
       method: "DELETE",
       noCache: true,
       bearer,
-    }),
+    });
+    invalidateCache(FAVORITES_URL);
+    return pending;
+  },
+
+  toggleFavorite: async (type: FavoriteKind, contentId: string | number, bearer?: string) => {
+    const response = await request<{ status: "added" | "removed" }>(`${FAVORITES_URL}/toggle`, {
+      method: "POST",
+      body: { type, content_id: contentId },
+      noCache: true,
+      bearer,
+    });
+    invalidateCache(FAVORITES_URL);
+    return response;
+  },
+
+  syncFavorites: async (operations: FavoriteSyncOperation[], bearer?: string) => {
+    const response = await request<FavoriteSyncResponse>(`${FAVORITES_URL}/sync`, {
+      method: "POST",
+      body: { operations },
+      noCache: true,
+      bearer,
+    });
+    invalidateCache(FAVORITES_URL);
+    return response;
+  },
 
   // ----- Auth -----
   register: (payload: { email: string; password: string; name?: string }) =>
@@ -750,6 +1146,7 @@ export const api = {
       body: payload,
       noCache: true,
       auth: false,
+      apiKey: false,
     }),
 
   login: (payload: { email: string; password: string }) =>
@@ -758,6 +1155,7 @@ export const api = {
       body: payload,
       noCache: true,
       auth: false,
+      apiKey: false,
     }),
 
   me: (bearer?: string) =>
@@ -765,6 +1163,7 @@ export const api = {
       ttl: SHORT_TTL,
       bearer,
       auth: bearer !== null,
+      apiKey: false,
     }),
 
   logout: (bearer?: string) =>
@@ -772,6 +1171,7 @@ export const api = {
       method: "POST",
       noCache: true,
       bearer,
+      apiKey: false,
     }),
 
   // ----- Personalized recommendations (Bearer auth) -----
@@ -786,18 +1186,107 @@ export const api = {
       { ttl: DEFAULT_TTL },
     ),
 
-  // ----- Playback telemetry (best-effort, server accepts batch) -----
-  sendPlaybackTelemetry: (event: PlaybackTelemetryEvent | PlaybackTelemetryEvent[]) =>
-    request<void>(`${TELEMETRY_URL}/playback`, {
+  getRecommendedChannels: async (limit = 10): Promise<RecommendationChannelsResponse> => {
+    const response = await request<RecommendationChannelsResponse>(
+      `${RECOMMENDATIONS_URL}/channels${buildQuery({ limit })}`,
+      { ttl: SHORT_TTL },
+    );
+    return { ...response, channels: (response.channels || []).map(normRecommendationChannel) };
+  },
+
+  getViewingInsights: async (): Promise<ViewingInsights> => {
+    const response = await request<{ insights: ViewingInsights }>(`${RECOMMENDATIONS_URL}/insights`, {
+      ttl: SHORT_TTL,
+    });
+    return response.insights;
+  },
+
+  refreshRecommendations: () =>
+    request<{ status: "refreshed" | "no_history"; message?: string }>(`${RECOMMENDATIONS_URL}/refresh`, {
       method: "POST",
-      body: Array.isArray(event) ? { events: event } : event,
       noCache: true,
     }),
+
+  // ----- Playback telemetry -----
+  sendPlaybackTelemetry: (event: PlaybackTelemetryEvent | PlaybackTelemetryEvent[], batchId?: string) =>
+    request<TelemetryIngestResponse>(`${TELEMETRY_URL}/playback`, {
+      method: "POST",
+      body: {
+        ...(batchId ? { batch_id: batchId } : {}),
+        metrics: Array.isArray(event) ? event : [event],
+      },
+      noCache: true,
+    }),
+
+  // ----- Provider health and private provider management -----
+  getProviderStatus: () => request<ProviderHealthResponse>(`${PROVIDERS_URL}/status`, { ttl: SHORT_TTL }),
+
+  getProviders: (bearer?: string) =>
+    request<{ providers: Provider[] }>(PROVIDERS_URL, { ttl: SHORT_TTL, bearer }),
+
+  createProvider: (input: CreateProviderInput, bearer?: string) =>
+    request<Provider>(PROVIDERS_URL, {
+      method: "POST",
+      body: input,
+      noCache: true,
+      bearer,
+    }),
+
+  removeProvider: (id: string | number, bearer?: string) =>
+    request<void>(`${PROVIDERS_URL}/${id}`, {
+      method: "DELETE",
+      noCache: true,
+      bearer,
+    }),
+
+  syncProvider: (id: string | number, bearer?: string) =>
+    request<{ status: "sync_started"; provider_id: number }>(`${PROVIDERS_URL}/${id}/sync`, {
+      method: "POST",
+      noCache: true,
+      bearer,
+    }),
+
+  // ----- Operational and playback-support endpoints outside /api/v1 -----
+  getHealth: () =>
+    request<HealthResponse>(`${API_ROOT_URL}/health`, {
+      ttl: SHORT_TTL,
+      auth: false,
+      apiKey: false,
+    }),
+
+  getReadiness: () =>
+    request<ReadinessResponse>(`${API_ROOT_URL}/health/ready`, {
+      ttl: SHORT_TTL,
+      auth: false,
+      apiKey: false,
+    }),
+
+  getGindexTracks: (type: "movie" | "episode", id: string | number) =>
+    request<GindexTrack[] | { status: "probing"; retry_after: number }>(
+      `${API_ROOT_URL}/gindex-tracks/${type}/${id}`,
+      { ttl: DEFAULT_TTL, auth: false, apiKey: false },
+    ),
+
+  getSubtitle: async (imdbId: string, lang = "pt-BR", offsetMs = 0): Promise<string | null> => {
+    const response = await request<string | undefined>(
+      `${API_ROOT_URL}/subtitles/${encodeURIComponent(imdbId)}${buildQuery({
+        lang,
+        offset_ms: offsetMs,
+      })}`,
+      {
+        ttl: 24 * 60 * 60 * 1000,
+        auth: false,
+        apiKey: false,
+        accept: "text/vtt",
+        responseType: "text",
+      },
+    );
+    return response ?? null;
+  },
 
   // ----- Prefetch -----
   prefetch: (path: string) => {
     const url = path.startsWith("http") ? path : `${CATALOG_URL}${path}`;
-    const cacheKey = `GET ${url}`;
     if (pendingPrefetchTimer) {
       clearTimeout(pendingPrefetchTimer);
       pendingPrefetchTimer = undefined;
@@ -806,7 +1295,7 @@ export const api = {
       window.cancelIdleCallback(pendingPrefetchIdleId);
       pendingPrefetchIdleId = undefined;
     }
-    if (cache.has(cacheKey) || inFlight.has(cacheKey)) return;
+    if ([...cache.keys(), ...inFlight.keys()].some(key => key.startsWith(`GET ${url} `))) return;
 
     const run = () => request(url).catch(() => {});
     pendingPrefetchTimer = setTimeout(() => {

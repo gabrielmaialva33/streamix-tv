@@ -10,3 +10,4 @@ export { default as ScrollIndicator } from "./ScrollIndicator";
 export { default as CategoryChip } from "./CategoryChip";
 export { default as VirtualKeyboard } from "./VirtualKeyboard";
 export { default as LoadMoreButton } from "./LoadMoreButton";
+export { default as ProviderHealthBanner } from "./ProviderHealthBanner";
