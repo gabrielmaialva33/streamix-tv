@@ -1,12 +1,10 @@
 import { Text, View } from "@solidtv/solid";
-import { createResource, onCleanup, onMount, Show } from "solid-js";
-import api, { type ProviderHealthResponse, type ProviderHealthStatus } from "@/lib/api";
-import { CONTENT_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
-import { createLogger } from "@/shared/logging/logger";
+import { Show } from "solid-js";
+import { type ProviderHealthResponse, type ProviderHealthStatus } from "@/lib/api";
+import { SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
-const logger = createLogger("ProviderHealthBanner");
-const POLL_INTERVAL_MS = 60_000;
+const BANNER_WIDTH = 720;
 
 interface ProviderHealthNotice {
   status: Extract<ProviderHealthStatus, "degraded" | "unhealthy">;
@@ -58,30 +56,26 @@ export function providerHealthNotice(health?: ProviderHealthResponse | null): Pr
   return null;
 }
 
-const ProviderHealthBanner = () => {
-  const [health, { refetch }] = createResource(async () => {
-    try {
-      return await api.getProviderStatus();
-    } catch (error) {
-      logger.warn("Could not refresh provider health", error);
-      return null;
-    }
-  });
+interface ProviderHealthBannerProps {
+  health?: ProviderHealthResponse | null;
+  /** Catalog pages already expose partial failures beside each provider. */
+  suppressDegraded?: boolean;
+}
 
-  const notice = () => providerHealthNotice(health.latest);
-
-  onMount(() => {
-    const interval = window.setInterval(() => void refetch(), POLL_INTERVAL_MS);
-    onCleanup(() => clearInterval(interval));
-  });
+const ProviderHealthBanner = (props: ProviderHealthBannerProps) => {
+  const notice = () => {
+    const current = providerHealthNotice(props.health);
+    if (props.suppressDegraded && current?.status === "degraded") return null;
+    return current;
+  };
 
   return (
     <Show when={notice()}>
       {current => (
         <View
-          x={SIDEBAR_WIDTH + 250}
+          x={SCREEN_WIDTH - BANNER_WIDTH - 20}
           y={20}
-          width={CONTENT_WIDTH - 500}
+          width={BANNER_WIDTH}
           height={48}
           color={current().status === "unhealthy" ? 0x5c161bf2 : 0x54420df2}
           borderRadius={10}
@@ -92,8 +86,8 @@ const ProviderHealthBanner = () => {
           <Text
             x={20}
             y={13}
-            width={CONTENT_WIDTH - 540}
-            fontSize={19}
+            width={BANNER_WIDTH - 40}
+            fontSize={18}
             fontWeight={700}
             color={theme.textPrimary}
             contain="width"
