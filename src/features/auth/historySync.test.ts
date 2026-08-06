@@ -40,14 +40,17 @@ describe("remote history sync", () => {
       if (url.includes("/catalog/movies/12")) {
         return Promise.resolve(
           jsonResponse({
-            id: 12,
-            name: "Server Movie",
-            title: "Server Movie",
-            year: 2026,
-            duration: "10min",
-            genre: null,
-            rating: null,
-            poster: "https://images.example.test/movie.jpg",
+            data: {
+              id: 12,
+              name: "Server Movie",
+              title: "Server Movie",
+              year: 2026,
+              duration: "10min",
+              genre: null,
+              rating: null,
+              poster: "https://images.example.test/movie.jpg",
+              provider: { id: 7, name: "Provider 7", type: "xtream" },
+            },
           }),
         );
       }

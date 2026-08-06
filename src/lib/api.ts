@@ -277,6 +277,32 @@ function invalidateCache(urlPrefix: string) {
 
 export type ContentType = "movie" | "series" | "channel";
 
+export type CatalogProviderType = "xtream" | "gindex" | "torrent";
+export type CatalogProviderContentType = "channels" | "movies" | "series";
+
+export interface ProviderRef {
+  id: number;
+  name: string;
+  type: CatalogProviderType;
+}
+
+export interface CatalogCounts {
+  channels: number;
+  movies: number;
+  series: number;
+}
+
+/** Credential-free provider identity exposed by /catalog/providers. */
+export interface CatalogProvider extends ProviderRef {
+  content_types: CatalogProviderContentType[];
+  catalog_counts: CatalogCounts;
+}
+
+export interface CatalogProviderParams {
+  provider_id?: number;
+  provider_type?: CatalogProviderType;
+}
+
 export interface FeaturedItem {
   id: number | string;
   type: ContentType;
@@ -296,6 +322,7 @@ export interface FeaturedItem {
   year?: number | null;
   rating?: number | null;
   genre?: string | null;
+  provider: ProviderRef;
 }
 
 export interface PublicCatalogStats {
@@ -317,15 +344,15 @@ export interface HomeResponse {
   trending_series: Series[];
 }
 
-// Backend stores VOD movies under type "vod"; the query param accepts the
-// friendly alias "movie" and maps internally. We reflect what the server returns.
+// The public contract uses "vod" for movie categories.
 export type CategoryKind = "vod" | "series" | "live";
-export type CategoryFilter = "movie" | "series" | "live";
+export type CategoryFilter = CategoryKind;
 
 export interface Category {
   id: number;
   name: string;
   type: CategoryKind;
+  provider: ProviderRef;
 }
 
 export interface Movie {
@@ -341,6 +368,7 @@ export interface Movie {
   poster_w240?: string | null;
   poster_w480?: string | null;
   poster_w720?: string | null;
+  provider: ProviderRef;
   // Full detail payload.
   cast?: string | null;
   plot?: string | null;
@@ -379,6 +407,7 @@ export interface Series {
   poster_w240?: string | null;
   poster_w480?: string | null;
   poster_w720?: string | null;
+  provider: ProviderRef;
   youtube_trailer?: string | null;
 }
 
@@ -405,6 +434,7 @@ export interface Episode {
   season_number?: number;
   series_id?: number;
   series_name?: string;
+  provider: ProviderRef;
 }
 
 export interface Channel {
@@ -416,6 +446,7 @@ export interface Channel {
   browser_stream_url?: string;
   group?: string;
   epg_id?: string;
+  provider: ProviderRef;
 }
 
 export interface StreamUrl {
@@ -440,6 +471,7 @@ export interface SuggestItem {
   year?: number | null;
   poster?: string | null;
   score?: number | null;
+  provider: ProviderRef;
 }
 
 export interface SimilarContentItem {
@@ -468,6 +500,14 @@ export type CatalogShelfType = "movie" | "series";
 export interface CatalogShelfResponse<T extends Movie | Series = Movie | Series> {
   type: CatalogShelfType;
   items: T[];
+}
+
+export interface CatalogListParams extends CatalogProviderParams {
+  limit?: number;
+  offset?: number;
+  category_id?: number;
+  search?: string;
+  sort?: "rating_desc" | "created_desc" | "year_desc" | "name_asc";
 }
 
 // EPG — listings from /epg/programs
@@ -777,122 +817,217 @@ function mergeById<T extends { id: string | number }>(preferred: T[], fallback: 
 
 // ============ API ============
 
-interface MoviesListResponse {
-  total: number;
-  movies: Movie[];
-  has_more: boolean;
+interface DataEnvelope<T> {
+  data: T;
 }
 
-interface SeriesListResponse {
-  total: number;
-  series: Series[];
-  has_more: boolean;
+interface CatalogProviderFilters {
+  provider_id: number | null;
+  provider_type: CatalogProviderType | null;
 }
 
-interface ChannelsListResponse {
-  total: number;
-  channels: Channel[];
-  has_more: boolean;
+interface CatalogContentFilters extends CatalogProviderFilters {
+  category_id: number | null;
+  search: string | null;
+  sort: CatalogListParams["sort"] | null;
 }
 
-interface MovieListParams {
-  limit?: number;
-  offset?: number;
-  category_id?: string | number;
-  search?: string;
-  sort?: "rating_desc" | "created_desc" | "year_desc" | "name_asc";
+interface CatalogPagination {
+  limit: number;
+  offset: number;
+  total: number;
+  has_more: boolean;
+  next_offset: number | null;
+}
+
+interface CatalogPageEnvelope<T> {
+  data: T[];
+  meta: {
+    pagination: CatalogPagination;
+    filters: CatalogContentFilters;
+  };
+}
+
+interface CatalogProvidersEnvelope {
+  data: CatalogProvider[];
+  meta: { total: number };
+}
+
+interface CatalogCategoriesEnvelope {
+  data: Category[];
+  meta: {
+    total: number;
+    filters: CatalogProviderFilters & { type: CategoryFilter };
+  };
+}
+
+interface CatalogFeaturedEnvelope {
+  data: FeaturedItem | null;
+  meta: {
+    catalog_counts: PublicCatalogStats;
+    filters: CatalogProviderFilters;
+  };
+}
+
+interface CatalogShelfEnvelope<T extends Movie | Series> {
+  data: T[];
+  meta: {
+    type: CatalogShelfType;
+    limit: number;
+    filters: CatalogProviderFilters;
+  };
+}
+
+interface CatalogHomeEnvelope {
+  data: HomeResponse;
+  meta: {
+    limit_per_section: number;
+    filters: CatalogProviderFilters;
+  };
+}
+
+interface CatalogSearchEnvelope {
+  data: Omit<SearchResults, "query">;
+  meta: {
+    query: string;
+    limit_per_type: number;
+    filters: CatalogProviderFilters;
+  };
+}
+
+interface CatalogSuggestEnvelope {
+  data: SuggestItem[];
+  meta: {
+    query: string;
+    limit: number;
+    filters: CatalogProviderFilters;
+  };
+}
+
+function toPaginatedResponse<T>(response: CatalogPageEnvelope<T>): PaginatedResponse<T> {
+  const { pagination } = response.meta;
+  return {
+    data: response.data,
+    total: pagination.total,
+    offset: pagination.offset,
+    limit: pagination.limit,
+    has_more: pagination.has_more,
+  };
 }
 
 export const api = {
-  // ----- Categories -----
-  getCategories: (type?: CategoryFilter) =>
-    request<Category[]>(`${CATALOG_URL}/categories${buildQuery({ type })}`),
-
-  getFeatured: async (): Promise<FeaturedResponse> => {
-    const response = await request<FeaturedResponse>(`${CATALOG_URL}/featured`, { ttl: SHORT_TTL });
-    return { ...response, featured: normFeatured(response.featured) };
+  // ----- Public catalog providers and categories -----
+  getCatalogProviders: async (): Promise<CatalogProvider[]> => {
+    const response = await request<CatalogProvidersEnvelope>(`${CATALOG_URL}/providers`);
+    return response.data;
   },
 
-  getTrending: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
-    const response = await request<CatalogShelfResponse>(
-      `${CATALOG_URL}/trending${buildQuery({ type, limit })}`,
+  getCategories: async (
+    type: CategoryFilter = "vod",
+    filters: CatalogProviderParams = {},
+  ): Promise<Category[]> => {
+    const response = await request<CatalogCategoriesEnvelope>(
+      `${CATALOG_URL}/categories${buildQuery({ type, ...filters })}`,
+    );
+    return response.data;
+  },
+
+  getFeatured: async (filters: CatalogProviderParams = {}): Promise<FeaturedResponse> => {
+    const response = await request<CatalogFeaturedEnvelope>(
+      `${CATALOG_URL}/featured${buildQuery({ ...filters })}`,
       { ttl: SHORT_TTL },
     );
     return {
-      ...response,
-      items:
-        response.type === "series"
-          ? (response.items as Series[]).map(normSeries)
-          : (response.items as Movie[]).map(normMovie),
+      featured: normFeatured(response.data),
+      stats: response.meta.catalog_counts,
     };
   },
 
-  getRecent: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
-    const response = await request<CatalogShelfResponse>(
-      `${CATALOG_URL}/recent${buildQuery({ type, limit })}`,
+  getTrending: async (
+    type: CatalogShelfType = "movie",
+    limit = 20,
+    filters: CatalogProviderParams = {},
+  ): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfEnvelope<Movie | Series>>(
+      `${CATALOG_URL}/trending${buildQuery({ type, limit, ...filters })}`,
       { ttl: SHORT_TTL },
     );
     return {
-      ...response,
+      type: response.meta.type,
       items:
-        response.type === "series"
-          ? (response.items as Series[]).map(normSeries)
-          : (response.items as Movie[]).map(normMovie),
+        response.meta.type === "series"
+          ? (response.data as Series[]).map(normSeries)
+          : (response.data as Movie[]).map(normMovie),
     };
   },
 
-  getTopRated: async (type: CatalogShelfType = "movie", limit = 20): Promise<CatalogShelfResponse> => {
-    const response = await request<CatalogShelfResponse>(
-      `${CATALOG_URL}/top-rated${buildQuery({ type, limit })}`,
+  getRecent: async (
+    type: CatalogShelfType = "movie",
+    limit = 20,
+    filters: CatalogProviderParams = {},
+  ): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfEnvelope<Movie | Series>>(
+      `${CATALOG_URL}/recent${buildQuery({ type, limit, ...filters })}`,
       { ttl: SHORT_TTL },
     );
     return {
-      ...response,
+      type: response.meta.type,
       items:
-        response.type === "series"
-          ? (response.items as Series[]).map(normSeries)
-          : (response.items as Movie[]).map(normMovie),
+        response.meta.type === "series"
+          ? (response.data as Series[]).map(normSeries)
+          : (response.data as Movie[]).map(normMovie),
+    };
+  },
+
+  getTopRated: async (
+    type: CatalogShelfType = "movie",
+    limit = 20,
+    filters: CatalogProviderParams = {},
+  ): Promise<CatalogShelfResponse> => {
+    const response = await request<CatalogShelfEnvelope<Movie | Series>>(
+      `${CATALOG_URL}/top-rated${buildQuery({ type, limit, ...filters })}`,
+      { ttl: SHORT_TTL },
+    );
+    return {
+      type: response.meta.type,
+      items:
+        response.meta.type === "series"
+          ? (response.data as Series[]).map(normSeries)
+          : (response.data as Movie[]).map(normMovie),
     };
   },
 
   // ----- Movies -----
-  getMovies: async (params: MovieListParams = {}): Promise<PaginatedResponse<Movie>> => {
-    const r = await request<MoviesListResponse>(
+  getMovies: async (params: CatalogListParams = {}): Promise<PaginatedResponse<Movie>> => {
+    const response = await request<CatalogPageEnvelope<Movie>>(
       `${CATALOG_URL}/movies${buildQuery(params as Record<string, unknown>)}`,
     );
-    return {
-      data: (r.movies || []).map(normMovie),
-      total: r.total ?? 0,
-      offset: params.offset ?? 0,
-      limit: params.limit ?? 20,
-      has_more: r.has_more ?? false,
-    };
+    return toPaginatedResponse({ ...response, data: response.data.map(normMovie) });
   },
 
   getMovie: async (id: string | number): Promise<Movie> => {
-    const m = await request<Movie>(`${CATALOG_URL}/movies/${id}`);
-    return normMovie(m);
+    const response = await request<DataEnvelope<Movie>>(`${CATALOG_URL}/movies/${id}`);
+    return normMovie(response.data);
   },
 
-  getMovieStream: (id: string | number) =>
-    request<StreamUrl>(`${CATALOG_URL}/movies/${id}/stream`, { ttl: SHORT_TTL }),
+  getMovieStream: async (id: string | number): Promise<StreamUrl> => {
+    const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/movies/${id}/stream`, {
+      ttl: SHORT_TTL,
+    });
+    return response.data;
+  },
 
   // ----- Series -----
-  getSeries: async (params: MovieListParams = {}): Promise<PaginatedResponse<Series>> => {
-    const r = await request<SeriesListResponse>(
+  getSeries: async (params: CatalogListParams = {}): Promise<PaginatedResponse<Series>> => {
+    const response = await request<CatalogPageEnvelope<Series>>(
       `${CATALOG_URL}/series${buildQuery(params as Record<string, unknown>)}`,
     );
-    return {
-      data: (r.series || []).map(normSeries),
-      total: r.total ?? 0,
-      offset: params.offset ?? 0,
-      limit: params.limit ?? 20,
-      has_more: r.has_more ?? false,
-    };
+    return toPaginatedResponse({ ...response, data: response.data.map(normSeries) });
   },
 
   getSeriesDetail: async (id: string | number): Promise<Series> => {
-    const s = await request<Series>(`${CATALOG_URL}/series/${id}`);
+    const response = await request<DataEnvelope<Series>>(`${CATALOG_URL}/series/${id}`);
+    const s = response.data;
     const seasons = (s.seasons || []).map(season => ({
       ...season,
       episodes: (season.episodes || []).map(ep => normEpisode(ep, season.season_number)),
@@ -901,59 +1036,66 @@ export const api = {
   },
 
   getEpisode: async (id: string | number): Promise<Episode> => {
-    const e = await request<Episode>(`${CATALOG_URL}/episodes/${id}`);
-    return normEpisode(e);
+    const response = await request<DataEnvelope<Episode>>(`${CATALOG_URL}/episodes/${id}`);
+    return normEpisode(response.data);
   },
 
-  getEpisodeStream: (id: string | number) =>
-    request<StreamUrl>(`${CATALOG_URL}/episodes/${id}/stream`, { ttl: SHORT_TTL }),
+  getEpisodeStream: async (id: string | number): Promise<StreamUrl> => {
+    const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/episodes/${id}/stream`, {
+      ttl: SHORT_TTL,
+    });
+    return response.data;
+  },
 
   // ----- Channels -----
-  getChannels: async (params: MovieListParams = {}): Promise<PaginatedResponse<Channel>> => {
-    const r = await request<ChannelsListResponse>(
+  getChannels: async (params: CatalogListParams = {}): Promise<PaginatedResponse<Channel>> => {
+    const response = await request<CatalogPageEnvelope<Channel>>(
       `${CATALOG_URL}/channels${buildQuery(params as Record<string, unknown>)}`,
     );
-    return {
-      data: (r.channels || []).map(normChannel),
-      total: r.total ?? 0,
-      offset: params.offset ?? 0,
-      limit: params.limit ?? 20,
-      has_more: r.has_more ?? false,
-    };
+    return toPaginatedResponse({ ...response, data: response.data.map(normChannel) });
   },
 
   getChannel: async (id: string | number): Promise<Channel> => {
-    const c = await request<Channel>(`${CATALOG_URL}/channels/${id}`);
-    return normChannel(c);
+    const response = await request<DataEnvelope<Channel>>(`${CATALOG_URL}/channels/${id}`);
+    return normChannel(response.data);
   },
 
-  getChannelStream: (id: string | number) =>
-    request<StreamUrl>(`${CATALOG_URL}/channels/${id}/stream`, { ttl: SHORT_TTL }),
+  getChannelStream: async (id: string | number): Promise<StreamUrl> => {
+    const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/channels/${id}/stream`, {
+      ttl: SHORT_TTL,
+    });
+    return response.data;
+  },
 
   // ----- Search -----
   // Full search combines semantic movie/series results with the ranked
   // catalog response. The lexical response remains authoritative if the AI
   // service is temporarily unavailable and is also the source for channels.
-  search: async (query: string, limit = 10): Promise<SearchResults> => {
+  search: async (query: string, limit = 10, filters: CatalogProviderParams = {}): Promise<SearchResults> => {
+    const semanticEnabled = filters.provider_id === undefined && filters.provider_type === undefined;
     const [catalogResult, movieResult, seriesResult] = await Promise.allSettled([
-      request<SearchResults>(`${CATALOG_URL}/search${buildQuery({ q: query, limit })}`, {
+      request<CatalogSearchEnvelope>(`${CATALOG_URL}/search${buildQuery({ q: query, limit, ...filters })}`, {
         ttl: SHORT_TTL,
       }),
-      request<SemanticMovieSearchResponse>(`${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`, {
-        ttl: SHORT_TTL,
-      }),
-      request<SemanticSeriesSearchResponse>(`${SEARCH_URL}/series${buildQuery({ q: query, limit })}`, {
-        ttl: SHORT_TTL,
-      }),
+      semanticEnabled
+        ? request<SemanticMovieSearchResponse>(`${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`, {
+            ttl: SHORT_TTL,
+          })
+        : Promise.resolve({ movies: [], query, semantic: false }),
+      semanticEnabled
+        ? request<SemanticSeriesSearchResponse>(`${SEARCH_URL}/series${buildQuery({ q: query, limit })}`, {
+            ttl: SHORT_TTL,
+          })
+        : Promise.resolve({ series: [], query, semantic: false }),
     ]);
 
     if (catalogResult.status === "rejected") throw catalogResult.reason;
-    const catalog = catalogResult.value;
+    const catalog = catalogResult.value.data;
     if (movieResult.status === "rejected") logger.warn("Semantic movie search unavailable");
     if (seriesResult.status === "rejected") logger.warn("Semantic series search unavailable");
 
     return {
-      query: catalog.query ?? query,
+      query: catalogResult.value.meta.query ?? query,
       movies: mergeById(
         movieResult.status === "fulfilled" ? (movieResult.value.movies || []).map(normMovie) : [],
         (catalog.movies || []).map(normMovie),
@@ -989,11 +1131,13 @@ export const api = {
   getSearchInfo: () => request<Record<string, unknown>>(`${SEARCH_URL}/info`, { ttl: SHORT_TTL }),
 
   // Typeahead — lightweight, mixed list of {id, type, title, year, poster}.
-  suggest: (query: string, limit = 10) =>
-    request<{ query: string; items: SuggestItem[] }>(
-      `${CATALOG_URL}/suggest${buildQuery({ q: query, limit })}`,
+  suggest: async (query: string, limit = 10, filters: CatalogProviderParams = {}) => {
+    const response = await request<CatalogSuggestEnvelope>(
+      `${CATALOG_URL}/suggest${buildQuery({ q: query, limit, ...filters })}`,
       { ttl: SHORT_TTL },
-    ),
+    );
+    return { query: response.meta.query, items: response.data };
+  },
 
   getSimilarContent: async (
     collection: "movies" | "series",
@@ -1008,17 +1152,19 @@ export const api = {
   },
 
   // ----- Home rails -----
-  getHome: async (limit = 20): Promise<HomeResponse> => {
-    const response = await request<HomeResponse>(`${CATALOG_URL}/home${buildQuery({ limit })}`, {
-      ttl: SHORT_TTL,
-    });
+  getHome: async (limit = 20, filters: CatalogProviderParams = {}): Promise<HomeResponse> => {
+    const response = await request<CatalogHomeEnvelope>(
+      `${CATALOG_URL}/home${buildQuery({ limit, ...filters })}`,
+      { ttl: SHORT_TTL },
+    );
+    const home = response.data;
     return {
-      ...response,
-      featured: normFeatured(response.featured),
-      trending_movies: (response.trending_movies || []).map(normMovie),
-      recent_movies: (response.recent_movies || []).map(normMovie),
-      top_rated_movies: (response.top_rated_movies || []).map(normMovie),
-      trending_series: (response.trending_series || []).map(normSeries),
+      ...home,
+      featured: normFeatured(home.featured),
+      trending_movies: home.trending_movies.map(normMovie),
+      recent_movies: home.recent_movies.map(normMovie),
+      top_rated_movies: home.top_rated_movies.map(normMovie),
+      trending_series: home.trending_series.map(normSeries),
     };
   },
 
