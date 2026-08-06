@@ -14,7 +14,7 @@ import {
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, VirtualKeyboard } from "@/components";
-import api, { type Channel, type Movie, type SearchResults, type Series, type SuggestItem } from "@/lib/api";
+import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
 import { chunkIntoRows } from "@/lib/contentMeta";
 import { pickPoster, proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
@@ -43,7 +43,13 @@ type SearchResultRow =
   | { kind: "series"; items: Series[]; heading?: string }
   | { kind: "channel"; items: Channel[]; heading?: string };
 
-function buildResultRows(result?: SearchResults | null): SearchResultRow[] {
+interface SearchResultBuckets {
+  movies: readonly Movie[];
+  series: readonly Series[];
+  channels: readonly Channel[];
+}
+
+function buildResultRows(result?: SearchResultBuckets | null): SearchResultRow[] {
   if (!result) return [];
   const rows: SearchResultRow[] = [];
 
