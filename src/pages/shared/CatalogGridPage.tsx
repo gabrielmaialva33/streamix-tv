@@ -1,9 +1,16 @@
 import { ElementNode, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
-import { batch, createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { batch, createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "@/components";
-import api, { type Category, type CategoryFilter, type PaginatedResponse } from "@/lib/api";
+import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
+import api, {
+  type CatalogListParams,
+  type CatalogProvider,
+  type Category,
+  type CategoryFilter,
+  type PaginatedResponse,
+} from "@/lib/api";
 import { pickPoster } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
@@ -11,9 +18,10 @@ import { theme } from "@/styles";
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
 const VISIBLE_ROWS = 2;
-const HEADER_HEIGHT = 196;
-const CATEGORY_ROW_Y = 136;
-const GRID_Y = 210;
+const HEADER_HEIGHT = 230;
+const PROVIDER_ROW_Y = 122;
+const CATEGORY_ROW_Y = 174;
+const GRID_Y = 242;
 const GRID_HEIGHT = 1080 - GRID_Y - 10;
 const ROW_HEIGHT = 420;
 
@@ -28,13 +36,6 @@ interface CatalogItem {
   poster_w720?: string | null;
 }
 
-interface ListParams {
-  category_id?: number;
-  offset: number;
-  limit: number;
-  search?: string;
-}
-
 export interface CatalogGridPageProps<T extends CatalogItem> {
   title: string;
   subtitle: string;
@@ -43,7 +44,7 @@ export interface CatalogGridPageProps<T extends CatalogItem> {
   emptyMessage: string;
   categoryType: CategoryFilter;
   itemType: "movie" | "series";
-  fetchPage: (params: ListParams) => Promise<PaginatedResponse<T>>;
+  fetchPage: (params: CatalogListParams) => Promise<PaginatedResponse<T>>;
   caption: (item: T) => string;
   detailHref: (item: T) => string;
 }
@@ -54,27 +55,76 @@ export interface CatalogGridPageProps<T extends CatalogItem> {
  */
 function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = createSignal<number>();
+  const {
+    providerId: selectedProvider,
+    categoryId: selectedCategory,
+    selectProvider: setSelectedProvider,
+    selectCategory: setSelectedCategory,
+    hrefWithProvider,
+  } = useCatalogBrowseFilters();
   const [offset, setOffset] = createSignal(0);
   const [accumulatedItems, setAccumulatedItems] = createSignal<T[]>([]);
   const [hasMore, setHasMore] = createSignal(false);
   const [scrollPosition, setScrollPosition] = createSignal(0);
 
+  let providersRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let seenItemIds = new Set<T["id"]>();
 
-  onNavReset(() => categoriesRow?.setFocus());
+  onNavReset(() => providersRow?.setFocus());
 
-  const [categories] = createResource(() => api.getCategories(props.categoryType));
+  const [providers] = createResource(api.getCatalogProviders, { initialValue: [] });
+  const contentType = () => (props.itemType === "movie" ? "movies" : "series");
+  const availableProviders = createMemo(() =>
+    providers().filter(provider => provider.content_types.includes(contentType())),
+  );
+  const [categories] = createResource(
+    selectedProvider,
+    providerId => api.getCategories(props.categoryType, { provider_id: providerId }),
+    { initialValue: [] },
+  );
   const [itemsResource] = createResource(
     () => ({
+      provider_id: selectedProvider(),
       category_id: selectedCategory(),
       offset: offset(),
       limit: ITEMS_PER_PAGE,
     }),
     params => props.fetchPage(params),
   );
+
+  createEffect(
+    on(
+      () => `${selectedProvider() ?? "all"}:${selectedCategory() ?? "all"}`,
+      () => {
+        batch(() => {
+          seenItemIds = new Set<T["id"]>();
+          setAccumulatedItems([]);
+          setHasMore(false);
+          setScrollPosition(0);
+          setOffset(0);
+        });
+      },
+      { defer: true },
+    ),
+  );
+
+  createEffect(() => {
+    const providerId = selectedProvider();
+    if (providerId === undefined || providers.state !== "ready") return;
+    if (!availableProviders().some(provider => provider.id === providerId)) {
+      setSelectedProvider(undefined, true);
+    }
+  });
+
+  createEffect(() => {
+    const categoryId = selectedCategory();
+    if (categoryId === undefined || categories.state !== "ready") return;
+    if (!categories().some(category => category.id === categoryId)) {
+      setSelectedCategory(undefined, true);
+    }
+  });
 
   createEffect(() => {
     const result = itemsResource();
@@ -99,22 +149,19 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
     }
   };
 
+  const selectProvider = (providerId: number | undefined) => {
+    if (selectedProvider() !== providerId) setSelectedProvider(providerId);
+  };
+
   const selectCategory = (categoryId: number | undefined) => {
-    if (selectedCategory() === categoryId) return;
-    batch(() => {
-      seenItemIds = new Set<T["id"]>();
-      setAccumulatedItems([]);
-      setHasMore(false);
-      setScrollPosition(0);
-      setSelectedCategory(categoryId);
-      setOffset(0);
-    });
+    if (selectedCategory() !== categoryId) setSelectedCategory(categoryId);
   };
 
   const leaveGridUp = () => {
     const cursor = contentGrid?.cursor;
     if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
-    categoriesRow?.setFocus();
+    if (selectedProvider() !== undefined) categoriesRow?.setFocus();
+    else providersRow?.setFocus();
     return true;
   };
 
@@ -123,7 +170,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
       width={1700}
       height={1080}
       forwardFocus={() => {
-        categoriesRow?.setFocus();
+        providersRow?.setFocus();
         return true;
       }}
     >
@@ -139,32 +186,65 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
         <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
         <Row
-          ref={categoriesRow}
+          ref={providersRow}
           x={20}
-          y={CATEGORY_ROW_Y}
+          y={PROVIDER_ROW_Y}
           width={1660}
-          height={54}
+          height={42}
           gap={12}
           scroll="center"
           autofocus
-          onDown={() => contentGrid?.setFocus()}
+          onDown={() => {
+            if (selectedProvider() !== undefined) categoriesRow?.setFocus();
+            else contentGrid?.setFocus();
+          }}
         >
           <CategoryChip
-            label={props.allLabel}
-            width={100}
-            active={selectedCategory() === undefined}
-            onSelect={() => selectCategory(undefined)}
+            label="Todos os provedores"
+            width={190}
+            active={selectedProvider() === undefined}
+            onSelect={() => selectProvider(undefined)}
           />
-          <For each={categories()}>
-            {(category: Category) => (
+          <For each={availableProviders()}>
+            {(provider: CatalogProvider) => (
               <CategoryChip
-                label={category.name}
-                active={selectedCategory() === category.id}
-                onSelect={() => selectCategory(category.id)}
+                label={provider.name}
+                active={selectedProvider() === provider.id}
+                onSelect={() => selectProvider(provider.id)}
               />
             )}
           </For>
         </Row>
+
+        <Show when={selectedProvider() !== undefined}>
+          <Row
+            ref={categoriesRow}
+            x={20}
+            y={CATEGORY_ROW_Y}
+            width={1660}
+            height={42}
+            gap={12}
+            scroll="center"
+            onUp={() => providersRow?.setFocus()}
+            onDown={() => contentGrid?.setFocus()}
+          >
+            <CategoryChip
+              label={props.allLabel}
+              width={100}
+              active={selectedCategory() === undefined}
+              onSelect={() => selectCategory(undefined)}
+            />
+            <For each={categories()}>
+              {(category: Category) => (
+                <CategoryChip
+                  label={category.name}
+                  active={selectedCategory() === category.id}
+                  onSelect={() => selectCategory(category.id)}
+                />
+              )}
+            </For>
+          </Row>
+        </Show>
       </View>
 
       <Show when={itemsResource.loading && accumulatedItems().length === 0}>
@@ -231,7 +311,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
               imageUrl={pickPoster(item(), 240)}
               subtitle={props.caption(item())}
               onEnter={() => {
-                navigate(props.detailHref(item()));
+                navigate(hrefWithProvider(props.detailHref(item())));
                 return true;
               }}
               item={item()}

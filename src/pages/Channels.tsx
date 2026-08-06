@@ -1,9 +1,10 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
-import { batch, createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { batch, createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { CategoryChip, SkeletonLoader } from "@/components";
-import api, { type Category, type Channel } from "@/lib/api";
+import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
+import api, { type CatalogProvider, type Category, type Channel } from "@/lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
@@ -11,9 +12,10 @@ import { theme } from "@/styles";
 const ITEMS_PER_ROW = 8;
 const PAGE_SIZE = 48;
 const VISIBLE_ROWS = 6;
-const HEADER_HEIGHT = 196;
-const CATEGORY_ROW_Y = 136;
-const GRID_Y = 204;
+const HEADER_HEIGHT = 230;
+const PROVIDER_ROW_Y = 122;
+const CATEGORY_ROW_Y = 174;
+const GRID_Y = 238;
 const GRID_HEIGHT = 1080 - GRID_Y;
 
 const ChannelCardStyle = {
@@ -53,26 +55,73 @@ function channelInitial(name: string): string {
 
 const Channels = () => {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = createSignal<number>();
+  const {
+    providerId: selectedProvider,
+    categoryId: selectedCategory,
+    selectProvider: setSelectedProvider,
+    selectCategory: setSelectedCategory,
+    hrefWithProvider,
+  } = useCatalogBrowseFilters();
   const [offset, setOffset] = createSignal(0);
   const [hasMore, setHasMore] = createSignal(false);
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
 
+  let providersRow: ElementNode | undefined;
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
   let seenChannelIds = new Set<Channel["id"]>();
 
-  onNavReset(() => categoriesRow?.setFocus());
+  onNavReset(() => providersRow?.setFocus());
 
-  const [categories] = createResource(() => api.getCategories("live"));
+  const [providers] = createResource(api.getCatalogProviders, { initialValue: [] });
+  const availableProviders = createMemo(() =>
+    providers().filter(provider => provider.content_types.includes("channels")),
+  );
+  const [categories] = createResource(
+    selectedProvider,
+    providerId => api.getCategories("live", { provider_id: providerId }),
+    { initialValue: [] },
+  );
   const [channels] = createResource(
     () => ({
+      provider_id: selectedProvider(),
       category_id: selectedCategory(),
       offset: offset(),
       limit: PAGE_SIZE,
     }),
     params => api.getChannels(params),
   );
+
+  createEffect(
+    on(
+      () => `${selectedProvider() ?? "all"}:${selectedCategory() ?? "all"}`,
+      () => {
+        batch(() => {
+          seenChannelIds = new Set<Channel["id"]>();
+          setChannelsData([]);
+          setHasMore(false);
+          setOffset(0);
+        });
+      },
+      { defer: true },
+    ),
+  );
+
+  createEffect(() => {
+    const providerId = selectedProvider();
+    if (providerId === undefined || providers.state !== "ready") return;
+    if (!availableProviders().some(provider => provider.id === providerId)) {
+      setSelectedProvider(undefined, true);
+    }
+  });
+
+  createEffect(() => {
+    const categoryId = selectedCategory();
+    if (categoryId === undefined || categories.state !== "ready") return;
+    if (!categories().some(category => category.id === categoryId)) {
+      setSelectedCategory(undefined, true);
+    }
+  });
 
   createEffect(() => {
     const result = channels();
@@ -97,21 +146,19 @@ const Channels = () => {
     }
   };
 
+  const selectProvider = (providerId: number | undefined) => {
+    if (selectedProvider() !== providerId) setSelectedProvider(providerId);
+  };
+
   const selectCategory = (categoryId: number | undefined) => {
-    if (selectedCategory() === categoryId) return;
-    batch(() => {
-      seenChannelIds = new Set<Channel["id"]>();
-      setChannelsData([]);
-      setHasMore(false);
-      setSelectedCategory(categoryId);
-      setOffset(0);
-    });
+    if (selectedCategory() !== categoryId) setSelectedCategory(categoryId);
   };
 
   const leaveGridUp = () => {
     const cursor = contentGrid?.cursor;
     if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
-    categoriesRow?.setFocus();
+    if (selectedProvider() !== undefined) categoriesRow?.setFocus();
+    else providersRow?.setFocus();
     return true;
   };
 
@@ -120,7 +167,7 @@ const Channels = () => {
       width={1700}
       height={1080}
       forwardFocus={() => {
-        categoriesRow?.setFocus();
+        providersRow?.setFocus();
         return true;
       }}
     >
@@ -136,32 +183,65 @@ const Channels = () => {
         <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
         <Row
-          ref={categoriesRow}
+          ref={providersRow}
           x={20}
-          y={CATEGORY_ROW_Y}
+          y={PROVIDER_ROW_Y}
           width={1660}
-          height={50}
+          height={42}
           gap={12}
           scroll="center"
           autofocus
-          onDown={() => contentGrid?.setFocus()}
+          onDown={() => {
+            if (selectedProvider() !== undefined) categoriesRow?.setFocus();
+            else contentGrid?.setFocus();
+          }}
         >
           <CategoryChip
-            label="Todos"
-            width={100}
-            active={selectedCategory() === undefined}
-            onSelect={() => selectCategory(undefined)}
+            label="Todos os provedores"
+            width={190}
+            active={selectedProvider() === undefined}
+            onSelect={() => selectProvider(undefined)}
           />
-          <For each={categories()}>
-            {(category: Category) => (
+          <For each={availableProviders()}>
+            {(provider: CatalogProvider) => (
               <CategoryChip
-                label={category.name}
-                active={selectedCategory() === category.id}
-                onSelect={() => selectCategory(category.id)}
+                label={provider.name}
+                active={selectedProvider() === provider.id}
+                onSelect={() => selectProvider(provider.id)}
               />
             )}
           </For>
         </Row>
+
+        <Show when={selectedProvider() !== undefined}>
+          <Row
+            ref={categoriesRow}
+            x={20}
+            y={CATEGORY_ROW_Y}
+            width={1660}
+            height={42}
+            gap={12}
+            scroll="center"
+            onUp={() => providersRow?.setFocus()}
+            onDown={() => contentGrid?.setFocus()}
+          >
+            <CategoryChip
+              label="Todos"
+              width={100}
+              active={selectedCategory() === undefined}
+              onSelect={() => selectCategory(undefined)}
+            />
+            <For each={categories()}>
+              {(category: Category) => (
+                <CategoryChip
+                  label={category.name}
+                  active={selectedCategory() === category.id}
+                  onSelect={() => selectCategory(category.id)}
+                />
+              )}
+            </For>
+          </Row>
+        </Show>
       </View>
 
       <Show when={channels.loading && channelsData().length === 0}>
@@ -211,7 +291,7 @@ const Channels = () => {
               item={channel()}
               style={ChannelCardStyle}
               onEnter={() => {
-                navigate(`/player/channel/${channel().id}`);
+                navigate(hrefWithProvider(`/player/channel/${channel().id}`));
                 return true;
               }}
             >

@@ -8,7 +8,7 @@ const Movies = () => (
     subtitle="Descubra títulos com mais contexto antes de dar play."
     allLabel="Todos"
     emptyMessage="Nenhum filme encontrado"
-    categoryType="movie"
+    categoryType="vod"
     itemType="movie"
     fetchPage={params => api.getMovies(params)}
     caption={ratingCaption}

@@ -69,6 +69,7 @@ const Home = () => {
         year: first.year,
         rating: first.rating,
         genre: first.genre,
+        provider: first.provider,
       },
     ];
   };
