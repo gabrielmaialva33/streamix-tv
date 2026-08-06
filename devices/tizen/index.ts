@@ -14,7 +14,13 @@ export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
   lightning: {
     rendererOptions: {
       numImageWorkers: 0,
-      boundsMargin: 180,
+      // Keep roughly two poster pitches decoded ahead of horizontal focus.
+      // Lazy collections still mount cooperatively, so this avoids a startup
+      // burst while preventing textures from popping in during fast D-pad use.
+      boundsMargin: 560,
+      // Image decode runs on the main thread on Tizen. Cap its per-frame work
+      // so background preloading leaves enough of a 16.6ms frame for layout.
+      textureProcessingTimeLimit: 6,
       textureMemory: {
         criticalThreshold: 80e6,
         targetThresholdLevel: 0.55,
