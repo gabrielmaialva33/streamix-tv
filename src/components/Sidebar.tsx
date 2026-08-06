@@ -8,8 +8,19 @@ import {
 } from "@solidtv/solid";
 import { Column, type NavigableElement } from "@solidtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createResource, createSignal, For, Match, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { authState } from "@/features/auth/auth";
+import { preloadNavigationPage } from "@/app/pageLoaders";
 import {
   catalogBrowseConfigForPath,
   catalogSidebarModeAfterBack,
@@ -29,12 +40,16 @@ import api, {
   type ProviderHealthStatus,
 } from "@/lib/api";
 import { CATALOG_SIDEBAR_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
+import { isElementAttached } from "@/shared/focus";
+import { createLogger } from "@/shared/logging/logger";
 import { bumpNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const PROVIDER_AWARE_ROUTES = new Set(["/movies", "/series", "/channels"]);
 const CATEGORY_WINDOW_SIZE = 9;
 const numberFormatter = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+const logger = createLogger("Sidebar");
+const NAVIGATION_PRELOAD_DELAY_MS = 180;
 
 const NavigationColumnStyle = {
   display: "flex",
@@ -261,8 +276,10 @@ const Sidebar = (props: SidebarProps) => {
 
   let navigationColumn: ElementNode | undefined;
   let providerButton: ElementNode | undefined;
+  let categoryRetryButton: ElementNode | undefined;
   let categoryColumn: NavigableElement | undefined;
   let providerColumn: NavigableElement | undefined;
+  let navigationPreloadTimer: ReturnType<typeof setTimeout> | undefined;
 
   const browseConfig = createMemo(() => catalogBrowseConfigForPath(location.pathname));
   const railWidth = () => (browseConfig() ? CATALOG_SIDEBAR_WIDTH : SIDEBAR_WIDTH);
@@ -274,6 +291,7 @@ const Sidebar = (props: SidebarProps) => {
     { initialValue: [] },
   );
   const availableProviders = createMemo(() => {
+    if (providers.error) return [];
     const contentType = browseConfig()?.contentType;
     return contentType ? providers().filter(provider => provider.content_types.includes(contentType)) : [];
   });
@@ -283,7 +301,7 @@ const Sidebar = (props: SidebarProps) => {
     const providerId = selectedProvider();
     return config && providerId !== undefined ? `${config.categoryType}:${providerId}` : undefined;
   };
-  const [categories] = createResource(
+  const [categories, { refetch: refetchCategories }] = createResource(
     categoryRequestKey,
     key => {
       const [type, providerId] = key.split(":");
@@ -298,7 +316,7 @@ const Sidebar = (props: SidebarProps) => {
   ]);
   const categoryOptions = createMemo<CategoryOption[]>(() => {
     const config = browseConfig();
-    if (!config || selectedProvider() === undefined) return [];
+    if (!config || selectedProvider() === undefined || categories.error) return [];
     return [
       { name: config.allCategoriesLabel },
       ...categories().map(category => ({ id: category.id, name: category.name })),
@@ -344,8 +362,56 @@ const Sidebar = (props: SidebarProps) => {
     queueMicrotask(() => queueMicrotask(callback));
   }
 
+  function scheduleNavigationPreload(path: string) {
+    if (navigationPreloadTimer) clearTimeout(navigationPreloadTimer);
+    navigationPreloadTimer = setTimeout(() => {
+      navigationPreloadTimer = undefined;
+      const provider_id = selectedProvider();
+      const category_id = location.pathname === path ? selectedCategory() : undefined;
+      const tasks: Promise<unknown>[] = [preloadNavigationPage(path)];
+
+      switch (path) {
+        case "/":
+          tasks.push(api.getHome(20));
+          break;
+        case "/movies":
+          tasks.push(
+            api.getCatalogProviders(),
+            api.getMovies({ provider_id, category_id, offset: 0, limit: 30 }),
+          );
+          break;
+        case "/series":
+          tasks.push(
+            api.getCatalogProviders(),
+            api.getSeries({ provider_id, category_id, offset: 0, limit: 30 }),
+          );
+          break;
+        case "/channels":
+          tasks.push(
+            api.getCatalogProviders(),
+            api.getChannels({ provider_id, category_id, offset: 0, limit: 48 }),
+          );
+          break;
+        case "/guide":
+          tasks.push(api.getChannels({ limit: 50 }));
+          break;
+      }
+
+      void Promise.allSettled(tasks).then(results => {
+        const failure = results.find(result => result.status === "rejected");
+        if (failure?.status === "rejected") {
+          logger.debug("Navigation preload deferred after failure", { path, error: failure.reason });
+        }
+      });
+    }, NAVIGATION_PRELOAD_DELAY_MS);
+  }
+
+  onCleanup(() => {
+    if (navigationPreloadTimer) clearTimeout(navigationPreloadTimer);
+  });
+
   function focusNavigation() {
-    if (!navigationColumn) return;
+    if (!isElementAttached(navigationColumn)) return;
     const path = location.pathname;
     const index = navigationColumn.children.findIndex(child => {
       const route = (child as ElementNode & { route?: string }).route;
@@ -361,20 +427,24 @@ const Sidebar = (props: SidebarProps) => {
   }
 
   function focusCatalog() {
-    if (selectedProvider() !== undefined && categoryColumn && categoryOptions().length > 0) {
+    if (
+      selectedProvider() !== undefined &&
+      isElementAttached(categoryColumn) &&
+      categoryOptions().length > 0
+    ) {
       focusCategoryAt(selectedCategoryIndex());
       return;
     }
-    providerButton?.setFocus();
+    if (isElementAttached(providerButton)) providerButton.setFocus();
   }
 
   function focusCategoryAt(index: number) {
     const itemCount = categoryOptions().length;
-    if (!categoryColumn || itemCount === 0) return false;
+    if (!isElementAttached(categoryColumn) || itemCount === 0) return false;
     const nextIndex = Math.min(Math.max(index, 0), itemCount - 1);
     setCategoryCursor(nextIndex);
     deferFocus(() => {
-      if (!categoryColumn) return;
+      if (!isElementAttached(categoryColumn)) return;
       const relativeIndex = nextIndex - categoryWindowStart();
       categoryColumn.selected = relativeIndex;
       categoryColumn.children[relativeIndex]?.setFocus();
@@ -383,20 +453,20 @@ const Sidebar = (props: SidebarProps) => {
   }
 
   function focusProviders() {
-    if (providerColumn) providerColumn.scrollToIndex?.(selectedProviderIndex());
+    if (isElementAttached(providerColumn)) providerColumn.scrollToIndex?.(selectedProviderIndex());
   }
 
   function forwardSidebarFocus() {
     if (mode() === "providers") {
       focusProviders();
-      return providerColumn !== undefined;
+      return isElementAttached(providerColumn);
     }
     if (mode() === "catalog" && browseConfig()) {
       focusCatalog();
-      return providerButton !== undefined || categoryColumn !== undefined;
+      return isElementAttached(providerButton) || isElementAttached(categoryColumn);
     }
     focusNavigation();
-    return navigationColumn !== undefined;
+    return isElementAttached(navigationColumn);
   }
 
   function openCatalog() {
@@ -463,6 +533,18 @@ const Sidebar = (props: SidebarProps) => {
     return true;
   }
 
+  function retryCategories() {
+    void Promise.resolve(refetchCategories()).then(
+      () =>
+        deferFocus(() => {
+          if (categories.error) categoryRetryButton?.setFocus();
+          else focusCategoryAt(selectedCategoryIndex());
+        }),
+      () => deferFocus(() => categoryRetryButton?.setFocus()),
+    );
+    return true;
+  }
+
   createEffect(() => {
     const pathname = location.pathname;
     if (catalogBrowseConfigForPath(pathname)) {
@@ -519,7 +601,12 @@ const Sidebar = (props: SidebarProps) => {
         <Switch>
           <Match when={mode() === "navigation"}>
             <Column
-              ref={navigationColumn}
+              ref={element => {
+                navigationColumn = element;
+                onCleanup(() => {
+                  if (navigationColumn === element) navigationColumn = undefined;
+                });
+              }}
               onRight={onRight}
               style={{ ...NavigationColumnStyle, width: navigationButtonWidth() }}
               scroll="none"
@@ -528,6 +615,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/")}
+                onFocus={() => scheduleNavigationPreload("/")}
                 isActive={isActive("/")}
               >
                 Início
@@ -536,6 +624,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/movies"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/movies")}
+                onFocus={() => scheduleNavigationPreload("/movies")}
                 isActive={isActive("/movies")}
               >
                 Filmes
@@ -544,6 +633,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/series"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/series")}
+                onFocus={() => scheduleNavigationPreload("/series")}
                 isActive={isActive("/series")}
               >
                 Séries
@@ -552,6 +642,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/channels"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/channels")}
+                onFocus={() => scheduleNavigationPreload("/channels")}
                 isActive={isActive("/channels")}
               >
                 Canais
@@ -561,6 +652,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/search"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/search")}
+                onFocus={() => scheduleNavigationPreload("/search")}
                 isActive={isActive("/search")}
               >
                 Buscar
@@ -569,6 +661,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/guide"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/guide")}
+                onFocus={() => scheduleNavigationPreload("/guide")}
                 isActive={isActive("/guide")}
               >
                 Guia TV
@@ -577,6 +670,7 @@ const Sidebar = (props: SidebarProps) => {
                 route="/favorites"
                 width={navigationButtonWidth()}
                 onEnter={() => go("/favorites")}
+                onFocus={() => scheduleNavigationPreload("/favorites")}
                 isActive={isActive("/favorites")}
               >
                 Favoritos
@@ -587,6 +681,7 @@ const Sidebar = (props: SidebarProps) => {
                   route="/profile"
                   width={navigationButtonWidth()}
                   onEnter={() => go("/profile")}
+                  onFocus={() => scheduleNavigationPreload("/profile")}
                   isActive={isActive("/profile")}
                 >
                   Perfil
@@ -604,7 +699,12 @@ const Sidebar = (props: SidebarProps) => {
             </Text>
 
             <View
-              ref={providerButton}
+              ref={element => {
+                providerButton = element;
+                onCleanup(() => {
+                  if (providerButton === element) providerButton = undefined;
+                });
+              }}
               x={20}
               y={190}
               width={300}
@@ -612,8 +712,12 @@ const Sidebar = (props: SidebarProps) => {
               style={ProviderButtonStyle}
               onEnter={openProviders}
               onDown={() => {
-                if (categoryColumn && categoryOptions().length > 0) {
+                if (isElementAttached(categoryColumn) && categoryOptions().length > 0) {
                   focusCategoryAt(selectedCategoryIndex());
+                  return true;
+                }
+                if (categories.error && isElementAttached(categoryRetryButton)) {
+                  categoryRetryButton.setFocus();
                   return true;
                 }
                 if (selectedProvider() !== undefined && categories.loading) return true;
@@ -694,14 +798,51 @@ const Sidebar = (props: SidebarProps) => {
                 <Show
                   when={!categories.error}
                   fallback={
-                    <Text x={20} y={340} width={300} fontSize={17} color={theme.primaryLight}>
-                      Não foi possível carregar as categorias.
-                    </Text>
+                    <View
+                      ref={element => {
+                        categoryRetryButton = element;
+                        onCleanup(() => {
+                          if (categoryRetryButton === element) categoryRetryButton = undefined;
+                        });
+                      }}
+                      x={20}
+                      y={330}
+                      width={300}
+                      height={82}
+                      style={RailOptionStyle}
+                      forwardStates
+                      onUp={() => {
+                        providerButton?.setFocus();
+                        return true;
+                      }}
+                      onRight={onRight}
+                      onEnter={retryCategories}
+                    >
+                      <Text
+                        x={16}
+                        y={12}
+                        width={268}
+                        fontSize={16}
+                        lineHeight={23}
+                        color={theme.primaryLight}
+                        contain="both"
+                        textAlign="center"
+                        maxLines={2}
+                      >
+                        Falha ao carregar categorias · OK para tentar novamente
+                      </Text>
+                    </View>
                   }
                 >
                   <View x={16} y={322} width={308} height={678} clipping skipFocus>
                     <Column
-                      ref={categoryColumn}
+                      ref={element => {
+                        const column = element as NavigableElement;
+                        categoryColumn = column;
+                        onCleanup(() => {
+                          if (categoryColumn === column) categoryColumn = undefined;
+                        });
+                      }}
                       x={4}
                       y={4}
                       width={300}
@@ -755,7 +896,13 @@ const Sidebar = (props: SidebarProps) => {
 
             <View x={16} y={220} width={308} height={780} clipping skipFocus>
               <Column
-                ref={providerColumn}
+                ref={element => {
+                  const column = element as NavigableElement;
+                  providerColumn = column;
+                  onCleanup(() => {
+                    if (providerColumn === column) providerColumn = undefined;
+                  });
+                }}
                 x={4}
                 y={4}
                 width={300}
