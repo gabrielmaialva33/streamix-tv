@@ -1,10 +1,10 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
-import { Column, Row } from "@solidtv/solid/primitives";
+import { Column, Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card } from "@/components";
 import { authState } from "@/features/auth/auth";
-import { chunkIntoRows } from "@/lib/contentMeta";
+import { proxyImageUrl } from "@/lib/imageUrl";
 import { type FavoriteItem, favorites } from "@/lib/storage";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
@@ -66,8 +66,6 @@ const Favorites = () => {
     if (filter() === "all") return all;
     return all.filter(item => item.type === filter());
   };
-
-  const itemRows = () => chunkIntoRows(filteredItems(), ITEMS_PER_ROW);
 
   // Handle item selection
   const handleSelect = (item: FavoriteItem) => {
@@ -141,62 +139,67 @@ const Favorites = () => {
         </For>
       </Row>
 
-      {/* Content Grid */}
-      <Column
-        ref={contentGrid}
-        x={20}
-        y={10}
-        width={1660}
-        height={900}
-        gap={24}
-        scroll="auto"
-        plinko
-        onUp={() => tabsRow?.setFocus()}
-      >
-        <Show when={filteredItems().length === 0}>
-          <View
-            width={1640}
-            height={400}
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            gap={20}
-            skipFocus
-          >
-            <Text fontSize={48} color={theme.surfaceLight}>
-              ★
-            </Text>
-            <Text fontSize={28} color={theme.textSecondary}>
-              Nenhum favorito ainda
-            </Text>
-            <Text fontSize={18} color={theme.textMuted}>
-              {`Adicione filmes, séries ou canais para montar a sua seleção${authState.user()?.name ? `, ${authState.user()?.name}` : ""}`}
-            </Text>
-          </View>
-        </Show>
+      <Show when={filteredItems().length === 0}>
+        <View
+          x={20}
+          y={10}
+          width={1640}
+          height={400}
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
+          alignItems="center"
+          gap={20}
+          skipFocus
+        >
+          <Text fontSize={48} color={theme.surfaceLight}>
+            ★
+          </Text>
+          <Text fontSize={28} color={theme.textSecondary}>
+            Nenhum favorito ainda
+          </Text>
+          <Text fontSize={18} color={theme.textMuted}>
+            {`Adicione filmes, séries ou canais para montar a sua seleção${authState.user()?.name ? `, ${authState.user()?.name}` : ""}`}
+          </Text>
+        </View>
+      </Show>
 
-        <For each={itemRows()}>
-          {row => (
-            <Row width={1640} height={420} gap={16} scroll="none">
-              <For each={row}>
-                {item => (
-                  <Card
-                    title={item.title}
-                    imageUrl={item.posterUrl}
-                    subtitle={item.type === "movie" ? "Filme" : item.type === "series" ? "Série" : "Canal"}
-                    onEnter={() => {
-                      handleSelect(item);
-                      return true;
-                    }}
-                    item={{ id: item.id, type: item.type, href: "" }}
-                  />
-                )}
-              </For>
-            </Row>
+      <Show when={filteredItems().length > 0}>
+        <VirtualGrid
+          ref={contentGrid}
+          x={20}
+          y={10}
+          width={1660}
+          height={824}
+          columns={ITEMS_PER_ROW}
+          rows={2}
+          buffer={1}
+          gap={16}
+          scroll="always"
+          plinko
+          clipping
+          each={filteredItems()}
+          onUp={() => {
+            const cursor = contentGrid?.cursor;
+            if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
+            tabsRow?.setFocus();
+            return true;
+          }}
+        >
+          {item => (
+            <Card
+              title={item().title}
+              imageUrl={proxyImageUrl(item().posterUrl, 240)}
+              subtitle={item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
+              onEnter={() => {
+                handleSelect(item());
+                return true;
+              }}
+              item={item()}
+            />
           )}
-        </For>
-      </Column>
+        </VirtualGrid>
+      </Show>
 
       {/* Help text */}
       <View x={20} y={1000} skipFocus>
