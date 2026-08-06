@@ -462,6 +462,11 @@ export interface StreamUrl {
   type?: "hls" | "dash" | "mp4";
 }
 
+export interface StreamUrlRequestOptions {
+  /** Bypass the short stream cache and ask the backend for a new signed URL. */
+  fresh?: boolean;
+}
+
 export interface SearchResults {
   query?: string;
   movies: Movie[];
@@ -1016,9 +1021,10 @@ export const api = {
     return normMovie(response.data);
   },
 
-  getMovieStream: async (id: string | number): Promise<StreamUrl> => {
+  getMovieStream: async (id: string | number, options: StreamUrlRequestOptions = {}): Promise<StreamUrl> => {
     const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/movies/${id}/stream`, {
       ttl: SHORT_TTL,
+      noCache: options.fresh,
     });
     return response.data;
   },
@@ -1046,9 +1052,13 @@ export const api = {
     return normEpisode(response.data);
   },
 
-  getEpisodeStream: async (id: string | number): Promise<StreamUrl> => {
+  getEpisodeStream: async (
+    id: string | number,
+    options: StreamUrlRequestOptions = {},
+  ): Promise<StreamUrl> => {
     const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/episodes/${id}/stream`, {
       ttl: SHORT_TTL,
+      noCache: options.fresh,
     });
     return response.data;
   },
@@ -1066,9 +1076,13 @@ export const api = {
     return normChannel(response.data);
   },
 
-  getChannelStream: async (id: string | number): Promise<StreamUrl> => {
+  getChannelStream: async (
+    id: string | number,
+    options: StreamUrlRequestOptions = {},
+  ): Promise<StreamUrl> => {
     const response = await request<DataEnvelope<StreamUrl>>(`${CATALOG_URL}/channels/${id}/stream`, {
       ttl: SHORT_TTL,
+      noCache: options.fresh,
     });
     return response.data;
   },

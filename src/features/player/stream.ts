@@ -1,13 +1,22 @@
 import api, { type Channel, type Episode, type Movie, type Series, type StreamUrl } from "@/lib/api";
+import { isTizenRuntime } from "@/platform/runtime";
 import { createLogger } from "@/shared/logging/logger";
 
 const logger = createLogger("PlayerStream");
 
 export type PlayerType = "movie" | "series" | "channel";
 
-interface StreamSource {
+export interface StreamSource {
   stream_url?: string;
   browser_stream_url?: string;
+  url?: string;
+}
+
+export type StreamUrlPreference = "browser" | "direct";
+
+export interface ResolvePlayerSourceOptions {
+  /** Always call the stream endpoint and bypass its client-side URL cache. */
+  refreshStream?: boolean;
 }
 
 export interface PlayerSource {
@@ -22,18 +31,24 @@ export interface PlayerSource {
   };
 }
 
-function pickStreamUrl(source: StreamSource) {
-  return source.browser_stream_url || source.stream_url || "";
+export function pickStreamUrl(
+  source: StreamSource,
+  preference: StreamUrlPreference = isTizenRuntime() ? "direct" : "browser",
+) {
+  if (preference === "direct") {
+    return source.stream_url || source.browser_stream_url || source.url || "";
+  }
+  return source.browser_stream_url || source.stream_url || source.url || "";
 }
 
-async function resolveFallbackStream(type: PlayerType, id: string) {
+async function resolveFallbackStream(type: PlayerType, id: string, fresh: boolean) {
   switch (type) {
     case "movie":
-      return api.getMovieStream(id);
+      return api.getMovieStream(id, { fresh });
     case "series":
-      return api.getEpisodeStream(id);
+      return api.getEpisodeStream(id, { fresh });
     case "channel":
-      return api.getChannelStream(id);
+      return api.getChannelStream(id, { fresh });
   }
 }
 
@@ -80,7 +95,11 @@ export function findNextEpisode(series: Series, episodeId: string | number): Epi
   return ordered[index + 1] ?? null;
 }
 
-export async function resolvePlayerSource(type: PlayerType, id: string): Promise<PlayerSource> {
+export async function resolvePlayerSource(
+  type: PlayerType,
+  id: string,
+  options: ResolvePlayerSourceOptions = {},
+): Promise<PlayerSource> {
   let playerSource: PlayerSource;
 
   switch (type) {
@@ -95,11 +114,11 @@ export async function resolvePlayerSource(type: PlayerType, id: string): Promise
       break;
   }
 
-  if (playerSource.streamUrl) {
+  if (playerSource.streamUrl && !options.refreshStream) {
     return playerSource;
   }
 
-  const fallbackSource = await resolveFallbackStream(type, id);
+  const fallbackSource = await resolveFallbackStream(type, id, options.refreshStream === true);
   const fallbackUrl = pickStreamUrl(fallbackSource as StreamUrl);
   if (!fallbackUrl) {
     throw new Error("No stream URL is available for playback");

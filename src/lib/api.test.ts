@@ -223,6 +223,23 @@ describe("Streamix API contracts", () => {
     expect(fetchMock.mock.calls[3][0]).toBe(`${API_V1}/catalog/suggest?q=movie&limit=5&provider_id=7`);
   });
 
+  it("bypasses the signed stream cache when playback requests a fresh URL", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ data: { stream_url: "https://stream.test/first" } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { stream_url: "https://stream.test/fresh" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: api } = await import("./api");
+
+    await expect(api.getMovieStream(9)).resolves.toMatchObject({ stream_url: "https://stream.test/first" });
+    await expect(api.getMovieStream(9)).resolves.toMatchObject({ stream_url: "https://stream.test/first" });
+    await expect(api.getMovieStream(9, { fresh: true })).resolves.toMatchObject({
+      stream_url: "https://stream.test/fresh",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps provider-filtered search inside the catalog boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
