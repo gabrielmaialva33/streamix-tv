@@ -1,6 +1,7 @@
+import type { StorybookConfig } from "storybook-solidjs-vite";
 import { mergeConfig } from "vite";
 
-export default {
+const config = {
   framework: "storybook-solidjs-vite",
   addons: [
     "@storybook/addon-onboarding",
@@ -14,7 +15,7 @@ export default {
       },
     },
   ],
-  stories: ["../stories/**/*.mdx", "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  stories: ["../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
   async viteFinal(config) {
     return mergeConfig(config, {
       define: {
@@ -25,12 +26,6 @@ export default {
   docs: {
     autodocs: true,
   },
-  typescript: {
-    reactDocgen: "react-docgen-typescript",
-    reactDocgenTypescriptOptions: {
-      shouldExtractLiteralValuesFromEnum: true,
-      // 👇 Default prop filter, which excludes props from node_modules
-      propFilter: prop => (prop.parent ? !/node_modules/.test(prop.parent.fileName) : true),
-    },
-  },
-};
+} satisfies StorybookConfig;
+
+export default config;

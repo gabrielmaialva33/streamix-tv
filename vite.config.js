@@ -9,6 +9,7 @@ import deviceConfigPlugin from "./devices/deviceConfigPlugin.js";
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 const envDir = "./environments";
+const isStorybook = process.env.STREAMIX_STORYBOOK === "true";
 
 export default defineConfig(({ mode }) => {
   // Get environment variables
@@ -35,18 +36,23 @@ export default defineConfig(({ mode }) => {
           generate: "universal",
         },
       }),
-      legacy({
-        targets: ["defaults", "Chrome >= 49"],
-        // For Tizen/FireTV: disable modern chunks since file:// protocol causes both to run
-        renderModernChunks: process.env.TARGET_DEVICE !== "tizen" && process.env.TARGET_DEVICE !== "firetv",
-        modernPolyfills:
-          process.env.TARGET_DEVICE === "tizen" || process.env.TARGET_DEVICE === "firetv"
-            ? false
-            : [
-                // Safari 11 has modules, but throws > ReferenceError: Can't find variable: globalThis
-                "es.global-this",
-              ],
-      }),
+      ...(!isStorybook
+        ? [
+            legacy({
+              targets: ["defaults", "Chrome >= 49"],
+              // For Tizen/FireTV: disable modern chunks since file:// protocol causes both to run
+              renderModernChunks:
+                process.env.TARGET_DEVICE !== "tizen" && process.env.TARGET_DEVICE !== "firetv",
+              modernPolyfills:
+                process.env.TARGET_DEVICE === "tizen" || process.env.TARGET_DEVICE === "firetv"
+                  ? false
+                  : [
+                      // Safari 11 has modules, but throws > ReferenceError: Can't find variable: globalThis
+                      "es.global-this",
+                    ],
+            }),
+          ]
+        : []),
     ],
     resolve: {
       alias: {
@@ -64,9 +70,8 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
-      // Tizen 3.0+ runs Chromium 47; the legacy plugin still produces the
-      // compatibility bucket so the modern target just has to out-run legacy.
-      target: "es2020",
+      // The legacy plugin owns syntax targeting through `targets` above.
+      // Setting build.target as well is ignored and warns on Vite 8.2+.
       sourcemap: false,
     },
     optimizeDeps: {

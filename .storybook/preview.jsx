@@ -1,8 +1,9 @@
-import { Config, createRenderer, loadFonts } from "@lightningtv/solid";
-import { SdfTextRenderer, WebGlCoreRenderer } from "@lightningjs/renderer/webgl";
-import { Inspector } from "@lightningjs/renderer/inspector";
+import { Config, createRenderer, loadFonts } from "@solidtv/solid";
+import { CanvasTextRenderer } from "@solidtv/renderer/canvas";
+import { Inspector } from "@solidtv/renderer/inspector";
+import { SdfTextRenderer, WebGlCoreRenderer } from "@solidtv/renderer/webgl";
 import fonts from "../src/fonts";
-import { useFocusManager } from "@lightningtv/solid/primitives";
+import { useFocusManager } from "@solidtv/solid/primitives";
 import { createSignal, Show } from "solid-js";
 
 Config.rendererOptions = {
@@ -11,11 +12,11 @@ Config.rendererOptions = {
   deviceLogicalPixelRatio: 2 / 3,
   inspector: Inspector,
   devicePhysicalPixelRatio: 1,
-  fontEngines: [SdfTextRenderer],
+  fontEngines: [SdfTextRenderer, CanvasTextRenderer],
   renderEngine: WebGlCoreRenderer,
 };
 
-Config.fontSettings.fontFamily = "Roboto";
+Config.fontSettings.fontFamily = "NotoSans";
 
 let startRenderer = true;
 const solidRoot = document.createElement("div");

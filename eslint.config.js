@@ -6,6 +6,7 @@ export default [
   {
     ignores: [
       "dist/**",
+      "storybook-static/**",
       "tmp/**",
       "node_modules/**",
       "android/.gradle/**",
