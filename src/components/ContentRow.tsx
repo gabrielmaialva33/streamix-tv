@@ -14,7 +14,7 @@ export interface ContentRowProps<T> extends Omit<NodeProps, "children"> {
 }
 
 /**
- * Titled, data-driven content rail. LazyRow keeps the initial WebGL node and
+ * Reusable, data-driven content rail. LazyRow keeps the initial WebGL node and
  * texture burst bounded, then mounts cards after D-pad scrolling settles.
  */
 const ContentRow = <T,>(props: ContentRowProps<T>) => {
