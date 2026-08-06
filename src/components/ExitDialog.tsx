@@ -1,5 +1,10 @@
-import { type IntrinsicNodeStyleProps, type IntrinsicTextNodeStyleProps, Text, View } from "@solidtv/solid";
-import { createSignal } from "solid-js";
+import {
+  ElementNode,
+  type IntrinsicNodeStyleProps,
+  type IntrinsicTextNodeStyleProps,
+  Text,
+  View,
+} from "@solidtv/solid";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
 
@@ -59,22 +64,28 @@ export interface ExitDialogProps {
 }
 
 const ExitDialog = (props: ExitDialogProps) => {
-  const [selectedButton, setSelectedButton] = createSignal(1);
+  let confirmButton: ElementNode | undefined;
+  let cancelButton: ElementNode | undefined;
+
+  function focusConfirm() {
+    confirmButton?.setFocus();
+    return true;
+  }
+
+  function focusCancel() {
+    cancelButton?.setFocus();
+    return true;
+  }
 
   return (
     <View style={OverlayStyle}>
       <View
         style={DialogStyle}
+        forwardFocus={() => focusCancel()}
         onBack={props.onCancel}
         onLast={props.onCancel}
-        onLeft={() => {
-          setSelectedButton(0);
-          return true;
-        }}
-        onRight={() => {
-          setSelectedButton(1);
-          return true;
-        }}
+        onLeft={focusConfirm}
+        onRight={focusCancel}
       >
         <Text
           x={0}
@@ -103,21 +114,22 @@ const ExitDialog = (props: ExitDialogProps) => {
 
         <View x={48} y={200} width={464} height={56} display="flex" flexDirection="row" gap={24}>
           <View
+            ref={confirmButton}
             style={ButtonStyle}
             forwardStates
-            autofocus={selectedButton() === 0}
             onEnter={props.onConfirm}
-            onFocus={() => setSelectedButton(0)}
+            onRight={focusCancel}
           >
             <Text style={ButtonTextStyle}>Sair</Text>
           </View>
 
           <View
+            ref={cancelButton}
             style={ButtonStyle}
             forwardStates
-            autofocus={selectedButton() === 1}
+            autofocus
             onEnter={props.onCancel}
-            onFocus={() => setSelectedButton(1)}
+            onLeft={focusConfirm}
           >
             <Text style={ButtonTextStyle}>Cancelar</Text>
           </View>

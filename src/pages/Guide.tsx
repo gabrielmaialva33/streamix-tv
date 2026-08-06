@@ -2,6 +2,7 @@ import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { LoadError } from "@/components";
 import api, { type Channel, type EpgProgram } from "@/lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
@@ -71,11 +72,16 @@ const Guide = () => {
   onNavReset(() => guideGrid?.setFocus());
 
   // Fetch the first page of channels for the grid.
-  const [channels] = createResource(() => api.getChannels({ limit: 50 }));
+  const [channels, { refetch: refetchChannels }] = createResource(() => api.getChannels({ limit: 50 }));
+
+  const channelIds = () => {
+    if (channels.error) return undefined;
+    return channels()?.data?.map(channel => channel.id);
+  };
 
   // Fetch enough EPG data to cover horizontal scrolling.
-  const [epg] = createResource(
-    () => channels()?.data?.map(c => c.id),
+  const [epg, { refetch: refetchEpg }] = createResource(
+    channelIds,
     async (ids): Promise<Record<string, Program[]>> => {
       if (!ids?.length) return {};
       const raw = await api.getEpgPrograms(ids, EPG_WINDOW_HOURS);
@@ -88,8 +94,9 @@ const Guide = () => {
   );
 
   const channelsWithPrograms = createMemo<ChannelWithPrograms[]>(() => {
+    if (channels.error) return [];
     const data = channels()?.data || [];
-    const epgMap = epg() || {};
+    const epgMap = epg.error ? {} : epg() || {};
     const rows = data.map((channel, index) => ({
       channel,
       index,
@@ -144,6 +151,12 @@ const Guide = () => {
     navigate(`/player/channel/${channel.id}`);
   };
 
+  const retryGuide = () => {
+    void Promise.allSettled([refetchChannels(), refetchEpg()]).then(() => {
+      queueMicrotask(() => guideGrid?.setFocus());
+    });
+  };
+
   return (
     <Column width={1700} height={1080} color={theme.background} scroll="none">
       {/* Header */}
@@ -191,7 +204,7 @@ const Guide = () => {
 
       {/* EPG Grid */}
       <Column ref={guideGrid} x={20} width={GUIDE_WIDTH} height={910} gap={3} scroll="auto" autofocus>
-        <Show when={channels.loading}>
+        <Show when={channels.loading && !channels.error}>
           <View
             width={1640}
             height={400}
@@ -202,6 +215,31 @@ const Guide = () => {
           >
             <Text fontSize={28} color={theme.textMuted}>
               Carregando guia...
+            </Text>
+          </View>
+        </Show>
+
+        <Show when={channels.error}>
+          <LoadError
+            width={GUIDE_WIDTH}
+            height={720}
+            title="Guia indisponível"
+            message="Não conseguimos carregar os canais do guia agora."
+            onRetry={retryGuide}
+          />
+        </Show>
+
+        <Show when={!channels.loading && !channels.error && channelsWithPrograms().length === 0}>
+          <View
+            width={GUIDE_WIDTH}
+            height={320}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            skipFocus
+          >
+            <Text fontSize={26} color={theme.textMuted}>
+              Nenhum canal disponível no guia
             </Text>
           </View>
         </Show>
@@ -243,7 +281,11 @@ const Guide = () => {
                   }}
                 >
                   <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
-                    Sem programação disponível · OK para assistir ao vivo
+                    {epg.loading
+                      ? "Carregando programação… · OK para assistir ao vivo"
+                      : epg.error
+                        ? "Programação indisponível agora · OK para assistir ao vivo"
+                        : "Sem programação disponível · OK para assistir ao vivo"}
                   </Text>
                 </View>
               </Show>

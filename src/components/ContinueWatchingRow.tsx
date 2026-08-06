@@ -63,7 +63,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
   };
 
   return (
-    <View {...props} width={1700} height={280}>
+    <View {...props} width={1700} height={280} skipFocus={items().length === 0}>
       <Text x={20} fontSize={32} fontWeight={700} color={0xffffffff}>
         Continue Assistindo
       </Text>
@@ -80,6 +80,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
           display="flex"
           justifyContent="center"
           alignItems="center"
+          skipFocus
         >
           <Text fontSize={16} color={theme.textMuted}>
             Nenhum conteúdo em andamento

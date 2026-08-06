@@ -16,6 +16,7 @@ import { LayoutFocusContext } from "@/app/layoutFocus";
 import { catalogBrowseConfigForPath } from "@/features/catalog/catalogBrowse";
 import { createProviderHealthPolling } from "@/features/catalog/providerHealth";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
+import { isElementAttached } from "@/shared/focus";
 import {
   CATALOG_SIDEBAR_WIDTH,
   CONTENT_HEIGHT,
@@ -42,6 +43,7 @@ const MainLayout = (props: MainLayoutProps) => {
   let sidebar: ElementNode | undefined;
   let pageContainer: ElementNode | undefined;
   let lastFocused: ElementNode | undefined;
+  let focusBeforeExitDialog: ElementNode | undefined;
 
   function focusSidebar() {
     if (sidebar?.states.has("$focus")) {
@@ -63,8 +65,19 @@ const MainLayout = (props: MainLayoutProps) => {
     // no-op on real TVs — that's how the D-pad ends up "stuck". Only reuse
     // the ref if it's still attached to the tree.
     const nextTarget =
-      lastFocused && lastFocused !== sidebar && lastFocused.parent ? lastFocused : pageContainer;
+      lastFocused && lastFocused !== sidebar && isElementAttached(lastFocused) ? lastFocused : pageContainer;
     nextTarget?.setFocus();
+    return true;
+  }
+
+  function closeExitDialog() {
+    setShowExitDialog(false);
+    const returnTarget = isElementAttached(focusBeforeExitDialog) ? focusBeforeExitDialog : pageContainer;
+    focusBeforeExitDialog = undefined;
+    queueMicrotask(() => {
+      const target = isElementAttached(returnTarget) ? returnTarget : pageContainer;
+      target?.setFocus();
+    });
     return true;
   }
 
@@ -75,6 +88,7 @@ const MainLayout = (props: MainLayoutProps) => {
     event?.preventDefault();
     const isHomeRoute = location.pathname === "/" || location.pathname === "";
     if (isHomeRoute) {
+      if (!showExitDialog()) focusBeforeExitDialog = activeElement();
       setShowExitDialog(true);
       return true;
     }
@@ -85,7 +99,7 @@ const MainLayout = (props: MainLayoutProps) => {
 
   function handleExit() {
     if (!exitCurrentApp()) {
-      setShowExitDialog(false);
+      closeExitDialog();
     }
   }
   // Route change invalidates any lastFocused reference from the prior page.
@@ -104,7 +118,7 @@ const MainLayout = (props: MainLayoutProps) => {
     // pageContainer so the D-pad never dies on real TVs.
     queueMicrotask(() => {
       const current = activeElement();
-      if (!current || !current.parent) {
+      if (!isElementAttached(current)) {
         pageContainer?.setFocus();
       }
     });
@@ -157,7 +171,7 @@ const MainLayout = (props: MainLayoutProps) => {
       </View>
       <ProviderHealthBanner health={providerHealth()} suppressDegraded={catalogBrowse() !== undefined} />
       <Show when={showExitDialog()}>
-        <ExitDialog onConfirm={handleExit} onCancel={() => setShowExitDialog(false)} />
+        <ExitDialog onConfirm={handleExit} onCancel={closeExitDialog} />
       </Show>
     </View>
   );

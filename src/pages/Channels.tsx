@@ -1,14 +1,15 @@
 import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
-import { batch, createEffect, createResource, createSignal, For, on, Show } from "solid-js";
+import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useLayoutFocus } from "@/app/layoutFocus";
-import { SkeletonLoader } from "@/components";
+import { LoadError, SkeletonLoader } from "@/components";
 import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
 import api, { type Channel } from "@/lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CATALOG_CONTENT_WIDTH } from "@/shared/layout";
+import { isElementAttached } from "@/shared/focus";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
@@ -74,10 +75,12 @@ const Channels = () => {
 
   let contentGrid: NavigableElement | undefined;
   let seenChannelIds = new Set<Channel["id"]>();
+  let focusGridAfterRetry = false;
+  let focusGridWhenReady = false;
 
   onNavReset(() => contentGrid?.scrollToIndex(0));
 
-  const [channels] = createResource(
+  const [channels, { refetch }] = createResource(
     () => ({
       provider_id: selectedProvider(),
       category_id: selectedCategory(),
@@ -86,6 +89,18 @@ const Channels = () => {
     }),
     params => api.getChannels(params),
   );
+
+  const restoreRequestedFocus = (itemCount: number) => {
+    if (!focusGridAfterRetry && !focusGridWhenReady) return;
+    focusGridAfterRetry = false;
+    focusGridWhenReady = false;
+    queueMicrotask(() =>
+      queueMicrotask(() => {
+        if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
+        else layoutFocus?.focusSidebar();
+      }),
+    );
+  };
 
   createEffect(
     on(
@@ -103,6 +118,7 @@ const Channels = () => {
   );
 
   createEffect(() => {
+    if (channels.error) return;
     const result = channels();
     if (!result) return;
 
@@ -110,6 +126,7 @@ const Channels = () => {
       seenChannelIds = new Set(result.data.map(channel => channel.id));
       setChannelsData(result.data);
       setHasMore(result.has_more && result.data.length > 0);
+      restoreRequestedFocus(result.data.length);
       return;
     }
 
@@ -120,10 +137,17 @@ const Channels = () => {
   });
 
   const loadMore = () => {
-    if (!channels.loading && hasMore()) {
+    if (!channels.loading && !channels.error && hasMore()) {
       setOffset(previous => previous + PAGE_SIZE);
     }
   };
+
+  const retryInitialLoad = () => {
+    focusGridAfterRetry = true;
+    void refetch();
+  };
+
+  const hasAttachedGrid = () => isElementAttached(contentGrid);
 
   const leaveGridLeft = () => {
     if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
@@ -135,8 +159,12 @@ const Channels = () => {
       width={PAGE_WIDTH}
       height={1080}
       forwardFocus={() => {
+        if (!hasAttachedGrid()) {
+          focusGridWhenReady = true;
+          return false;
+        }
         contentGrid?.setFocus();
-        return contentGrid !== undefined;
+        return true;
       }}
     >
       <View
@@ -165,13 +193,24 @@ const Channels = () => {
         />
       </View>
 
-      <Show when={channels.loading && channelsData().length === 0}>
+      <Show when={channels.loading && !channels.error && channelsData().length === 0}>
         <Row x={GRID_INSET_X} y={GRID_Y} width={GRID_WIDTH} height={150} gap={12} scroll="none" skipFocus>
           <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>{() => <SkeletonLoader width={180} height={130} />}</For>
         </Row>
       </Show>
 
-      <Show when={!channels.loading && channelsData().length === 0}>
+      <Show when={channels.error && channelsData().length === 0}>
+        <LoadError
+          x={20}
+          y={HEADER_HEIGHT}
+          width={INNER_WIDTH}
+          height={1080 - HEADER_HEIGHT}
+          message="Não conseguimos carregar os canais agora."
+          onRetry={retryInitialLoad}
+        />
+      </Show>
+
+      <Show when={!channels.loading && !channels.error && channelsData().length === 0}>
         <View
           x={20}
           y={GRID_Y}
@@ -191,7 +230,13 @@ const Channels = () => {
       <Show when={channelsData().length > 0}>
         <View y={HEADER_HEIGHT} width={PAGE_WIDTH} height={GRID_VIEWPORT_HEIGHT} clipping skipFocus>
           <VirtualGrid
-            ref={contentGrid}
+            ref={element => {
+              const grid = element as NavigableElement;
+              contentGrid = grid;
+              onCleanup(() => {
+                if (contentGrid === grid) contentGrid = undefined;
+              });
+            }}
             x={GRID_INSET_X}
             y={GRID_INSET_Y}
             width={GRID_WIDTH}

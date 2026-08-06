@@ -1,9 +1,9 @@
 import { type ElementNode, View } from "@solidtv/solid";
 import { Column } from "@solidtv/solid/primitives";
-import { createEffect, createResource, Show } from "solid-js";
+import { createEffect, createResource, createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, ContentRow, ContinueWatchingRow, Hero } from "@/components";
-import api, { type FeaturedItem } from "@/lib/api";
+import { Card, ContentRow, ContinueWatchingRow, Hero, LoadError } from "@/components";
+import api, { type FeaturedItem, type HomeResponse } from "@/lib/api";
 import { ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { pickPoster } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
@@ -16,13 +16,20 @@ const Home = () => {
 
   // Single aggregated request — /catalog/home returns featured + 4 rails in
   // one round-trip. Cuts cold-start latency vs. the 5 parallel fetches.
-  const [home] = createResource(() => api.getHome(20));
-  // `home.latest` keeps the last resolved payload visible while a refetch is
-  // in flight. Without it, re-entering Home with a cold /catalog/home (which
-  // sometimes takes 1s+ from the VPS) leaves Hero + rails blank = user sees
-  // a dark screen for ~1.5s. Falling back to latest means the prior cards
-  // stay on screen until the fresh data lands and swaps in.
-  const homeData = () => home() ?? home.latest;
+  const [home, { refetch }] = createResource(() => api.getHome(20));
+  const [cachedHome, setCachedHome] = createSignal<HomeResponse>();
+  // Keep the last successful payload visible during refetches and transient
+  // failures. We cannot read `home.latest` after the first request rejects:
+  // Solid falls back to the throwing resource getter until it has resolved.
+  createEffect(() => {
+    if (home.error) return;
+    const data = home();
+    if (data) setCachedHome(data);
+  });
+  const homeData = () => {
+    if (home.error) return cachedHome();
+    return home() ?? cachedHome();
+  };
   const featured = () => {
     const f = homeData()?.featured;
     return f ? [f] : [];
@@ -43,7 +50,8 @@ const Home = () => {
   let splashSignaled = false;
   createEffect(() => {
     if (splashSignaled) return;
-    if (!home()) return;
+    const failed = Boolean(home.error);
+    if (!failed && !homeData()) return;
     splashSignaled = true;
     window.dispatchEvent(new Event("streamix:ready"));
   });
@@ -102,110 +110,123 @@ const Home = () => {
 
   return (
     <View width={1700} height={1080} color={theme.background} clipping forwardFocus={0}>
-      <Column width={1700} height={1080} gap={28} scroll="auto" forwardFocus={0}>
-        <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
-        <Show when={recommendedMovies()?.recommendations?.length}>
-          <ContentRow
-            title="Para você"
-            items={recommendedMovies()?.recommendations}
-            onSelectedChanged={index => {
-              const movie = recommendedMovies()?.recommendations?.[index];
-              if (movie) api.prefetchMovie(movie.id);
-            }}
-            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
-            renderItem={movie => (
-              <Card
-                title={movie().title || movie().name || ""}
-                imageUrl={relatedPoster(movie())}
-                subtitle={ratingCaption(movie())}
-                item={movie()}
-              />
-            )}
+      <Show
+        when={!home.error || cachedHome()}
+        fallback={
+          <LoadError
+            width={1700}
+            height={1080}
+            title="Início indisponível"
+            message="Não conseguimos montar sua tela inicial agora."
+            onRetry={() => refetch()}
           />
-        </Show>
+        }
+      >
+        <Column width={1700} height={1080} gap={28} scroll="auto" forwardFocus={0}>
+          <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
+          <Show when={recommendedMovies()?.recommendations?.length}>
+            <ContentRow
+              title="Para você"
+              items={recommendedMovies()?.recommendations}
+              onSelectedChanged={index => {
+                const movie = recommendedMovies()?.recommendations?.[index];
+                if (movie) api.prefetchMovie(movie.id);
+              }}
+              onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+              renderItem={movie => (
+                <Card
+                  title={movie().title || movie().name || ""}
+                  imageUrl={relatedPoster(movie())}
+                  subtitle={ratingCaption(movie())}
+                  item={movie()}
+                />
+              )}
+            />
+          </Show>
 
-        <Show when={trendingMovies()?.length}>
-          <ContentRow
-            title="Em alta"
-            items={trendingMovies()}
-            onSelectedChanged={index => {
-              const movie = trendingMovies()?.[index];
-              if (movie) api.prefetchMovie(movie.id);
-            }}
-            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
-            renderItem={movie => (
-              <Card
-                title={movie().title || movie().name || ""}
-                imageUrl={pickPoster(movie(), 240)}
-                subtitle={ratingCaption(movie())}
-                item={movie()}
-              />
-            )}
-          />
-        </Show>
+          <Show when={trendingMovies()?.length}>
+            <ContentRow
+              title="Em alta"
+              items={trendingMovies()}
+              onSelectedChanged={index => {
+                const movie = trendingMovies()?.[index];
+                if (movie) api.prefetchMovie(movie.id);
+              }}
+              onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+              renderItem={movie => (
+                <Card
+                  title={movie().title || movie().name || ""}
+                  imageUrl={pickPoster(movie(), 240)}
+                  subtitle={ratingCaption(movie())}
+                  item={movie()}
+                />
+              )}
+            />
+          </Show>
 
-        <Show when={recentMovies()?.length}>
-          <ContentRow
-            title="Chegaram agora"
-            items={recentMovies()}
-            onSelectedChanged={index => {
-              const movie = recentMovies()?.[index];
-              if (movie) api.prefetchMovie(movie.id);
-            }}
-            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
-            renderItem={movie => (
-              <Card
-                title={movie().title || movie().name || ""}
-                imageUrl={pickPoster(movie(), 240)}
-                subtitle={ratingCaption(movie())}
-                item={movie()}
-              />
-            )}
-          />
-        </Show>
+          <Show when={recentMovies()?.length}>
+            <ContentRow
+              title="Chegaram agora"
+              items={recentMovies()}
+              onSelectedChanged={index => {
+                const movie = recentMovies()?.[index];
+                if (movie) api.prefetchMovie(movie.id);
+              }}
+              onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+              renderItem={movie => (
+                <Card
+                  title={movie().title || movie().name || ""}
+                  imageUrl={pickPoster(movie(), 240)}
+                  subtitle={ratingCaption(movie())}
+                  item={movie()}
+                />
+              )}
+            />
+          </Show>
 
-        <Show when={topRatedMovies()?.length}>
-          <ContentRow
-            title="Mais elogiados"
-            items={topRatedMovies()}
-            onSelectedChanged={index => {
-              const movie = topRatedMovies()?.[index];
-              if (movie) api.prefetchMovie(movie.id);
-            }}
-            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
-            renderItem={movie => (
-              <Card
-                title={movie().title || movie().name || ""}
-                imageUrl={pickPoster(movie(), 240)}
-                subtitle={ratingCaption(movie())}
-                item={movie()}
-              />
-            )}
-          />
-        </Show>
+          <Show when={topRatedMovies()?.length}>
+            <ContentRow
+              title="Mais elogiados"
+              items={topRatedMovies()}
+              onSelectedChanged={index => {
+                const movie = topRatedMovies()?.[index];
+                if (movie) api.prefetchMovie(movie.id);
+              }}
+              onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+              renderItem={movie => (
+                <Card
+                  title={movie().title || movie().name || ""}
+                  imageUrl={pickPoster(movie(), 240)}
+                  subtitle={ratingCaption(movie())}
+                  item={movie()}
+                />
+              )}
+            />
+          </Show>
 
-        <Show when={trendingSeries()?.length}>
-          <ContentRow
-            title="Séries em alta"
-            items={trendingSeries()}
-            onSelectedChanged={index => {
-              const show = trendingSeries()?.[index];
-              if (show) api.prefetchSeries(show.id);
-            }}
-            onItemSelected={show => navigate(`/series/${show.id}`)}
-            renderItem={show => (
-              <Card
-                title={show().title || show().name || ""}
-                imageUrl={pickPoster(show(), 240)}
-                subtitle={show().year ? String(show().year) : undefined}
-                item={show()}
-              />
-            )}
-          />
-        </Show>
+          <Show when={trendingSeries()?.length}>
+            <ContentRow
+              title="Séries em alta"
+              items={trendingSeries()}
+              onSelectedChanged={index => {
+                const show = trendingSeries()?.[index];
+                if (show) api.prefetchSeries(show.id);
+              }}
+              onItemSelected={show => navigate(`/series/${show.id}`)}
+              renderItem={show => (
+                <Card
+                  title={show().title || show().name || ""}
+                  imageUrl={pickPoster(show(), 240)}
+                  subtitle={show().year ? String(show().year) : undefined}
+                  item={show()}
+                />
+              )}
+            />
+          </Show>
 
-        <ContinueWatchingRow limit={10} />
-      </Column>
+          <ContinueWatchingRow limit={10} />
+        </Column>
+      </Show>
     </View>
   );
 };

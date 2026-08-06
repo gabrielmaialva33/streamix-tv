@@ -1,6 +1,6 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Column, Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useLayoutFocus } from "@/app/layoutFocus";
 import { Card } from "@/components";
@@ -9,6 +9,7 @@ import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { type FavoriteItem, favorites } from "@/lib/storage";
 import { onNavReset } from "@/shared/navReset";
+import { isElementAttached } from "@/shared/focus";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
@@ -131,7 +132,11 @@ const Favorites = () => {
         height={55}
         gap={12}
         autofocus
-        onDown={() => contentGrid?.setFocus()}
+        onDown={() => {
+          if (!isElementAttached(contentGrid)) return false;
+          contentGrid.setFocus();
+          return true;
+        }}
       >
         <For each={FILTER_TABS}>
           {tab => (
@@ -179,7 +184,13 @@ const Favorites = () => {
       <Show when={filteredItems().length > 0}>
         <View width={1700} height={GRID_VIEWPORT_HEIGHT} clipping skipFocus>
           <VirtualGrid
-            ref={contentGrid}
+            ref={element => {
+              const grid = element as NavigableElement;
+              contentGrid = grid;
+              onCleanup(() => {
+                if (contentGrid === grid) contentGrid = undefined;
+              });
+            }}
             x={GRID_INSET_X}
             y={GRID_INSET_Y}
             width={GRID_WIDTH}
