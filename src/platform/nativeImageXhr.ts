@@ -12,14 +12,32 @@ const RESIZE_API_KEY = import.meta.env.VITE_API_KEY || "";
 
 let installed = false;
 
-function shouldIntercept(method: string, url: string): boolean {
+function parseUrl(url: string): URL | null {
+  try {
+    return new URL(url, window.location.href);
+  } catch {
+    return null;
+  }
+}
+
+function resizeEndpoint(): URL {
+  return new URL(RESIZE_ENDPOINT, window.location.href);
+}
+
+function isResizeRequest(url: string): boolean {
+  const request = parseUrl(url);
+  if (!request) return false;
+  const endpoint = resizeEndpoint();
   return (
-    Capacitor.isNativePlatform() &&
-    method.toUpperCase() === "GET" &&
-    /^https?:\/\//i.test(url) &&
-    !LOCAL_WEBVIEW_URL.test(url) &&
-    IMAGE_URL.test(url)
+    (request.origin === endpoint.origin && request.pathname === endpoint.pathname) ||
+    request.pathname.endsWith("/api/v1/catalog/images/resize")
   );
+}
+
+function shouldIntercept(method: string, url: string): boolean {
+  const request = parseUrl(url);
+  if (method.toUpperCase() !== "GET" || !request || !/^https?:$/.test(request.protocol)) return false;
+  return isResizeRequest(url) || (!LOCAL_WEBVIEW_URL.test(url) && IMAGE_URL.test(url));
 }
 
 function getHeader(headers: Record<string, string> | undefined, name: string): string {
@@ -48,13 +66,26 @@ function responseForType(
   return base64;
 }
 
-function toNativeRequestUrl(url: string): string {
-  if (!/^http:\/\//i.test(url)) return url;
+function toResizeRequestUrl(url: string): string {
+  if (isResizeRequest(url)) {
+    const request = parseUrl(url);
+    const endpoint = resizeEndpoint();
+    if (request && (request.origin !== endpoint.origin || request.pathname !== endpoint.pathname)) {
+      return `${RESIZE_ENDPOINT}${request.search}`;
+    }
+    return url;
+  }
   return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=480`;
 }
 
-function headersForNativeImage(url: string, headers: Record<string, string>): Record<string, string> {
-  if (!RESIZE_API_KEY || !url.startsWith(RESIZE_ENDPOINT) || getHeader(headers, "x-api-key")) {
+function toImageRequestUrl(url: string, useNativeTransport: boolean): string {
+  if (isResizeRequest(url)) return toResizeRequestUrl(url);
+  if (useNativeTransport && /^https:\/\//i.test(url)) return url;
+  return toResizeRequestUrl(url);
+}
+
+function headersForImage(url: string, headers: Record<string, string>): Record<string, string> {
+  if (!RESIZE_API_KEY || !isResizeRequest(url) || getHeader(headers, "x-api-key")) {
     return headers;
   }
 
@@ -76,11 +107,12 @@ function emit(xhr: XMLHttpRequest, type: string) {
   }
 }
 
-export function installNativeImageXhrBridge() {
-  if (installed || !Capacitor.isNativePlatform()) return;
+export function installImageXhrBridge() {
+  if (installed) return;
   installed = true;
 
   const NativeXMLHttpRequest = window.XMLHttpRequest;
+  const useNativeTransport = Capacitor.isNativePlatform();
 
   window.XMLHttpRequest = function XMLHttpRequestProxy() {
     const xhr = new NativeXMLHttpRequest();
@@ -93,6 +125,7 @@ export function installNativeImageXhrBridge() {
     let intercepted = false;
     let requestMethod: XhrMethod = "GET";
     let requestUrl = "";
+    let imageRequestUrl = "";
     let responseHeaders: Record<string, string> = {};
 
     xhr.open = ((
@@ -111,25 +144,31 @@ export function installNativeImageXhrBridge() {
         return;
       }
 
-      setReadonly(xhr, "readyState", XMLHttpRequest.OPENED);
+      imageRequestUrl = toImageRequestUrl(requestUrl, useNativeTransport);
+      if (!useNativeTransport) {
+        nativeOpen(method, imageRequestUrl, async, username, password);
+        return;
+      }
+
+      setReadonly(xhr, "readyState", NativeXMLHttpRequest.OPENED);
       emit(xhr, "readystatechange");
     }) as XMLHttpRequest["open"];
 
     xhr.setRequestHeader = ((name: string, value: string) => {
-      if (!intercepted) {
+      requestHeaders[name] = value;
+      if (!intercepted || !useNativeTransport) {
         nativeSetRequestHeader(name, value);
         return;
       }
-      requestHeaders[name] = value;
     }) as XMLHttpRequest["setRequestHeader"];
 
     xhr.getResponseHeader = ((name: string) => {
-      if (!intercepted) return nativeGetResponseHeader(name);
+      if (!intercepted || !useNativeTransport) return nativeGetResponseHeader(name);
       return getHeader(responseHeaders, name) || null;
     }) as XMLHttpRequest["getResponseHeader"];
 
     xhr.getAllResponseHeaders = (() => {
-      if (!intercepted) return nativeGetAllResponseHeaders();
+      if (!intercepted || !useNativeTransport) return nativeGetAllResponseHeaders();
       return Object.entries(responseHeaders)
         .map(([key, value]) => `${key}: ${value}`)
         .join("\r\n");
@@ -141,13 +180,21 @@ export function installNativeImageXhrBridge() {
         return;
       }
 
+      if (!useNativeTransport) {
+        const headers = headersForImage(imageRequestUrl, requestHeaders);
+        if (!getHeader(requestHeaders, "x-api-key") && getHeader(headers, "x-api-key")) {
+          nativeSetRequestHeader("X-API-Key", getHeader(headers, "x-api-key"));
+        }
+        nativeSend(body);
+        return;
+      }
+
       void (async () => {
         try {
-          const nativeUrl = toNativeRequestUrl(requestUrl);
           const response = await CapacitorHttp.request({
-            url: nativeUrl,
+            url: imageRequestUrl,
             method: requestMethod,
-            headers: headersForNativeImage(nativeUrl, requestHeaders),
+            headers: headersForImage(imageRequestUrl, requestHeaders),
             responseType: "arraybuffer",
           });
           responseHeaders = response.headers;
@@ -157,7 +204,7 @@ export function installNativeImageXhrBridge() {
           setReadonly(xhr, "status", response.status);
           setReadonly(xhr, "statusText", String(response.status));
           setReadonly(xhr, "responseURL", response.url || requestUrl);
-          setReadonly(xhr, "readyState", XMLHttpRequest.DONE);
+          setReadonly(xhr, "readyState", NativeXMLHttpRequest.DONE);
           setReadonly(xhr, "response", responseForType(data, xhr.responseType, contentType));
           if (!xhr.responseType || xhr.responseType === "text") {
             setReadonly(xhr, "responseText", data);
@@ -166,9 +213,14 @@ export function installNativeImageXhrBridge() {
           emit(xhr, "readystatechange");
           emit(xhr, response.status >= 200 && response.status < 300 ? "load" : "error");
           emit(xhr, "loadend");
-        } catch {
+        } catch (error) {
           setReadonly(xhr, "status", 0);
-          setReadonly(xhr, "readyState", XMLHttpRequest.DONE);
+          setReadonly(
+            xhr,
+            "statusText",
+            error instanceof Error ? error.message : "Native image request failed",
+          );
+          setReadonly(xhr, "readyState", NativeXMLHttpRequest.DONE);
           emit(xhr, "readystatechange");
           emit(xhr, "error");
           emit(xhr, "loadend");

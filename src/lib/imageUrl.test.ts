@@ -7,19 +7,22 @@ beforeEach(() => {
 });
 
 describe("image URL authentication", () => {
-  it("uses the public origin when the protected resize endpoint needs a header", async () => {
+  it("uses the protected resize endpoint without leaking its credential", async () => {
     vi.stubEnv("VITE_API_KEY", "header-only-key");
     const { pickPoster, proxyImageUrl } = await import("./imageUrl");
     const raw = "https://images.example.test/poster.jpg";
+    const variant = "https://api.test/api/v1/catalog/images/resize?url=poster&w=240";
 
     expect(
       pickPoster({
         poster: raw,
-        poster_w240: "https://api.test/api/v1/catalog/images/resize?url=poster&w=240",
+        poster_w240: variant,
       }),
-    ).toBe(raw);
-    expect(proxyImageUrl(raw)).toBe(raw);
-    expect(proxyImageUrl(raw)).not.toContain("api_key");
+    ).toBe(variant);
+    expect(proxyImageUrl(raw)).toBe(
+      "https://api.test/api/v1/catalog/images/resize?url=https%3A%2F%2Fimages.example.test%2Fposter.jpg&w=480",
+    );
+    expect(proxyImageUrl(raw)).not.toContain("header-only-key");
   });
 
   it("uses backend resize variants in keyless development", async () => {
