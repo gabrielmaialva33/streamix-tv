@@ -332,6 +332,10 @@ const MovieDetail = () => {
                   <ContentRow
                     title="Títulos parecidos"
                     items={similar()}
+                    onSelectedChanged={index => {
+                      const item = similar()?.[index];
+                      if (item) api.prefetchMovie(item.id);
+                    }}
                     onItemSelected={item => navigate(`/movie/${item.id}`)}
                     renderItem={item => (
                       <Card

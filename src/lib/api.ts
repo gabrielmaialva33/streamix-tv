@@ -1304,6 +1304,8 @@ export const api = {
     }, PREFETCH_SETTLE_DELAY_MS);
   },
 
+  prefetchMovie: (id: string | number) => api.prefetch(`/movies/${id}`),
+
   prefetchSeries: (id: string | number) => api.prefetch(`/series/${id}`),
 
   clearCache: () => cache.clear(),

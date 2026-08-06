@@ -219,6 +219,9 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
             const absoluteIndex = accumulatedItems().indexOf(active.item as T);
             if (absoluteIndex >= 0) {
               setScrollPosition(absoluteIndex / Math.max(1, accumulatedItems().length - 1));
+              const selected = accumulatedItems()[absoluteIndex];
+              if (props.itemType === "movie") api.prefetchMovie(selected.id);
+              else api.prefetchSeries(selected.id);
             }
           }}
         >

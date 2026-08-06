@@ -107,6 +107,10 @@ const Home = () => {
           <ContentRow
             title="Para você"
             items={recommendedMovies()?.recommendations}
+            onSelectedChanged={index => {
+              const movie = recommendedMovies()?.recommendations?.[index];
+              if (movie) api.prefetchMovie(movie.id);
+            }}
             onItemSelected={movie => navigate(`/movie/${movie.id}`)}
             renderItem={movie => (
               <Card
@@ -123,6 +127,10 @@ const Home = () => {
           <ContentRow
             title="Em alta"
             items={trendingMovies()}
+            onSelectedChanged={index => {
+              const movie = trendingMovies()?.[index];
+              if (movie) api.prefetchMovie(movie.id);
+            }}
             onItemSelected={movie => navigate(`/movie/${movie.id}`)}
             renderItem={movie => (
               <Card
@@ -139,6 +147,10 @@ const Home = () => {
           <ContentRow
             title="Chegaram agora"
             items={recentMovies()}
+            onSelectedChanged={index => {
+              const movie = recentMovies()?.[index];
+              if (movie) api.prefetchMovie(movie.id);
+            }}
             onItemSelected={movie => navigate(`/movie/${movie.id}`)}
             renderItem={movie => (
               <Card
@@ -155,6 +167,10 @@ const Home = () => {
           <ContentRow
             title="Mais elogiados"
             items={topRatedMovies()}
+            onSelectedChanged={index => {
+              const movie = topRatedMovies()?.[index];
+              if (movie) api.prefetchMovie(movie.id);
+            }}
             onItemSelected={movie => navigate(`/movie/${movie.id}`)}
             renderItem={movie => (
               <Card
@@ -171,6 +187,10 @@ const Home = () => {
           <ContentRow
             title="Séries em alta"
             items={trendingSeries()}
+            onSelectedChanged={index => {
+              const show = trendingSeries()?.[index];
+              if (show) api.prefetchSeries(show.id);
+            }}
             onItemSelected={show => navigate(`/series/${show.id}`)}
             renderItem={show => (
               <Card
