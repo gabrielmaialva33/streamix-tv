@@ -3,6 +3,7 @@
 // "similar titles" fetcher with its public fallback.
 
 import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { Row } from "@solidtv/solid/primitives";
 import { createEffect, createSignal, Show } from "solid-js";
 import api, { type SimilarContentItem } from "@/lib/api";
 import type { RelatedItem } from "@/lib/contentMeta";
@@ -43,11 +44,19 @@ export const PANEL_STYLE = {
 export const PRIMARY_BUTTON_STYLE = {
   borderRadius: 18,
   color: theme.primary,
+  border: { color: theme.primary, width: 2 },
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
+  scale: 1,
+  transition: {
+    color: { duration: 150 },
+    scale: { duration: 150 },
+  },
   $focus: {
     color: theme.primaryLight,
+    border: { color: 0xffffffff, width: 3 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -73,6 +82,122 @@ export const META_CHIP_STYLE = {
   justifyContent: "center",
   alignItems: "center",
 } satisfies IntrinsicNodeStyleProps;
+
+export interface DetailOverviewProps {
+  plot?: string | null;
+  cast?: string | null;
+  director?: string | null;
+}
+
+/**
+ * Compact information band shared by movie and series details. Empty API
+ * fields do not reserve space: recommendation content moves up instead of
+ * leaving a large technical-looking panel on screen.
+ */
+export const DetailOverview = (props: DetailOverviewProps) => {
+  const plot = () => props.plot?.trim() || "";
+  const cast = () => props.cast?.trim() || "";
+  const director = () => props.director?.trim() || "";
+  const hasCredits = () => Boolean(cast() || director());
+  const height = () => {
+    if (!plot()) return cast() && director() ? 96 : 76;
+    return hasCredits() ? 148 : 118;
+  };
+
+  return (
+    <Show when={plot() || hasCredits()}>
+      <View x={40} width={1620} height={height()} style={PANEL_STYLE} skipFocus>
+        <Show when={plot()}>
+          <Text x={30} y={20} fontSize={16} color={theme.textMuted}>
+            Sinopse
+          </Text>
+          <Text
+            x={30}
+            y={48}
+            width={hasCredits() ? 1010 : 1560}
+            fontSize={20}
+            lineHeight={28}
+            color={theme.textPrimary}
+            maxLines={hasCredits() ? 3 : 2}
+            contain="width"
+          >
+            {plot()}
+          </Text>
+        </Show>
+
+        <Show when={hasCredits()} fallback={null}>
+          <Show
+            when={plot()}
+            fallback={
+              <Row x={30} y={16} width={1560} height={60} gap={36} scroll="none" skipFocus>
+                <Show when={cast()}>
+                  <View width={762} height={60} skipFocus>
+                    <Text fontSize={15} color={theme.textMuted}>
+                      Elenco
+                    </Text>
+                    <Text
+                      y={24}
+                      width={762}
+                      fontSize={19}
+                      color={theme.textPrimary}
+                      maxLines={1}
+                      contain="width"
+                    >
+                      {cast()}
+                    </Text>
+                  </View>
+                </Show>
+                <Show when={director()}>
+                  <View width={762} height={60} skipFocus>
+                    <Text fontSize={15} color={theme.textMuted}>
+                      Direção
+                    </Text>
+                    <Text
+                      y={24}
+                      width={762}
+                      fontSize={19}
+                      color={theme.textPrimary}
+                      maxLines={1}
+                      contain="width"
+                    >
+                      {director()}
+                    </Text>
+                  </View>
+                </Show>
+              </Row>
+            }
+          >
+            <View x={1090} y={20} width={500} height={108} skipFocus>
+              <Show when={cast()}>
+                <Text fontSize={15} color={theme.textMuted}>
+                  Elenco
+                </Text>
+                <Text y={22} width={500} fontSize={18} color={theme.textPrimary} maxLines={1} contain="width">
+                  {cast()}
+                </Text>
+              </Show>
+              <Show when={director()}>
+                <Text y={cast() ? 60 : 0} fontSize={15} color={theme.textMuted}>
+                  Direção
+                </Text>
+                <Text
+                  y={cast() ? 82 : 22}
+                  width={500}
+                  fontSize={18}
+                  color={theme.textPrimary}
+                  maxLines={1}
+                  contain="width"
+                >
+                  {director()}
+                </Text>
+              </Show>
+            </View>
+          </Show>
+        </Show>
+      </View>
+    </Show>
+  );
+};
 
 /**
  * Personalized recommendations first; on miss or error fall back to the
