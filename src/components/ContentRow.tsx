@@ -15,7 +15,8 @@ export interface ContentRowProps<T> extends Omit<NodeProps, "children"> {
 
 /**
  * Reusable, data-driven content rail. LazyRow keeps the initial WebGL node and
- * texture burst bounded, then mounts cards after D-pad scrolling settles.
+ * texture burst bounded, then mounts the remaining cards while the renderer is
+ * idle so D-pad navigation never has to create the next card synchronously.
  */
 const ContentRow = <T,>(props: ContentRowProps<T>) => {
   function handleEnter(this: ElementNode) {
@@ -35,15 +36,15 @@ const ContentRow = <T,>(props: ContentRowProps<T>) => {
       forwardFocus={props.title ? 1 : 0}
     >
       <Show when={props.title}>
-        <Text x={20} fontSize={32} fontWeight={700} color={0xffffffff} y={0} zIndex={10}>
+        <Text x={40} fontSize={32} fontWeight={700} color={0xffffffff} y={0} zIndex={10}>
           {props.title}
         </Text>
       </Show>
 
       <LazyRow
-        x={20}
+        x={40}
         y={props.title ? 50 : 0}
-        width={1660}
+        width={1620}
         height={460}
         gap={24}
         scroll="always"
@@ -53,6 +54,7 @@ const ContentRow = <T,>(props: ContentRowProps<T>) => {
         buffer={2}
         delay={180}
         sync
+        eagerLoad
         autofocus={props.autofocus}
         onEnter={handleEnter}
         onUp={props.onUpRequest}

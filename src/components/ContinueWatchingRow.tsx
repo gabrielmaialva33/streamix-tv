@@ -100,6 +100,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
           buffer={1}
           delay={180}
           sync
+          eagerLoad
         >
           {item => (
             <View item={item()} style={CardStyle} onEnter={() => handleSelect(item())} forwardStates>
