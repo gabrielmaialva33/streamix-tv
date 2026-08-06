@@ -19,3 +19,19 @@ export function isElementAttached(element?: ElementNode): element is ElementNode
 
   return true;
 }
+
+/**
+ * Move focus only when the target still belongs to the rendered tree.
+ *
+ * SolidTV applies focus in a deferred mutation pass. Calling `setFocus()` on
+ * an old ref therefore looks successful to the caller, but leaves the remote
+ * on a node that can no longer paint its focus state. Directional handlers can
+ * return this value directly and only consume the key after a real target was
+ * found.
+ */
+export function focusElement(element?: ElementNode): boolean {
+  if (!isElementAttached(element) || element.skipFocus) return false;
+
+  element.setFocus();
+  return true;
+}

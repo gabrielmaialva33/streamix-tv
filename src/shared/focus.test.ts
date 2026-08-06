@@ -1,10 +1,12 @@
 import type { ElementNode } from "@solidtv/solid";
-import { describe, expect, it } from "vitest";
-import { isElementAttached } from "./focus";
+import { describe, expect, it, vi } from "vitest";
+import { focusElement, isElementAttached } from "./focus";
 
 interface FakeNode {
   children: FakeNode[];
   parent?: FakeNode;
+  skipFocus?: boolean;
+  setFocus?: () => void;
 }
 
 function connect(parent: FakeNode, child: FakeNode) {
@@ -45,5 +47,30 @@ describe("isElementAttached", () => {
 
   it("rejects an orphaned node", () => {
     expect(isElementAttached(asElement({ children: [] }))).toBe(false);
+  });
+});
+
+describe("focusElement", () => {
+  it("focuses and consumes navigation only for an attached target", () => {
+    const root: FakeNode = { children: [] };
+    const button: FakeNode = { children: [], setFocus: vi.fn() };
+    connect(root, button);
+
+    expect(focusElement(asElement(button))).toBe(true);
+    expect(button.setFocus).toHaveBeenCalledOnce();
+  });
+
+  it("does not consume navigation for stale or skipped targets", () => {
+    const root: FakeNode = { children: [] };
+    const stale: FakeNode = { children: [], setFocus: vi.fn() };
+    const skipped: FakeNode = { children: [], setFocus: vi.fn(), skipFocus: true };
+    connect(root, stale);
+    connect(root, skipped);
+    root.children = [skipped];
+
+    expect(focusElement(asElement(stale))).toBe(false);
+    expect(focusElement(asElement(skipped))).toBe(false);
+    expect(stale.setFocus).not.toHaveBeenCalled();
+    expect(skipped.setFocus).not.toHaveBeenCalled();
   });
 });
