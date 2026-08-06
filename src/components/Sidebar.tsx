@@ -10,12 +10,14 @@ import { Column } from "@solidtv/solid/primitives";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { bumpNavReset } from "@/shared/navReset";
 import { Show } from "solid-js";
+import { catalogRouteWithProvider, parsePositiveCatalogId } from "@/features/catalog/catalogFilters";
 import { radialGlowTexture } from "@/lib/gradientTexture";
 import { cssRgb, theme } from "@/styles";
 import { authState } from "@/features/auth/auth";
 
 // Soft red halo behind the active route indicator.
 const indicatorGlow = radialGlowTexture(cssRgb.primary, 0.4);
+const PROVIDER_AWARE_ROUTES = new Set(["/movies", "/series", "/channels"]);
 
 // Menu column positioning.
 const ColumnStyle = {
@@ -163,7 +165,8 @@ const Sidebar = (props: SidebarProps) => {
       // tapping "Início" while already on "Início" looks like a dead button.
       bumpNavReset();
     } else {
-      navigate(page);
+      const providerId = parsePositiveCatalogId(new URLSearchParams(location.search).get("provider"));
+      navigate(PROVIDER_AWARE_ROUTES.has(page) ? catalogRouteWithProvider(page, providerId) : page);
     }
     // Wait for the router tree to settle before returning focus to content.
     queueMicrotask(() => queueMicrotask(() => props.onExit?.()));
