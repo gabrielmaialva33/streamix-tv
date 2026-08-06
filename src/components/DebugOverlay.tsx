@@ -38,11 +38,10 @@ function push(level: LogEntry["level"], args: unknown[]) {
   sendWs(entry);
 }
 
-// Remote WebSocket bridge for the log server.
-// The first host that connects wins.
-const LOG_HOSTS = [import.meta.env.VITE_LOG_HOST, "10.0.2.2", "192.168.1.100", "localhost"].filter(
-  Boolean,
-) as string[];
+// Remote WebSocket bridge for the log server. An explicit host is authoritative;
+// fallbacks are only probes for an unconfigured local development environment.
+const configuredLogHost = import.meta.env.VITE_LOG_HOST?.trim();
+const LOG_HOSTS = configuredLogHost ? [configuredLogHost] : ["10.0.2.2", "192.168.1.100", "localhost"];
 
 let ws: WebSocket | null = null;
 let wsReady = false;
