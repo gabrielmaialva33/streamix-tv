@@ -8,6 +8,7 @@
 
 import { createLogger } from "@/shared/logging/logger";
 import { Capacitor, CapacitorHttp, type HttpResponse } from "@capacitor/core";
+import { scheduleTask } from "@solidtv/solid";
 import { authSession } from "./storage";
 
 const logger = createLogger("API");
@@ -41,7 +42,6 @@ interface CacheEntry<T> {
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 let pendingPrefetchTimer: ReturnType<typeof setTimeout> | undefined;
-let pendingPrefetchIdleId: number | undefined;
 const PREFETCH_SETTLE_DELAY_MS = 450;
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 min
 const SHORT_TTL = 30 * 1000; // 30s for volatile data such as EPG now and stream URLs.
@@ -1291,26 +1291,16 @@ export const api = {
       clearTimeout(pendingPrefetchTimer);
       pendingPrefetchTimer = undefined;
     }
-    if (pendingPrefetchIdleId !== undefined && typeof window !== "undefined" && window.cancelIdleCallback) {
-      window.cancelIdleCallback(pendingPrefetchIdleId);
-      pendingPrefetchIdleId = undefined;
-    }
-    if ([...cache.keys(), ...inFlight.keys()].some(key => key.startsWith(`GET ${url} `))) return;
+    const alreadyLoaded = () =>
+      [...cache.keys(), ...inFlight.keys()].some(key => key.startsWith(`GET ${url} `));
+    if (alreadyLoaded()) return;
 
-    const run = () => request(url).catch(() => {});
     pendingPrefetchTimer = setTimeout(() => {
       pendingPrefetchTimer = undefined;
-      if (typeof window !== "undefined" && window.requestIdleCallback) {
-        pendingPrefetchIdleId = window.requestIdleCallback(
-          () => {
-            pendingPrefetchIdleId = undefined;
-            run();
-          },
-          { timeout: 1200 },
-        );
-      } else {
-        run();
-      }
+      scheduleTask(() => {
+        if (alreadyLoaded()) return;
+        void request(url).catch(error => logger.debug("Prefetch failed", { url, error }));
+      }, "low");
     }, PREFETCH_SETTLE_DELAY_MS);
   },
 
