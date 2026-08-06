@@ -27,6 +27,7 @@ const ButtonStyle = {
 } satisfies IntrinsicNodeStyleProps;
 
 export interface LoadErrorProps {
+  ref?: ElementNode | ((element: ElementNode) => void);
   width: number;
   height: number;
   x?: number;
@@ -60,6 +61,7 @@ const LoadError = (props: LoadErrorProps) => {
 
   return (
     <View
+      ref={props.ref}
       x={props.x ?? 0}
       y={props.y ?? 0}
       width={props.width}

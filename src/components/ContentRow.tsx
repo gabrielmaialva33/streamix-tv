@@ -2,7 +2,10 @@ import { ElementNode, type NodeProps, Text, View } from "@solidtv/solid";
 import { LazyRow } from "@solidtv/solid/primitives";
 import { type Accessor, type JSX, Show } from "solid-js";
 
-export interface ContentRowProps<T> extends Omit<NodeProps, "children"> {
+export interface ContentRowProps<T> extends Omit<NodeProps, "children" | "ref" | "onFocus"> {
+  /** Ref to the actual navigable LazyRow, never to the transparent wrapper. */
+  ref?: ElementNode | ((element: ElementNode) => void);
+  onFocus?: ElementNode["onFocus"];
   title?: string;
   items: readonly T[] | null | undefined;
   renderItem: (item: Accessor<T>, index: number) => JSX.Element;
@@ -42,6 +45,8 @@ const ContentRow = <T,>(props: ContentRowProps<T>) => {
       </Show>
 
       <LazyRow
+        ref={props.ref}
+        onFocus={props.onFocus}
         x={40}
         y={props.title ? 50 : 0}
         width={1620}
