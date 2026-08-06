@@ -16,7 +16,7 @@ import { LayoutFocusContext } from "@/app/layoutFocus";
 import { catalogBrowseConfigForPath } from "@/features/catalog/catalogBrowse";
 import { createProviderHealthPolling } from "@/features/catalog/providerHealth";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
-import { isElementAttached } from "@/shared/focus";
+import { focusElement, isElementAttached } from "@/shared/focus";
 import {
   CATALOG_SIDEBAR_WIDTH,
   CONTENT_HEIGHT,
@@ -43,6 +43,7 @@ const MainLayout = (props: MainLayoutProps) => {
   let sidebar: ElementNode | undefined;
   let pageContainer: ElementNode | undefined;
   let lastFocused: ElementNode | undefined;
+  let lastAttachedFocus: ElementNode | undefined;
   let focusBeforeExitDialog: ElementNode | undefined;
 
   function focusSidebar() {
@@ -50,9 +51,9 @@ const MainLayout = (props: MainLayoutProps) => {
       return false;
     }
 
-    lastFocused = activeElement();
-    sidebar?.setFocus();
-    return true;
+    const current = activeElement();
+    if (isElementAttached(current)) lastFocused = current;
+    return focusElement(sidebar);
   }
 
   function focusContent() {
@@ -66,8 +67,7 @@ const MainLayout = (props: MainLayoutProps) => {
     // the ref if it's still attached to the tree.
     const nextTarget =
       lastFocused && lastFocused !== sidebar && isElementAttached(lastFocused) ? lastFocused : pageContainer;
-    nextTarget?.setFocus();
-    return true;
+    return focusElement(nextTarget) || focusElement(pageContainer);
   }
 
   function closeExitDialog() {
@@ -76,9 +76,32 @@ const MainLayout = (props: MainLayoutProps) => {
     focusBeforeExitDialog = undefined;
     queueMicrotask(() => {
       const target = isElementAttached(returnTarget) ? returnTarget : pageContainer;
-      target?.setFocus();
+      if (!focusElement(target)) focusElement(pageContainer);
     });
     return true;
+  }
+
+  // SolidTV applies a directional focus change in its post-mutation
+  // microtask. A resource/route update can remove that node in the same turn,
+  // leaving activeElement() pointing at something that no longer renders. Run
+  // immediately after that pass and restore a known attached target. This is
+  // deliberately a safety net; normal navigation still owns its focus graph.
+  function guardFocusAfterInput() {
+    const beforeInput = activeElement();
+
+    queueMicrotask(() => {
+      queueMicrotask(() => {
+        const current = activeElement();
+        if (isElementAttached(current) && !current.skipFocus) return;
+
+        if (focusElement(beforeInput)) return;
+        if (focusElement(lastAttachedFocus)) return;
+        if (focusElement(pageContainer)) return;
+        focusElement(sidebar);
+      });
+    });
+
+    return false;
   }
 
   function handleBack(event?: KeyboardEvent) {
@@ -119,9 +142,16 @@ const MainLayout = (props: MainLayoutProps) => {
     queueMicrotask(() => {
       const current = activeElement();
       if (!isElementAttached(current)) {
-        pageContainer?.setFocus();
+        if (!focusElement(pageContainer)) focusElement(sidebar);
       }
     });
+  });
+
+  createEffect(() => {
+    const current = activeElement();
+    if (isElementAttached(current) && !current.skipFocus) {
+      lastAttachedFocus = current;
+    }
   });
 
   onMount(() => {
@@ -140,6 +170,7 @@ const MainLayout = (props: MainLayoutProps) => {
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
       color={theme.background}
+      onCaptureKey={guardFocusAfterInput}
       onLast={handleBack}
       onBack={handleBack}
       onBackspace={focusSidebar}
