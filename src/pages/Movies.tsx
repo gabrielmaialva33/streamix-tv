@@ -6,9 +6,7 @@ const Movies = () => (
   <CatalogGridPage<Movie>
     title="Filmes"
     subtitle="Descubra títulos com mais contexto antes de dar play."
-    allLabel="Todos"
     emptyMessage="Nenhum filme encontrado"
-    categoryType="vod"
     itemType="movie"
     fetchPage={params => api.getMovies(params)}
     caption={ratingCaption}

@@ -13,6 +13,7 @@ import {
   startTransition,
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { useLayoutFocus } from "@/app/layoutFocus";
 import { Card, VirtualKeyboard } from "@/components";
 import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
 import { chunkIntoRows } from "@/lib/contentMeta";
@@ -31,12 +32,22 @@ const SIDE_PANEL_CONTENT_Y = 212;
 const SIDE_PANEL_CONTENT_HEIGHT = 820;
 const SUGGESTION_PANEL_HEIGHT = 650;
 const SUGGESTION_SLOT_HEIGHT = 68;
-const RESULT_GRID_COLUMNS = 3;
-const RESULT_CARD_WIDTH = 185;
-const RESULT_CARD_HEIGHT = 278;
+const RESULTS_PANEL_X = 20;
+const RESULTS_PANEL_WIDTH = 1660;
+const RESULTS_TITLE_Y = 202;
+const RESULTS_CONTENT_Y = 242;
+const RESULTS_CONTENT_HEIGHT = 1080 - RESULTS_CONTENT_Y;
+const RESULTS_GRID_X = 40;
+const RESULTS_GRID_Y = 36;
+const RESULTS_GRID_WIDTH = 1620;
+const RESULT_GRID_COLUMNS = 6;
+const RESULT_CHANNEL_COLUMNS = 8;
+const RESULT_CARD_WIDTH = 240;
+const RESULT_CARD_HEIGHT = 360;
 const RESULT_CARD_GAP = 16;
 const RESULT_ROW_HEIGHT = RESULT_CARD_HEIGHT + 62;
 const RESULT_SECTION_HEADER_HEIGHT = 34;
+const SEARCH_RESULT_LIMIT = 20;
 
 type SearchResultRow =
   | { kind: "movie"; items: Movie[]; heading?: string }
@@ -67,7 +78,7 @@ function buildResultRows(result?: SearchResultBuckets | null): SearchResultRow[]
       heading: index === 0 ? `Séries (${result.series.length})` : undefined,
     });
   });
-  chunkIntoRows(result.channels, 4).forEach((items, index) => {
+  chunkIntoRows(result.channels, RESULT_CHANNEL_COLUMNS).forEach((items, index) => {
     rows.push({
       kind: "channel",
       items,
@@ -79,16 +90,19 @@ function buildResultRows(result?: SearchResultBuckets | null): SearchResultRow[]
 }
 
 const Search = () => {
+  const layoutFocus = useLayoutFocus();
   const [query, setQuery] = createSignal("");
   const [searchTriggered, setSearchTriggered] = createSignal(false);
   // Debounced mirror of `query` used to fire typeahead while the user types.
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
 
   let keyboardColumn: ElementNode | undefined;
+  let searchInput: ElementNode | undefined;
   let suggestionsColumn: ElementNode | undefined;
   let resultsColumn: ElementNode | undefined;
   const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
   const [focusedSuggestionSlot, setFocusedSuggestionSlot] = createSignal(-1);
+  const [inputFocused, setInputFocused] = createSignal(false);
 
   // Live typeahead — fires ~180ms after the last keystroke so each press
   // doesn't hammer the API. Goes silent once OK is pressed (full results
@@ -116,11 +130,11 @@ const Search = () => {
   );
 
   // Full ranked results — only after the user presses OK.
-  const [results] = createResource(
+  const [results, { refetch: refetchResults }] = createResource(
     () => (searchTriggered() ? query().trim() : null),
     async q => {
       if (!q || q.length < 2) return null;
-      return api.search(q, 30);
+      return api.search(q, SEARCH_RESULT_LIMIT);
     },
     { initialValue: { query: "", movies: [], series: [], channels: [] } as const },
   );
@@ -133,11 +147,21 @@ const Search = () => {
   };
 
   const submitSearch = () => {
+    const shouldRetry = searchTriggered() && Boolean(results.error);
     startTransition(() => {
       if (query().trim().length >= 2) {
         setSearchTriggered(true);
       }
     });
+    if (shouldRetry) queueMicrotask(() => void refetchResults());
+    requestAnimationFrame(() => searchInput?.setFocus());
+    return true;
+  };
+
+  const editSearch = () => {
+    if (!searchTriggered()) return false;
+    startTransition(() => setSearchTriggered(false));
+    requestAnimationFrame(focusKeyboardHome);
     return true;
   };
 
@@ -159,8 +183,9 @@ const Search = () => {
   const latestSuggestions = () => suggestions.latest ?? null;
   const suggestionItems = (): SuggestItem[] =>
     (latestSuggestions()?.items ?? []).filter((item): item is SuggestItem => !!item).slice(0, 8);
+  const searchInputWidth = () => (searchTriggered() ? RESULTS_PANEL_WIDTH : LEFT_PANEL_WIDTH);
   const searchAccentWidth = () =>
-    query() ? Math.min(LEFT_PANEL_WIDTH - 40, Math.max(88, query().length * 18)) : 0;
+    query() ? Math.min(searchInputWidth() - 40, Math.max(88, query().length * 18)) : 0;
   const resultRows = createMemo(() => buildResultRows(results.latest));
 
   // Shared handler: land on the first focusable result when the user steps
@@ -183,12 +208,28 @@ const Search = () => {
     return true;
   };
 
+  const focusSearchResults = () => {
+    if (totalResults() <= 0) return false;
+    resultsColumn?.setFocus();
+    return resultsColumn !== undefined;
+  };
+
+  const leaveResultsLeft = () => layoutFocus?.focusSidebar() ?? false;
+
+  const leaveResultsUp = () => {
+    if ((resultsColumn?.selected ?? 0) > 0) return false;
+    searchInput?.setFocus();
+    return searchInput !== undefined;
+  };
+
   return (
     <View
       width={1700}
       height={1080}
       forwardFocus={() => {
-        return focusKeyboardHome();
+        if (!searchTriggered()) return focusKeyboardHome();
+        searchInput?.setFocus();
+        return searchInput !== undefined;
       }}
     >
       {/* Header — fixed band at the top, skipFocus so D-pad never lands here. */}
@@ -200,16 +241,33 @@ const Search = () => {
 
       {/* Search input display — aligned with the keyboard beneath it. */}
       <View
+        ref={searchInput}
         x={LEFT_PANEL_X}
         y={SEARCH_INPUT_Y}
-        width={LEFT_PANEL_WIDTH}
+        width={searchInputWidth()}
         height={60}
         color={theme.surfaceMuted}
         borderRadius={8}
-        border={{ color: query() ? theme.borderLight : theme.border, width: 1 }}
-        skipFocus
+        border={{
+          color: inputFocused() ? theme.primary : query() ? theme.borderLight : theme.border,
+          width: inputFocused() ? 2 : 1,
+        }}
+        skipFocus={!searchTriggered()}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setInputFocused(false)}
+        onEnter={editSearch}
+        onDown={focusSearchResults}
+        onLeft={leaveResultsLeft}
       >
-        <Text x={20} y={15} fontSize={28} color={query() ? 0xffffffff : 0x666666ff}>
+        <Text
+          x={20}
+          y={15}
+          width={searchInputWidth() - 40}
+          contain="width"
+          maxLines={1}
+          fontSize={28}
+          color={query() ? 0xffffffff : 0x666666ff}
+        >
           {query() || "Digite para buscar..."}
         </Text>
         <Show when={query()}>
@@ -217,18 +275,20 @@ const Search = () => {
         </Show>
       </View>
 
-      <View x={LEFT_PANEL_X} y={KEYBOARD_Y} width={LEFT_PANEL_WIDTH}>
-        <VirtualKeyboard
-          ref={keyboardColumn}
-          value={query()}
-          autofocus
-          homeRow={2}
-          focusRequest={keyboardFocusRequest()}
-          onChange={handleKeyboardChange}
-          onSubmit={submitSearch}
-          onRight={focusResults}
-        />
-      </View>
+      <Show when={!searchTriggered()}>
+        <View x={LEFT_PANEL_X} y={KEYBOARD_Y} width={LEFT_PANEL_WIDTH}>
+          <VirtualKeyboard
+            ref={keyboardColumn}
+            value={query()}
+            autofocus
+            homeRow={2}
+            focusRequest={keyboardFocusRequest()}
+            onChange={handleKeyboardChange}
+            onSubmit={submitSearch}
+            onRight={focusResults}
+          />
+        </View>
+      </Show>
 
       {/* Live typeahead — kept mounted across search state transitions and
            cross-faded via alpha. Mount/unmount was flashing the canvas
@@ -328,7 +388,7 @@ const Search = () => {
                           setQuery(picked.title);
                           setSearchTriggered(true);
                         });
-                        queueMicrotask(() => queueMicrotask(() => resultsColumn?.setFocus()));
+                        requestAnimationFrame(() => searchInput?.setFocus());
                         return true;
                       }}
                     >
@@ -386,14 +446,16 @@ const Search = () => {
            (which was flashing the canvas). */}
       {(() => {
         const showResults = () => searchTriggered() && totalResults() > 0;
-        const showEmpty = () => searchTriggered() && !results.loading && totalResults() === 0;
+        const showError = () => searchTriggered() && !results.loading && Boolean(results.error);
+        const showEmpty = () =>
+          searchTriggered() && !results.loading && !results.error && totalResults() === 0;
         const showLoading = () => searchTriggered() && results.loading && totalResults() === 0;
         return (
           <>
             <View
-              x={RIGHT_PANEL_X}
-              y={SIDE_PANEL_TITLE_Y}
-              width={RIGHT_PANEL_WIDTH}
+              x={RESULTS_PANEL_X}
+              y={RESULTS_TITLE_Y}
+              width={RESULTS_PANEL_WIDTH}
               height={60}
               alpha={showResults() ? 1 : 0}
               transition={{ alpha: { duration: 80 } }}
@@ -405,9 +467,9 @@ const Search = () => {
             </View>
 
             <View
-              x={RIGHT_PANEL_X}
-              y={SIDE_PANEL_CONTENT_Y}
-              width={RIGHT_PANEL_WIDTH}
+              x={RESULTS_PANEL_X}
+              y={RESULTS_CONTENT_Y}
+              width={RESULTS_PANEL_WIDTH}
               height={400}
               display="flex"
               justifyContent="center"
@@ -422,9 +484,9 @@ const Search = () => {
             </View>
 
             <View
-              x={RIGHT_PANEL_X}
-              y={SIDE_PANEL_CONTENT_Y}
-              width={RIGHT_PANEL_WIDTH}
+              x={RESULTS_PANEL_X}
+              y={RESULTS_CONTENT_Y}
+              width={RESULTS_PANEL_WIDTH}
               height={400}
               display="flex"
               justifyContent="center"
@@ -438,29 +500,57 @@ const Search = () => {
               </Text>
             </View>
 
-            <LazyColumn
-              ref={resultsColumn}
-              x={RIGHT_PANEL_X}
-              y={SIDE_PANEL_CONTENT_Y}
-              width={RIGHT_PANEL_WIDTH}
-              height={SIDE_PANEL_CONTENT_HEIGHT}
-              gap={24}
-              scroll="auto"
-              clipping
-              alpha={showResults() ? 1 : 0}
+            <View
+              x={RESULTS_PANEL_X}
+              y={RESULTS_CONTENT_Y}
+              width={RESULTS_PANEL_WIDTH}
+              height={400}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              alpha={showError() ? 1 : 0}
               transition={{ alpha: { duration: 180 } }}
-              skipFocus={!showResults()}
-              each={resultRows()}
-              upCount={3}
-              buffer={1}
-              delay={180}
-              sync
-              onLeft={() => {
-                return focusKeyboardHome();
-              }}
+              skipFocus
             >
-              {row => <SearchResultGridRow row={row} />}
-            </LazyColumn>
+              <Text
+                width={RESULTS_PANEL_WIDTH - 80}
+                fontSize={24}
+                lineHeight={34}
+                color={theme.textMuted}
+                contain="both"
+                textAlign="center"
+                maxLines={2}
+              >
+                Não foi possível buscar. Selecione o campo acima para editar e tentar novamente.
+              </Text>
+            </View>
+
+            <View y={RESULTS_CONTENT_Y} width={1700} height={RESULTS_CONTENT_HEIGHT} clipping skipFocus>
+              <LazyColumn
+                ref={resultsColumn}
+                x={RESULTS_GRID_X}
+                y={RESULTS_GRID_Y}
+                width={RESULTS_GRID_WIDTH}
+                height={RESULTS_CONTENT_HEIGHT - RESULTS_GRID_Y}
+                gap={24}
+                scroll="auto"
+                alpha={showResults() ? 1 : 0}
+                transition={{ alpha: { duration: 180 } }}
+                skipFocus={!showResults()}
+                each={resultRows()}
+                upCount={3}
+                buffer={1}
+                delay={180}
+                sync
+                eagerLoad
+                onLeft={() => {
+                  return leaveResultsLeft();
+                }}
+                onUp={leaveResultsUp}
+              >
+                {row => <SearchResultGridRow row={row} />}
+              </LazyColumn>
+            </View>
           </>
         );
       })()}
@@ -479,13 +569,13 @@ const SearchResultGridRow = (props: SearchResultGridRowProps) => {
 
   return (
     <View
-      width={RIGHT_PANEL_WIDTH}
+      width={RESULTS_GRID_WIDTH}
       height={rowHeight() + rowOffset()}
       item={props.row()}
       forwardFocus={props.row().heading ? 1 : 0}
     >
       <Show when={props.row().heading}>
-        <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
+        <View width={RESULTS_GRID_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
           <Text fontSize={24} color={0xffffffff} fontWeight={700}>
             {props.row().heading}
           </Text>
@@ -502,7 +592,7 @@ const SearchResultGridRow = (props: SearchResultGridRowProps) => {
         {movieRow => (
           <Row
             y={rowOffset()}
-            width={RIGHT_PANEL_WIDTH}
+            width={RESULTS_GRID_WIDTH}
             height={RESULT_ROW_HEIGHT}
             gap={RESULT_CARD_GAP}
             scroll="none"
@@ -537,7 +627,7 @@ const SearchResultGridRow = (props: SearchResultGridRowProps) => {
         {seriesRow => (
           <Row
             y={rowOffset()}
-            width={RIGHT_PANEL_WIDTH}
+            width={RESULTS_GRID_WIDTH}
             height={RESULT_ROW_HEIGHT}
             gap={RESULT_CARD_GAP}
             scroll="none"
@@ -570,7 +660,7 @@ const SearchResultGridRow = (props: SearchResultGridRowProps) => {
         }
       >
         {channelRow => (
-          <Row y={rowOffset()} width={RIGHT_PANEL_WIDTH} height={140} gap={15} scroll="none">
+          <Row y={rowOffset()} width={RESULTS_GRID_WIDTH} height={140} gap={15} scroll="none">
             <For each={channelRow().items}>
               {channel => (
                 <ChannelResult

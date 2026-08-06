@@ -12,9 +12,7 @@ const Series = () => (
   <CatalogGridPage<SeriesType>
     title="Séries"
     subtitle="Entre no universo da série antes de escolher temporada e episódio."
-    allLabel="Todas"
     emptyMessage="Nenhuma série encontrada"
-    categoryType="series"
     itemType="series"
     fetchPage={params => api.getSeries(params)}
     caption={seriesCaption}

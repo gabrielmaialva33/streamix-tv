@@ -1,22 +1,29 @@
-import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
-import { Row, VirtualGrid } from "@solidtv/solid/primitives";
-import { batch, createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
+import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
+import { batch, createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { CategoryChip, SkeletonLoader } from "@/components";
+import { useLayoutFocus } from "@/app/layoutFocus";
+import { SkeletonLoader } from "@/components";
+import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
-import api, { type CatalogProvider, type Category, type Channel } from "@/lib/api";
+import api, { type Channel } from "@/lib/api";
 import { proxyImageUrl } from "@/lib/imageUrl";
+import { CATALOG_CONTENT_WIDTH } from "@/shared/layout";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 8;
 const PAGE_SIZE = 48;
 const VISIBLE_ROWS = 6;
-const HEADER_HEIGHT = 230;
-const PROVIDER_ROW_Y = 122;
-const CATEGORY_ROW_Y = 174;
-const GRID_Y = 238;
-const GRID_HEIGHT = 1080 - GRID_Y;
+const HEADER_HEIGHT = 120;
+const GRID_INSET_X = 28;
+const GRID_INSET_Y = 12;
+const GRID_Y = HEADER_HEIGHT + GRID_INSET_Y;
+const GRID_VIEWPORT_HEIGHT = 1080 - HEADER_HEIGHT;
+const PAGE_INSET = 20;
+const PAGE_WIDTH = CATALOG_CONTENT_WIDTH;
+const INNER_WIDTH = PAGE_WIDTH - PAGE_INSET * 2;
+const GRID_WIDTH = PAGE_WIDTH - GRID_INSET_X * 2;
 
 const ChannelCardStyle = {
   width: 180,
@@ -49,39 +56,27 @@ function channelColorFromName(name: string): number {
 }
 
 function channelInitial(name: string): string {
-  const stripped = name.replace(/^\s*(\[[^\]]*\]\s*)+/, "").trim();
-  return (stripped || name).trim().charAt(0).toUpperCase() || "?";
+  const stripped = name.replace(/^\s*(?:\[[^\]]*\]|\([^)]*\))\s*/, "").trim();
+  return stripped.match(/\p{L}/u)?.[0].toUpperCase() ?? stripped.match(/\p{N}/u)?.[0] ?? "TV";
 }
 
 const Channels = () => {
   const navigate = useNavigate();
+  const layoutFocus = useLayoutFocus();
   const {
     providerId: selectedProvider,
     categoryId: selectedCategory,
-    selectProvider: setSelectedProvider,
-    selectCategory: setSelectedCategory,
     hrefWithProvider,
   } = useCatalogBrowseFilters();
   const [offset, setOffset] = createSignal(0);
   const [hasMore, setHasMore] = createSignal(false);
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
 
-  let providersRow: ElementNode | undefined;
-  let categoriesRow: ElementNode | undefined;
-  let contentGrid: ElementNode | undefined;
+  let contentGrid: NavigableElement | undefined;
   let seenChannelIds = new Set<Channel["id"]>();
 
-  onNavReset(() => providersRow?.setFocus());
+  onNavReset(() => contentGrid?.scrollToIndex(0));
 
-  const [providers] = createResource(api.getCatalogProviders, { initialValue: [] });
-  const availableProviders = createMemo(() =>
-    providers().filter(provider => provider.content_types.includes("channels")),
-  );
-  const [categories] = createResource(
-    selectedProvider,
-    providerId => api.getCategories("live", { provider_id: providerId }),
-    { initialValue: [] },
-  );
   const [channels] = createResource(
     () => ({
       provider_id: selectedProvider(),
@@ -108,22 +103,6 @@ const Channels = () => {
   );
 
   createEffect(() => {
-    const providerId = selectedProvider();
-    if (providerId === undefined || providers.state !== "ready") return;
-    if (!availableProviders().some(provider => provider.id === providerId)) {
-      setSelectedProvider(undefined, true);
-    }
-  });
-
-  createEffect(() => {
-    const categoryId = selectedCategory();
-    if (categoryId === undefined || categories.state !== "ready") return;
-    if (!categories().some(category => category.id === categoryId)) {
-      setSelectedCategory(undefined, true);
-    }
-  });
-
-  createEffect(() => {
     const result = channels();
     if (!result) return;
 
@@ -146,33 +125,29 @@ const Channels = () => {
     }
   };
 
-  const selectProvider = (providerId: number | undefined) => {
-    if (selectedProvider() !== providerId) setSelectedProvider(providerId);
-  };
-
-  const selectCategory = (categoryId: number | undefined) => {
-    if (selectedCategory() !== categoryId) setSelectedCategory(categoryId);
-  };
-
-  const leaveGridUp = () => {
-    const cursor = contentGrid?.cursor;
-    if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
-    if (selectedProvider() !== undefined) categoriesRow?.setFocus();
-    else providersRow?.setFocus();
-    return true;
+  const leaveGridLeft = () => {
+    if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
+    return layoutFocus?.focusSidebar() ?? false;
   };
 
   return (
     <View
-      width={1700}
+      width={PAGE_WIDTH}
       height={1080}
       forwardFocus={() => {
-        providersRow?.setFocus();
-        return true;
+        contentGrid?.setFocus();
+        return contentGrid !== undefined;
       }}
     >
-      <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
-        <View width={1660} height={76} x={20} skipFocus>
+      <View
+        x={0}
+        y={0}
+        width={PAGE_WIDTH}
+        height={HEADER_HEIGHT}
+        zIndex={10}
+        color={theme.backgroundElevated}
+      >
+        <View width={INNER_WIDTH} height={100} x={PAGE_INSET} skipFocus>
           <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
             Canais ao Vivo
           </Text>
@@ -180,72 +155,18 @@ const Channels = () => {
             Acesse canais rapidamente com logos e categorias organizadas.
           </Text>
         </View>
-        <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
-
-        <Row
-          ref={providersRow}
-          x={20}
-          y={PROVIDER_ROW_Y}
-          width={1660}
-          height={42}
-          gap={12}
-          scroll="center"
-          autofocus
-          onDown={() => {
-            if (selectedProvider() !== undefined) categoriesRow?.setFocus();
-            else contentGrid?.setFocus();
-          }}
-        >
-          <CategoryChip
-            label="Todos os provedores"
-            width={190}
-            active={selectedProvider() === undefined}
-            onSelect={() => selectProvider(undefined)}
-          />
-          <For each={availableProviders()}>
-            {(provider: CatalogProvider) => (
-              <CategoryChip
-                label={provider.name}
-                active={selectedProvider() === provider.id}
-                onSelect={() => selectProvider(provider.id)}
-              />
-            )}
-          </For>
-        </Row>
-
-        <Show when={selectedProvider() !== undefined}>
-          <Row
-            ref={categoriesRow}
-            x={20}
-            y={CATEGORY_ROW_Y}
-            width={1660}
-            height={42}
-            gap={12}
-            scroll="center"
-            onUp={() => providersRow?.setFocus()}
-            onDown={() => contentGrid?.setFocus()}
-          >
-            <CategoryChip
-              label="Todos"
-              width={100}
-              active={selectedCategory() === undefined}
-              onSelect={() => selectCategory(undefined)}
-            />
-            <For each={categories()}>
-              {(category: Category) => (
-                <CategoryChip
-                  label={category.name}
-                  active={selectedCategory() === category.id}
-                  onSelect={() => selectCategory(category.id)}
-                />
-              )}
-            </For>
-          </Row>
-        </Show>
+        <View
+          x={PAGE_INSET}
+          y={HEADER_HEIGHT - 1}
+          width={INNER_WIDTH}
+          height={1}
+          color={theme.border}
+          skipFocus
+        />
       </View>
 
       <Show when={channels.loading && channelsData().length === 0}>
-        <Row x={20} y={GRID_Y} width={1640} height={150} gap={12} scroll="none" skipFocus>
+        <Row x={GRID_INSET_X} y={GRID_Y} width={GRID_WIDTH} height={150} gap={12} scroll="none" skipFocus>
           <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>{() => <SkeletonLoader width={180} height={130} />}</For>
         </Row>
       </Show>
@@ -254,7 +175,7 @@ const Channels = () => {
         <View
           x={20}
           y={GRID_Y}
-          width={1640}
+          width={INNER_WIDTH}
           height={400}
           display="flex"
           justifyContent="center"
@@ -268,78 +189,79 @@ const Channels = () => {
       </Show>
 
       <Show when={channelsData().length > 0}>
-        <VirtualGrid
-          ref={contentGrid}
-          x={20}
-          y={GRID_Y}
-          width={1660}
-          height={GRID_HEIGHT}
-          columns={ITEMS_PER_ROW}
-          rows={VISIBLE_ROWS}
-          buffer={1}
-          gap={12}
-          scroll="always"
-          plinko
-          clipping
-          each={channelsData()}
-          onUp={leaveGridUp}
-          onEndReached={loadMore}
-          onEndReachedThreshold={ITEMS_PER_ROW * 2}
-        >
-          {channel => (
-            <View
-              item={channel()}
-              style={ChannelCardStyle}
-              onEnter={() => {
-                navigate(hrefWithProvider(`/player/channel/${channel().id}`));
-                return true;
-              }}
-            >
+        <View y={HEADER_HEIGHT} width={PAGE_WIDTH} height={GRID_VIEWPORT_HEIGHT} clipping skipFocus>
+          <VirtualGrid
+            ref={contentGrid}
+            x={GRID_INSET_X}
+            y={GRID_INSET_Y}
+            width={GRID_WIDTH}
+            height={GRID_VIEWPORT_HEIGHT - GRID_INSET_Y}
+            columns={ITEMS_PER_ROW}
+            rows={VISIBLE_ROWS}
+            buffer={1}
+            gap={12}
+            scroll="always"
+            plinko
+            each={channelsData()}
+            onLeft={leaveGridLeft}
+            onEndReached={loadMore}
+            onEndReachedThreshold={ITEMS_PER_ROW * 2}
+          >
+            {channel => (
               <View
-                x={40}
-                y={15}
-                width={100}
-                height={65}
-                color={channelColorFromName(channel().name)}
-                borderRadius={10}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                skipFocus
+                item={channel()}
+                style={ChannelCardStyle}
+                onEnter={() => {
+                  navigate(hrefWithProvider(`/player/channel/${channel().id}`));
+                  return true;
+                }}
               >
-                <Text fontSize={36} fontWeight={700} color={0xffffffff}>
-                  {channelInitial(channel().name)}
-                </Text>
-              </View>
-              <Show when={channel().logo_url}>
                 <View
                   x={40}
                   y={15}
                   width={100}
                   height={65}
-                  src={proxyImageUrl(channel().logo_url, 120)}
-                  color={0xffffffff}
-                  textureOptions={{ resizeMode: { type: "contain" } }}
-                />
-              </Show>
+                  color={channelColorFromName(channel().name)}
+                  borderRadius={10}
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  skipFocus
+                >
+                  <Text fontSize={36} fontWeight={700} color={0xffffffff}>
+                    {channelInitial(channel().name)}
+                  </Text>
+                </View>
+                <Show when={channel().logo_url}>
+                  <View
+                    x={40}
+                    y={15}
+                    width={100}
+                    height={65}
+                    src={proxyImageUrl(channel().logo_url, 120)}
+                    color={0xffffffff}
+                    textureOptions={{ resizeMode: { type: "contain" } }}
+                  />
+                </Show>
 
-              <Text
-                x={10}
-                y={90}
-                width={160}
-                height={30}
-                fontSize={14}
-                color={theme.textSecondary}
-                contain="both"
-                textOverflow="ellipsis"
-                textAlign="center"
-                maxLines={1}
-              >
-                {channel().name}
-              </Text>
-            </View>
-          )}
-        </VirtualGrid>
+                <Text
+                  x={10}
+                  y={90}
+                  width={160}
+                  height={30}
+                  fontSize={14}
+                  color={theme.textSecondary}
+                  contain="both"
+                  textOverflow="ellipsis"
+                  textAlign="center"
+                  maxLines={1}
+                >
+                  {channel().name}
+                </Text>
+              </View>
+            )}
+          </VirtualGrid>
+        </View>
       </Show>
     </View>
   );

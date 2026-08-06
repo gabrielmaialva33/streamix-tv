@@ -1,15 +1,21 @@
 import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
-import { Column, Row, VirtualGrid } from "@solidtv/solid/primitives";
+import { Column, Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { useLayoutFocus } from "@/app/layoutFocus";
 import { Card } from "@/components";
 import { authState } from "@/features/auth/auth";
+import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { type FavoriteItem, favorites } from "@/lib/storage";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
+const GRID_INSET_X = 40;
+const GRID_INSET_Y = 36;
+const GRID_WIDTH = 1520;
+const GRID_VIEWPORT_HEIGHT = 824;
 
 // Tab styles
 const TabStyle = {
@@ -49,11 +55,12 @@ const FILTER_TABS: Array<{ value: FilterType; label: string; width: number }> = 
 
 const Favorites = () => {
   const navigate = useNavigate();
+  const layoutFocus = useLayoutFocus();
   const [items, setItems] = createSignal<FavoriteItem[]>([]);
   const [filter, setFilter] = createSignal<FilterType>("all");
 
   let tabsRow: ElementNode | undefined;
-  let contentGrid: ElementNode | undefined;
+  let contentGrid: NavigableElement | undefined;
 
   // Reset to tabs when the user re-clicks "Favoritos" in the sidebar.
   onNavReset(() => tabsRow?.setFocus());
@@ -80,6 +87,11 @@ const Favorites = () => {
         navigate(`/player/channel/${item.id}`);
         break;
     }
+  };
+
+  const leaveGridLeft = () => {
+    if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
+    return layoutFocus?.focusSidebar() ?? false;
   };
 
   return (
@@ -165,40 +177,42 @@ const Favorites = () => {
       </Show>
 
       <Show when={filteredItems().length > 0}>
-        <VirtualGrid
-          ref={contentGrid}
-          x={20}
-          y={10}
-          width={1660}
-          height={824}
-          columns={ITEMS_PER_ROW}
-          rows={2}
-          buffer={1}
-          gap={16}
-          scroll="always"
-          plinko
-          clipping
-          each={filteredItems()}
-          onUp={() => {
-            const cursor = contentGrid?.cursor;
-            if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
-            tabsRow?.setFocus();
-            return true;
-          }}
-        >
-          {item => (
-            <Card
-              title={item().title}
-              imageUrl={proxyImageUrl(item().posterUrl, 240)}
-              subtitle={item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
-              onEnter={() => {
-                handleSelect(item());
-                return true;
-              }}
-              item={item()}
-            />
-          )}
-        </VirtualGrid>
+        <View width={1700} height={GRID_VIEWPORT_HEIGHT} clipping skipFocus>
+          <VirtualGrid
+            ref={contentGrid}
+            x={GRID_INSET_X}
+            y={GRID_INSET_Y}
+            width={GRID_WIDTH}
+            height={GRID_VIEWPORT_HEIGHT - GRID_INSET_Y}
+            columns={ITEMS_PER_ROW}
+            rows={2}
+            buffer={1}
+            gap={16}
+            scroll="always"
+            plinko
+            each={filteredItems()}
+            onLeft={leaveGridLeft}
+            onUp={() => {
+              const cursor = contentGrid?.cursor;
+              if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
+              tabsRow?.setFocus();
+              return true;
+            }}
+          >
+            {item => (
+              <Card
+                title={item().title}
+                imageUrl={proxyImageUrl(item().posterUrl, 240)}
+                subtitle={item().type === "movie" ? "Filme" : item().type === "series" ? "Série" : "Canal"}
+                onEnter={() => {
+                  handleSelect(item());
+                  return true;
+                }}
+                item={item()}
+              />
+            )}
+          </VirtualGrid>
+        </View>
       </Show>
 
       {/* Help text */}
