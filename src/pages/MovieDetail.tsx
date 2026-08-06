@@ -2,7 +2,7 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
+import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Movie } from "@/lib/api";
 import { formatPlaybackTime, isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
@@ -39,7 +39,7 @@ const MovieDetail = () => {
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
 
-  const [movie] = createResource(
+  const [movie, { refetch }] = createResource(
     () => params.id,
     id => api.getMovie(id),
   );
@@ -54,6 +54,7 @@ const MovieDetail = () => {
   // the new fetch lands. Gate the view on the loaded id matching the route so
   // the page never shows a mismatched movie.
   const loadedMovie = () => {
+    if (movie.error) return undefined;
     const m = movie();
     return m && String(m.id) === params.id ? m : undefined;
   };
@@ -83,7 +84,7 @@ const MovieDetail = () => {
       onBack={handleBack}
       onLast={handleBack}
     >
-      <Show when={!loadedMovie()}>
+      <Show when={!movie.error && !loadedMovie()}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
@@ -91,6 +92,18 @@ const MovieDetail = () => {
           <SkeletonLoader width={1620} height={132} y={624} borderRadius={24} />
           <SkeletonLoader width={1620} height={104} y={780} borderRadius={24} />
         </View>
+      </Show>
+
+      <Show when={movie.error}>
+        <LoadError
+          x={40}
+          y={40}
+          width={1620}
+          height={980}
+          message="Não conseguimos abrir os detalhes deste filme agora."
+          onRetry={() => refetch()}
+          onBack={handleBack}
+        />
       </Show>
 
       <Show when={loadedMovie()}>

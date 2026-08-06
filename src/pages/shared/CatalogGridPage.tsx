@@ -1,14 +1,15 @@
 import { Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
-import { batch, createEffect, createResource, createSignal, For, on, Show } from "solid-js";
+import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useLayoutFocus } from "@/app/layoutFocus";
-import { Card, ScrollIndicator, SkeletonLoader } from "@/components";
+import { Card, LoadError, ScrollIndicator, SkeletonLoader } from "@/components";
 import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
 import api, { type CatalogListParams, type PaginatedResponse } from "@/lib/api";
 import { pickPoster } from "@/lib/imageUrl";
 import { CATALOG_CONTENT_WIDTH } from "@/shared/layout";
+import { isElementAttached } from "@/shared/focus";
 import { onNavReset } from "@/shared/navReset";
 import { theme } from "@/styles";
 
@@ -66,10 +67,12 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
 
   let contentGrid: NavigableElement | undefined;
   let seenItemIds = new Set<T["id"]>();
+  let focusGridAfterRetry = false;
+  let focusGridWhenReady = false;
 
   onNavReset(() => contentGrid?.scrollToIndex(0));
 
-  const [itemsResource] = createResource(
+  const [itemsResource, { refetch }] = createResource(
     () => ({
       provider_id: selectedProvider(),
       category_id: selectedCategory(),
@@ -78,6 +81,18 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
     }),
     params => props.fetchPage(params),
   );
+
+  const restoreRequestedFocus = (itemCount: number) => {
+    if (!focusGridAfterRetry && !focusGridWhenReady) return;
+    focusGridAfterRetry = false;
+    focusGridWhenReady = false;
+    queueMicrotask(() =>
+      queueMicrotask(() => {
+        if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
+        else layoutFocus?.focusSidebar();
+      }),
+    );
+  };
 
   createEffect(
     on(
@@ -96,6 +111,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
   );
 
   createEffect(() => {
+    if (itemsResource.error) return;
     const result = itemsResource();
     if (!result) return;
 
@@ -103,6 +119,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
       seenItemIds = new Set(result.data.map(item => item.id));
       setAccumulatedItems(result.data);
       setHasMore(result.has_more && result.data.length > 0);
+      restoreRequestedFocus(result.data.length);
       return;
     }
 
@@ -113,10 +130,17 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
   });
 
   const loadMore = () => {
-    if (!itemsResource.loading && hasMore()) {
+    if (!itemsResource.loading && !itemsResource.error && hasMore()) {
       setOffset(previous => previous + ITEMS_PER_PAGE);
     }
   };
+
+  const retryInitialLoad = () => {
+    focusGridAfterRetry = true;
+    void refetch();
+  };
+
+  const hasAttachedGrid = () => isElementAttached(contentGrid);
 
   const leaveGridLeft = () => {
     if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
@@ -128,8 +152,12 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
       width={PAGE_WIDTH}
       height={1080}
       forwardFocus={() => {
+        if (!hasAttachedGrid()) {
+          focusGridWhenReady = true;
+          return false;
+        }
         contentGrid?.setFocus();
-        return contentGrid !== undefined;
+        return true;
       }}
     >
       <View
@@ -158,7 +186,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
         />
       </View>
 
-      <Show when={itemsResource.loading && accumulatedItems().length === 0}>
+      <Show when={itemsResource.loading && !itemsResource.error && accumulatedItems().length === 0}>
         <Row
           x={GRID_INSET_X}
           y={HEADER_HEIGHT + GRID_INSET_Y}
@@ -179,7 +207,18 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
         </Row>
       </Show>
 
-      <Show when={!itemsResource.loading && accumulatedItems().length === 0}>
+      <Show when={itemsResource.error && accumulatedItems().length === 0}>
+        <LoadError
+          x={20}
+          y={HEADER_HEIGHT}
+          width={INNER_WIDTH}
+          height={1080 - HEADER_HEIGHT}
+          message={`Não conseguimos carregar ${props.itemType === "movie" ? "os filmes" : "as séries"} agora.`}
+          onRetry={retryInitialLoad}
+        />
+      </Show>
+
+      <Show when={!itemsResource.loading && !itemsResource.error && accumulatedItems().length === 0}>
         <View
           x={20}
           y={HEADER_HEIGHT + GRID_INSET_Y}
@@ -199,7 +238,13 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
       <Show when={accumulatedItems().length > 0}>
         <View y={HEADER_HEIGHT} width={PAGE_WIDTH} height={GRID_VIEWPORT_HEIGHT} clipping skipFocus>
           <VirtualGrid
-            ref={contentGrid}
+            ref={element => {
+              const grid = element as NavigableElement;
+              contentGrid = grid;
+              onCleanup(() => {
+                if (contentGrid === grid) contentGrid = undefined;
+              });
+            }}
             x={GRID_INSET_X}
             y={GRID_INSET_Y}
             width={GRID_WIDTH}

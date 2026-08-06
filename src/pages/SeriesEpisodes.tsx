@@ -1,13 +1,14 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
-import { SkeletonLoader } from "@/components";
+import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import { LoadError, SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
 import { seasonLabel } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
+import { isElementAttached } from "@/shared/focus";
 import { theme } from "@/styles";
 
 // Lightning applies `style` once on mount, so dynamic visuals (color/border)
@@ -48,7 +49,7 @@ const SeriesEpisodes = () => {
   const params = useParams<{ id: string; season?: string }>();
   const navigate = useNavigate();
 
-  const [series] = createResource(
+  const [series, { refetch }] = createResource(
     () => params.id,
     id => api.getSeriesDetail(id),
   );
@@ -57,16 +58,22 @@ const SeriesEpisodes = () => {
   let seasonsRow: ElementNode | undefined;
   let episodesGrid: ElementNode | undefined;
 
+  const loadedSeries = () => {
+    if (series.error) return undefined;
+    return series();
+  };
+
   // Honor ?season=N from URL on first load
   createEffect(() => {
-    const s = series();
+    if (series.error) return;
+    const s = loadedSeries();
     if (!s) return;
     const want = Number(params.season ?? 0);
     const max = (s.seasons?.length ?? 1) - 1;
     setSelectedSeasonIdx(Math.min(Math.max(want, 0), Math.max(0, max)));
   });
 
-  const currentSeason = () => series()?.seasons?.[selectedSeasonIdx()];
+  const currentSeason = () => loadedSeries()?.seasons?.[selectedSeasonIdx()];
   const episodes = (): Episode[] => currentSeason()?.episodes || [];
 
   // Watch progress per episode (0-100), from local history.
@@ -86,6 +93,12 @@ const SeriesEpisodes = () => {
     return true;
   }
 
+  function focusEpisodes() {
+    if (episodes().length === 0 || !isElementAttached(episodesGrid)) return true;
+    episodesGrid.setFocus();
+    return true;
+  }
+
   return (
     <View
       width={CONTENT_WIDTH}
@@ -95,7 +108,7 @@ const SeriesEpisodes = () => {
       onBack={handleBack}
       onLast={handleBack}
     >
-      <Show when={series.loading}>
+      <Show when={series.loading && !series.error}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={64} borderRadius={16} />
           <SkeletonLoader width={1620} height={60} y={88} borderRadius={24} />
@@ -105,7 +118,19 @@ const SeriesEpisodes = () => {
         </View>
       </Show>
 
-      <Show when={series()}>
+      <Show when={series.error}>
+        <LoadError
+          x={40}
+          y={40}
+          width={1620}
+          height={980}
+          message="Não conseguimos carregar os episódios desta série agora."
+          onRetry={() => refetch()}
+          onBack={handleBack}
+        />
+      </Show>
+
+      <Show when={loadedSeries()}>
         {currentSeries => (
           <View x={40} y={36} width={1620} height={1024}>
             <Text fontSize={36} fontWeight={700} color={0xffffffff} maxLines={1} contain="width" width={1620}>
@@ -121,7 +146,7 @@ const SeriesEpisodes = () => {
                 gap={12}
                 scroll="auto"
                 autofocus
-                onDown={() => episodesGrid?.setFocus()}
+                onDown={focusEpisodes}
               >
                 <For each={currentSeries().seasons}>
                   {(season: Season, index) => (
@@ -135,7 +160,7 @@ const SeriesEpisodes = () => {
                       }}
                       onEnter={() => {
                         setSelectedSeasonIdx(index());
-                        episodesGrid?.setFocus();
+                        queueMicrotask(focusEpisodes);
                         return true;
                       }}
                       onFocus={() => setSelectedSeasonIdx(index())}
@@ -170,7 +195,12 @@ const SeriesEpisodes = () => {
 
             <Show when={episodes().length > 0}>
               <VirtualGrid
-                ref={episodesGrid}
+                ref={element => {
+                  episodesGrid = element;
+                  onCleanup(() => {
+                    if (episodesGrid === element) episodesGrid = undefined;
+                  });
+                }}
                 x={0}
                 y={136}
                 width={1620}

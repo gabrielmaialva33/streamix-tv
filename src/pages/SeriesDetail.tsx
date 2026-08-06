@@ -2,7 +2,7 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createResource, For, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { Card, ContentRow, FavoriteButton, SkeletonLoader } from "@/components";
+import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Series } from "@/lib/api";
 import { isResumable, ratingCaption, relatedPoster, seasonLabel } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
@@ -39,7 +39,7 @@ const SeriesDetail = () => {
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
 
-  const [series] = createResource(
+  const [series, { refetch }] = createResource(
     () => params.id,
     id => api.getSeriesDetail(id),
   );
@@ -53,6 +53,7 @@ const SeriesDetail = () => {
   // Only treat it as current once its id matches the route so we never paint
   // a mismatched backdrop/meta. (See MovieDetail for the same pattern.)
   const loadedSeries = () => {
+    if (series.error) return undefined;
     const s = series();
     return s && String(s.id) === params.id ? s : undefined;
   };
@@ -69,7 +70,7 @@ const SeriesDetail = () => {
   // Season picking lives in SeriesEpisodes; this page only summarizes the first.
   const ACTIVE_SEASON_INDEX = 0;
   function currentSeason() {
-    return series()?.seasons?.[ACTIVE_SEASON_INDEX];
+    return loadedSeries()?.seasons?.[ACTIVE_SEASON_INDEX];
   }
 
   function handleBack() {
@@ -90,7 +91,7 @@ const SeriesDetail = () => {
       onBack={handleBack}
       onLast={handleBack}
     >
-      <Show when={!loadedSeries()}>
+      <Show when={!series.error && !loadedSeries()}>
         <View x={40} y={40} width={1620} height={980} skipFocus>
           <SkeletonLoader width={1620} height={260} borderRadius={28} />
           <SkeletonLoader width={188} height={282} x={40} y={320} borderRadius={22} />
@@ -98,6 +99,18 @@ const SeriesDetail = () => {
           <SkeletonLoader width={1620} height={120} y={614} borderRadius={24} />
           <SkeletonLoader width={1620} height={326} y={754} borderRadius={24} />
         </View>
+      </Show>
+
+      <Show when={series.error}>
+        <LoadError
+          x={40}
+          y={40}
+          width={1620}
+          height={980}
+          message="Não conseguimos abrir os detalhes desta série agora."
+          onRetry={() => refetch()}
+          onBack={handleBack}
+        />
       </Show>
 
       <Show when={loadedSeries()}>
