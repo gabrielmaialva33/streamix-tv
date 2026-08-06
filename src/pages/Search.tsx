@@ -1,7 +1,9 @@
 import { type ElementNode, Text, View } from "@solidtv/solid";
-import { Column, Row } from "@solidtv/solid/primitives";
+import { Column, LazyColumn, Row } from "@solidtv/solid/primitives";
 import {
+  type Accessor,
   createEffect,
+  createMemo,
   createResource,
   createSignal,
   For,
@@ -12,7 +14,7 @@ import {
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, VirtualKeyboard } from "@/components";
-import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
+import api, { type Channel, type Movie, type SearchResults, type Series, type SuggestItem } from "@/lib/api";
 import { chunkIntoRows } from "@/lib/contentMeta";
 import { pickPoster, proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
@@ -35,6 +37,40 @@ const RESULT_CARD_HEIGHT = 278;
 const RESULT_CARD_GAP = 16;
 const RESULT_ROW_HEIGHT = RESULT_CARD_HEIGHT + 62;
 const RESULT_SECTION_HEADER_HEIGHT = 34;
+
+type SearchResultRow =
+  | { kind: "movie"; items: Movie[]; heading?: string }
+  | { kind: "series"; items: Series[]; heading?: string }
+  | { kind: "channel"; items: Channel[]; heading?: string };
+
+function buildResultRows(result?: SearchResults | null): SearchResultRow[] {
+  if (!result) return [];
+  const rows: SearchResultRow[] = [];
+
+  chunkIntoRows(result.movies, RESULT_GRID_COLUMNS).forEach((items, index) => {
+    rows.push({
+      kind: "movie",
+      items,
+      heading: index === 0 ? `Filmes (${result.movies.length})` : undefined,
+    });
+  });
+  chunkIntoRows(result.series, RESULT_GRID_COLUMNS).forEach((items, index) => {
+    rows.push({
+      kind: "series",
+      items,
+      heading: index === 0 ? `Séries (${result.series.length})` : undefined,
+    });
+  });
+  chunkIntoRows(result.channels, 4).forEach((items, index) => {
+    rows.push({
+      kind: "channel",
+      items,
+      heading: index === 0 ? `Canais (${result.channels.length})` : undefined,
+    });
+  });
+
+  return rows;
+}
 
 const Search = () => {
   const navigate = useNavigate();
@@ -120,6 +156,7 @@ const Search = () => {
     (latestSuggestions()?.items ?? []).filter((item): item is SuggestItem => !!item).slice(0, 8);
   const searchAccentWidth = () =>
     query() ? Math.min(LEFT_PANEL_WIDTH - 40, Math.max(88, query().length * 18)) : 0;
+  const resultRows = createMemo(() => buildResultRows(results.latest));
 
   // Shared handler: land on the first focusable result when the user steps
   // out of the keyboard to the right. Prefers suggestion items first (if
@@ -346,12 +383,6 @@ const Search = () => {
         const showResults = () => searchTriggered() && totalResults() > 0;
         const showEmpty = () => searchTriggered() && !results.loading && totalResults() === 0;
         const showLoading = () => searchTriggered() && results.loading && totalResults() === 0;
-        const movieRows = () => chunkIntoRows(results.latest?.movies, RESULT_GRID_COLUMNS);
-        const seriesRows = () => chunkIntoRows(results.latest?.series, RESULT_GRID_COLUMNS);
-        const channelRows = () => chunkIntoRows(results.latest?.channels, 4);
-        const hasMovies = () => movieRows().length > 0;
-        const hasSeries = () => seriesRows().length > 0;
-        const hasChannels = () => channelRows().length > 0;
         return (
           <>
             <View
@@ -402,7 +433,7 @@ const Search = () => {
               </Text>
             </View>
 
-            <Column
+            <LazyColumn
               ref={resultsColumn}
               x={RIGHT_PANEL_X}
               y={SIDE_PANEL_CONTENT_Y}
@@ -414,109 +445,141 @@ const Search = () => {
               alpha={showResults() ? 1 : 0}
               transition={{ alpha: { duration: 180 } }}
               skipFocus={!showResults()}
+              each={resultRows()}
+              upCount={3}
+              buffer={1}
+              delay={180}
+              sync
               onLeft={() => {
                 return focusKeyboardHome();
               }}
             >
-              {/* Movies */}
-              <Show when={hasMovies()}>
-                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
-                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Filmes (${results.latest!.movies.length})`}
-                  </Text>
-                </View>
-              </Show>
-              <For each={movieRows()}>
-                {row => (
-                  <Row
-                    width={RIGHT_PANEL_WIDTH}
-                    height={RESULT_ROW_HEIGHT}
-                    gap={RESULT_CARD_GAP}
-                    scroll="none"
-                  >
-                    <For each={row}>
-                      {(movie: Movie) => (
-                        <Card
-                          title={movie.title || movie.name || ""}
-                          imageUrl={pickPoster(movie, 240)}
-                          subtitle={movie.year?.toString()}
-                          width={RESULT_CARD_WIDTH}
-                          height={RESULT_CARD_HEIGHT}
-                          onEnter={() => {
-                            navigate(`/movie/${movie.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
-                )}
-              </For>
-
-              {/* Series */}
-              <Show when={hasSeries()}>
-                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
-                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Séries (${results.latest!.series.length})`}
-                  </Text>
-                </View>
-              </Show>
-              <For each={seriesRows()}>
-                {row => (
-                  <Row
-                    width={RIGHT_PANEL_WIDTH}
-                    height={RESULT_ROW_HEIGHT}
-                    gap={RESULT_CARD_GAP}
-                    scroll="none"
-                  >
-                    <For each={row}>
-                      {(show: Series) => (
-                        <Card
-                          title={show.title || show.name || ""}
-                          imageUrl={pickPoster(show, 240)}
-                          subtitle={show.year?.toString()}
-                          width={RESULT_CARD_WIDTH}
-                          height={RESULT_CARD_HEIGHT}
-                          onEnter={() => {
-                            navigate(`/series/${show.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
-                )}
-              </For>
-
-              {/* Channels */}
-              <Show when={hasChannels()}>
-                <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
-                  <Text fontSize={24} color={0xffffffff} fontWeight={700}>
-                    {`Canais (${results.latest!.channels.length})`}
-                  </Text>
-                </View>
-              </Show>
-              <For each={channelRows()}>
-                {row => (
-                  <Row width={RIGHT_PANEL_WIDTH} height={140} gap={15} scroll="none">
-                    <For each={row}>
-                      {(channel: Channel) => (
-                        <ChannelResult
-                          channel={channel}
-                          onSelect={() => {
-                            navigate(`/player/channel/${channel.id}`);
-                            return true;
-                          }}
-                        />
-                      )}
-                    </For>
-                  </Row>
-                )}
-              </For>
-            </Column>
+              {row => <SearchResultGridRow row={row} />}
+            </LazyColumn>
           </>
         );
       })()}
+    </View>
+  );
+};
+
+interface SearchResultGridRowProps {
+  row: Accessor<SearchResultRow>;
+}
+
+const SearchResultGridRow = (props: SearchResultGridRowProps) => {
+  const navigate = useNavigate();
+  const rowOffset = () => (props.row().heading ? RESULT_SECTION_HEADER_HEIGHT + 12 : 0);
+  const rowHeight = () => (props.row().kind === "channel" ? 140 : RESULT_ROW_HEIGHT);
+
+  return (
+    <View
+      width={RIGHT_PANEL_WIDTH}
+      height={rowHeight() + rowOffset()}
+      item={props.row()}
+      forwardFocus={props.row().heading ? 1 : 0}
+    >
+      <Show when={props.row().heading}>
+        <View width={RIGHT_PANEL_WIDTH} height={RESULT_SECTION_HEADER_HEIGHT} skipFocus>
+          <Text fontSize={24} color={0xffffffff} fontWeight={700}>
+            {props.row().heading}
+          </Text>
+        </View>
+      </Show>
+
+      <Show
+        when={
+          props.row().kind === "movie"
+            ? (props.row() as Extract<SearchResultRow, { kind: "movie" }>)
+            : undefined
+        }
+      >
+        {movieRow => (
+          <Row
+            y={rowOffset()}
+            width={RIGHT_PANEL_WIDTH}
+            height={RESULT_ROW_HEIGHT}
+            gap={RESULT_CARD_GAP}
+            scroll="none"
+          >
+            <For each={movieRow().items}>
+              {movie => (
+                <Card
+                  title={movie.title || movie.name || ""}
+                  imageUrl={pickPoster(movie, 240)}
+                  subtitle={movie.year?.toString()}
+                  width={RESULT_CARD_WIDTH}
+                  height={RESULT_CARD_HEIGHT}
+                  onEnter={() => {
+                    navigate(`/movie/${movie.id}`);
+                    return true;
+                  }}
+                  item={movie}
+                />
+              )}
+            </For>
+          </Row>
+        )}
+      </Show>
+
+      <Show
+        when={
+          props.row().kind === "series"
+            ? (props.row() as Extract<SearchResultRow, { kind: "series" }>)
+            : undefined
+        }
+      >
+        {seriesRow => (
+          <Row
+            y={rowOffset()}
+            width={RIGHT_PANEL_WIDTH}
+            height={RESULT_ROW_HEIGHT}
+            gap={RESULT_CARD_GAP}
+            scroll="none"
+          >
+            <For each={seriesRow().items}>
+              {show => (
+                <Card
+                  title={show.title || show.name || ""}
+                  imageUrl={pickPoster(show, 240)}
+                  subtitle={show.year?.toString()}
+                  width={RESULT_CARD_WIDTH}
+                  height={RESULT_CARD_HEIGHT}
+                  onEnter={() => {
+                    navigate(`/series/${show.id}`);
+                    return true;
+                  }}
+                  item={show}
+                />
+              )}
+            </For>
+          </Row>
+        )}
+      </Show>
+
+      <Show
+        when={
+          props.row().kind === "channel"
+            ? (props.row() as Extract<SearchResultRow, { kind: "channel" }>)
+            : undefined
+        }
+      >
+        {channelRow => (
+          <Row y={rowOffset()} width={RIGHT_PANEL_WIDTH} height={140} gap={15} scroll="none">
+            <For each={channelRow().items}>
+              {channel => (
+                <ChannelResult
+                  channel={channel}
+                  onSelect={() => {
+                    navigate(`/player/channel/${channel.id}`);
+                    return true;
+                  }}
+                />
+              )}
+            </For>
+          </Row>
+        )}
+      </Show>
     </View>
   );
 };
@@ -531,6 +594,7 @@ const ChannelResult = (props: ChannelResultProps) => {
 
   return (
     <View
+      item={props.channel}
       width={170}
       height={120}
       color={focused() ? 0x333333ff : 0x222222ff}
@@ -548,6 +612,7 @@ const ChannelResult = (props: ChannelResultProps) => {
           height={60}
           src={proxyImageUrl(props.channel.logo_url, 120)}
           color={0xffffffff}
+          textureOptions={{ resizeMode: { type: "contain" } }}
         />
       </Show>
       <Text
