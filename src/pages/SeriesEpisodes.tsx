@@ -1,10 +1,10 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
-import { Column, Row } from "@solidtv/solid/primitives";
+import { Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
-import { chunkIntoRows, seasonLabel } from "@/lib/contentMeta";
+import { seasonLabel } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
@@ -68,7 +68,6 @@ const SeriesEpisodes = () => {
 
   const currentSeason = () => series()?.seasons?.[selectedSeasonIdx()];
   const episodes = (): Episode[] => currentSeason()?.episodes || [];
-  const episodeRows = () => chunkIntoRows(episodes(), ITEMS_PER_ROW);
 
   // Watch progress per episode (0-100), from local history.
   const episodeProgress = (episode: Episode): number | null => {
@@ -150,124 +149,132 @@ const SeriesEpisodes = () => {
               </Row>
             </Show>
 
-            <Column
-              ref={episodesGrid}
-              x={0}
-              y={136}
-              width={1620}
-              height={920}
-              gap={20}
-              scroll="auto"
-              plinko
-              clipping
-              onUp={function (this: ElementNode) {
-                if ((this.selected ?? 0) > 0) return false;
-                if (currentSeries().seasons?.length) {
-                  seasonsRow?.setFocus();
-                  return true;
-                }
-                return false;
-              }}
-            >
-              <Show when={episodeRows().length === 0}>
-                <View
-                  width={1620}
-                  height={180}
-                  color={theme.surface}
-                  borderRadius={20}
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                  skipFocus
-                >
-                  <Text fontSize={22} color={theme.textSecondary}>
-                    Nenhum episódio disponível nesta temporada
-                  </Text>
-                </View>
-              </Show>
+            <Show when={episodes().length === 0}>
+              <View
+                x={0}
+                y={136}
+                width={1620}
+                height={180}
+                color={theme.surface}
+                borderRadius={20}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                skipFocus
+              >
+                <Text fontSize={22} color={theme.textSecondary}>
+                  Nenhum episódio disponível nesta temporada
+                </Text>
+              </View>
+            </Show>
 
-              <For each={episodeRows()}>
-                {row => (
-                  <Row width={1620} height={156} gap={20} scroll="none">
-                    <For each={row}>
-                      {(episode: Episode) => (
-                        <View style={EPISODE_CARD_STYLE} onEnter={() => handlePlay(episode)}>
-                          <Show
-                            when={episode.thumbnail_url}
-                            fallback={
-                              <View
-                                x={14}
-                                y={14}
-                                width={184}
-                                height={128}
-                                color={theme.surfaceLight}
-                                borderRadius={14}
-                              />
-                            }
-                          >
-                            <View
-                              x={14}
-                              y={14}
-                              width={184}
-                              height={128}
-                              src={proxyImageUrl(episode.thumbnail_url, 240)}
-                              color={0xffffffff}
-                              borderRadius={14}
-                              textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.5 } }}
-                            />
-                          </Show>
+            <Show when={episodes().length > 0}>
+              <VirtualGrid
+                ref={episodesGrid}
+                x={0}
+                y={136}
+                width={1620}
+                height={920}
+                columns={ITEMS_PER_ROW}
+                rows={5}
+                buffer={1}
+                gap={20}
+                scroll="always"
+                plinko
+                clipping
+                each={episodes()}
+                onUp={() => {
+                  const cursor = episodesGrid?.cursor;
+                  if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
+                  if (currentSeries().seasons?.length) {
+                    seasonsRow?.setFocus();
+                    return true;
+                  }
+                  return false;
+                }}
+              >
+                {episode => (
+                  <View
+                    item={episode()}
+                    style={EPISODE_CARD_STYLE}
+                    onEnter={() => {
+                      handlePlay(episode());
+                      return true;
+                    }}
+                  >
+                    <Show
+                      when={episode().thumbnail_url}
+                      fallback={
+                        <View
+                          x={14}
+                          y={14}
+                          width={184}
+                          height={128}
+                          color={theme.surfaceLight}
+                          borderRadius={14}
+                        />
+                      }
+                    >
+                      <View
+                        x={14}
+                        y={14}
+                        width={184}
+                        height={128}
+                        src={proxyImageUrl(episode().thumbnail_url, 240)}
+                        color={0xffffffff}
+                        borderRadius={14}
+                        textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.5 } }}
+                      />
+                    </Show>
 
-                          <Show when={episodeProgress(episode) !== null}>
-                            <View x={14} y={134} width={184} height={6} color={0x00000080} borderRadius={3}>
-                              <View
-                                width={Math.max(8, (184 * (episodeProgress(episode) ?? 0)) / 100)}
-                                height={6}
-                                color={theme.primary}
-                                borderRadius={3}
-                              />
-                            </View>
-                          </Show>
+                    <Show when={episodeProgress(episode()) !== null}>
+                      <View x={14} y={134} width={184} height={6} color={0x00000080} borderRadius={3}>
+                        <View
+                          width={Math.max(8, (184 * (episodeProgress(episode()) ?? 0)) / 100)}
+                          height={6}
+                          color={theme.primary}
+                          borderRadius={3}
+                        />
+                      </View>
+                    </Show>
 
-                          <View x={212} y={18} width={290}>
-                            <Text fontSize={16} color={theme.gold}>
-                              {`E${episode.episode_num ?? episode.number ?? "?"}`}
-                            </Text>
-                            <Text
-                              y={24}
-                              width={290}
-                              fontSize={20}
-                              fontWeight={700}
-                              color={0xffffffff}
-                              maxLines={1}
-                              contain="width"
-                            >
-                              {episode.title || `Episódio ${episode.episode_num ?? episode.number ?? ""}`}
-                            </Text>
-                            <Text
-                              y={56}
-                              width={290}
-                              fontSize={14}
-                              lineHeight={20}
-                              color={theme.textSecondary}
-                              maxLines={3}
-                              contain="width"
-                            >
-                              {episode.description || episode.plot || "Sem descrição disponível."}
-                            </Text>
-                          </View>
+                    <View x={212} y={18} width={290}>
+                      <Text fontSize={16} color={theme.gold}>
+                        {`E${episode().episode_num ?? episode().number ?? "?"}`}
+                      </Text>
+                      <Text
+                        y={24}
+                        width={290}
+                        fontSize={20}
+                        fontWeight={700}
+                        color={0xffffffff}
+                        maxLines={1}
+                        contain="width"
+                      >
+                        {episode().title || `Episódio ${episode().episode_num ?? episode().number ?? ""}`}
+                      </Text>
+                      <Text
+                        y={56}
+                        width={290}
+                        fontSize={14}
+                        lineHeight={20}
+                        color={theme.textSecondary}
+                        maxLines={3}
+                        contain="width"
+                      >
+                        {episode().description || episode().plot || "Sem descrição disponível."}
+                      </Text>
+                    </View>
 
-                          <Show when={episode.duration}>
-                            <Text x={212} y={126} fontSize={13} color={theme.textMuted}>
-                              {episode.duration || ""}
-                            </Text>
-                          </Show>
-                        </View>
-                      )}
-                    </For>
-                  </Row>
+                    <Show when={episode().duration}>
+                      <Text x={212} y={126} fontSize={13} color={theme.textMuted}>
+                        {episode().duration || ""}
+                      </Text>
+                    </Show>
+                  </View>
                 )}
-              </For>
-            </Column>
+              </VirtualGrid>
+            </Show>
           </View>
         )}
       </Show>
