@@ -1,10 +1,28 @@
 import { activeElement, ElementNode, View } from "@solidtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { children, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
+import {
+  children,
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { Suspense } from "@solidtv/solid/primitives";
 import { ExitDialog, ProviderHealthBanner, Sidebar } from "@/components";
+import { LayoutFocusContext } from "@/app/layoutFocus";
+import { catalogBrowseConfigForPath } from "@/features/catalog/catalogBrowse";
+import { createProviderHealthPolling } from "@/features/catalog/providerHealth";
 import { addForegroundResumeListener, exitCurrentApp } from "@/platform/tizen";
-import { CONTENT_HEIGHT, CONTENT_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH } from "@/shared/layout";
+import {
+  CATALOG_SIDEBAR_WIDTH,
+  CONTENT_HEIGHT,
+  SCREEN_HEIGHT,
+  SCREEN_WIDTH,
+  SIDEBAR_WIDTH,
+} from "@/shared/layout";
 import { theme } from "@/styles";
 
 interface MainLayoutProps {
@@ -16,6 +34,10 @@ const MainLayout = (props: MainLayoutProps) => {
   const location = useLocation();
   const [showExitDialog, setShowExitDialog] = createSignal(false);
   const resolvedChildren = children(() => props.children);
+  const providerHealth = createProviderHealthPolling();
+  const catalogBrowse = createMemo(() => catalogBrowseConfigForPath(location.pathname));
+  const currentSidebarWidth = () => (catalogBrowse() ? CATALOG_SIDEBAR_WIDTH : SIDEBAR_WIDTH);
+  const currentContentWidth = () => SCREEN_WIDTH - currentSidebarWidth();
 
   let sidebar: ElementNode | undefined;
   let pageContainer: ElementNode | undefined;
@@ -114,22 +136,26 @@ const MainLayout = (props: MainLayoutProps) => {
       onLeft={focusSidebar}
       onRight={focusContent}
     >
-      <Sidebar ref={sidebar} onExit={focusContent} />
+      <Sidebar ref={sidebar} onExit={focusContent} health={providerHealth()} />
       <View
         id="pageContainer"
         ref={pageContainer}
-        x={SIDEBAR_WIDTH}
-        width={CONTENT_WIDTH}
+        x={currentSidebarWidth()}
+        width={currentContentWidth()}
         height={CONTENT_HEIGHT}
         color={theme.background}
         clipping
         forwardFocus={0}
       >
-        <Suspense fallback={<View width={CONTENT_WIDTH} height={CONTENT_HEIGHT} color={theme.background} />}>
-          {resolvedChildren()}
-        </Suspense>
+        <LayoutFocusContext.Provider value={{ focusSidebar }}>
+          <Suspense
+            fallback={<View width={currentContentWidth()} height={CONTENT_HEIGHT} color={theme.background} />}
+          >
+            {resolvedChildren()}
+          </Suspense>
+        </LayoutFocusContext.Provider>
       </View>
-      <ProviderHealthBanner />
+      <ProviderHealthBanner health={providerHealth()} suppressDegraded={catalogBrowse() !== undefined} />
       <Show when={showExitDialog()}>
         <ExitDialog onConfirm={handleExit} onCancel={() => setShowExitDialog(false)} />
       </Show>
