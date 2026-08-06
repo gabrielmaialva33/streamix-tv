@@ -1,16 +1,19 @@
 import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
-import { createResource, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
+import { useLayoutFocus } from "@/app/layoutFocus";
 import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Movie } from "@/lib/api";
 import { formatPlaybackTime, isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
+import { focusElement } from "@/shared/focus";
 import { theme } from "@/styles";
 import DetailHero, {
   DetailPoster,
+  DetailOverview,
   fetchSimilar,
   META_CHIP_STYLE,
   PANEL_STYLE,
@@ -32,12 +35,24 @@ function buildMeta(movie?: Movie) {
   ].filter(Boolean) as string[];
 }
 
+const DETAIL_CONTENT_HEIGHT = 1260;
+const RELATED_SECTION_TOP = 570;
+
 const MovieDetail = () => {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const layoutFocus = useLayoutFocus();
 
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
+  let relatedSection: ElementNode | undefined;
+  let errorPanel: ElementNode | undefined;
+  const [pageOffset, setPageOffset] = createSignal(0);
+
+  createEffect(() => {
+    void params.id;
+    setPageOffset(0);
+  });
 
   const [movie, { refetch }] = createResource(
     () => params.id,
@@ -75,12 +90,28 @@ const MovieDetail = () => {
     return true;
   }
 
+  function focusPage() {
+    return focusElement(actionRow) || focusElement(errorPanel) || layoutFocus?.focusSidebar() || true;
+  }
+
+  function focusActions() {
+    setPageOffset(0);
+    return focusElement(actionRow);
+  }
+
+  function focusRelated() {
+    if (!relatedRow || !relatedSection) return false;
+    setPageOffset(Math.min(0, RELATED_SECTION_TOP - (relatedSection.y ?? RELATED_SECTION_TOP)));
+    return focusElement(relatedRow);
+  }
+
   return (
     <View
       width={CONTENT_WIDTH}
       height={1080}
       color={theme.background}
       clipping
+      forwardFocus={focusPage}
       onBack={handleBack}
       onLast={handleBack}
     >
@@ -96,6 +127,12 @@ const MovieDetail = () => {
 
       <Show when={movie.error}>
         <LoadError
+          ref={element => {
+            errorPanel = element;
+            onCleanup(() => {
+              if (errorPanel === element) errorPanel = undefined;
+            });
+          }}
           x={40}
           y={40}
           width={1620}
@@ -117,7 +154,13 @@ const MovieDetail = () => {
           // hero scrolls up with it (Netflix-style), instead of the hero
           // staying pinned and only the lower band moving.
           return (
-            <Column width={CONTENT_WIDTH} height={1080} gap={20} scroll="auto" clipping forwardFocus={0}>
+            <Column
+              y={pageOffset()}
+              width={CONTENT_WIDTH}
+              height={DETAIL_CONTENT_HEIGHT}
+              gap={20}
+              scroll="none"
+            >
               {/* Hero block — backdrop, poster and the action panel. Height
                   covers the absolutely-positioned children inside it. */}
               <View width={1620} height={602} skipFocus>
@@ -170,7 +213,12 @@ const MovieDetail = () => {
                   </Row>
 
                   <Row
-                    ref={actionRow}
+                    ref={element => {
+                      actionRow = element;
+                      onCleanup(() => {
+                        if (actionRow === element) actionRow = undefined;
+                      });
+                    }}
                     x={30}
                     y={196}
                     width={1332}
@@ -178,10 +226,8 @@ const MovieDetail = () => {
                     gap={20}
                     scroll="none"
                     autofocus
-                    onDown={() => {
-                      relatedRow?.setFocus();
-                      return true;
-                    }}
+                    onFocus={() => setPageOffset(0)}
+                    onDown={focusRelated}
                   >
                     <View
                       width={resumePosition() ? 280 : 180}
@@ -251,105 +297,47 @@ const MovieDetail = () => {
                 </View>
               </View>
 
-              {/* Synopsis */}
-              <View x={40} width={1620} height={132} style={PANEL_STYLE} skipFocus>
-                <Text x={30} y={22} fontSize={16} color={theme.textMuted}>
-                  Sinopse
-                </Text>
-                <Text
-                  x={30}
-                  y={52}
-                  width={1560}
-                  fontSize={22}
-                  lineHeight={32}
-                  color={theme.textPrimary}
-                  maxLines={2}
-                  contain="width"
-                >
-                  {currentMovie().plot || "Sem sinopse disponível para este filme."}
-                </Text>
-              </View>
-
-              {/* Credits */}
-              <View x={40} width={1620} minHeight={104} style={PANEL_STYLE} skipFocus>
-                <Column x={30} y={20} width={1560} gap={12} scroll="none">
-                  <Show when={currentMovie().cast}>
-                    <View width={1560} height={30} color={0x00000000}>
-                      <Text fontSize={16} color={theme.textMuted}>
-                        Elenco
-                      </Text>
-                      <Text
-                        y={16}
-                        width={1560}
-                        fontSize={20}
-                        color={theme.textPrimary}
-                        maxLines={1}
-                        contain="width"
-                      >
-                        {currentMovie().cast || ""}
-                      </Text>
-                    </View>
-                  </Show>
-                  <Row width={1560} height={36} gap={36} scroll="none">
-                    <Show when={currentMovie().director}>
-                      <View width={762} height={36} color={0x00000000}>
-                        <Text fontSize={16} color={theme.textMuted}>
-                          Direção
-                        </Text>
-                        <Text
-                          y={16}
-                          width={762}
-                          fontSize={20}
-                          color={theme.textPrimary}
-                          maxLines={1}
-                          contain="width"
-                        >
-                          {currentMovie().director || ""}
-                        </Text>
-                      </View>
-                    </Show>
-                    <Show when={currentMovie().youtube_trailer}>
-                      <View width={762} height={36} color={0x00000000}>
-                        <Text fontSize={16} color={theme.textMuted}>
-                          Extra
-                        </Text>
-                        <Text
-                          y={16}
-                          width={762}
-                          fontSize={20}
-                          color={theme.textPrimary}
-                          maxLines={1}
-                          contain="width"
-                        >
-                          Trailer disponível para este título
-                        </Text>
-                      </View>
-                    </Show>
-                  </Row>
-                </Column>
-              </View>
+              <DetailOverview
+                plot={currentMovie().plot}
+                cast={currentMovie().cast}
+                director={currentMovie().director}
+              />
 
               {/* Related rail — last child so the Column has room to scroll it
                   fully into view when focused from the action row. */}
               <Show when={similar()?.length}>
                 <View
-                  ref={relatedRow}
+                  ref={element => {
+                    relatedSection = element;
+                    onCleanup(() => {
+                      if (relatedSection === element) relatedSection = undefined;
+                    });
+                  }}
                   x={40}
                   width={1620}
                   height={470}
-                  onUp={() => {
-                    actionRow?.setFocus();
-                    return true;
-                  }}
                 >
                   <ContentRow
+                    ref={element => {
+                      relatedRow = element;
+                      onCleanup(() => {
+                        if (relatedRow === element) relatedRow = undefined;
+                      });
+                    }}
                     title="Títulos parecidos"
                     items={similar()}
+                    onFocus={() => {
+                      if (!relatedSection) return;
+                      setPageOffset(
+                        Math.min(0, RELATED_SECTION_TOP - (relatedSection.y ?? RELATED_SECTION_TOP)),
+                      );
+                    }}
                     onSelectedChanged={index => {
                       const item = similar()?.[index];
                       if (item) api.prefetchMovie(item.id);
                     }}
                     onItemSelected={item => navigate(`/movie/${item.id}`)}
+                    onUpRequest={focusActions}
                     renderItem={item => (
                       <Card
                         title={item().title || item().name || ""}

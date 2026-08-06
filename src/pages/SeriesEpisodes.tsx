@@ -1,6 +1,7 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
+import { useLayoutFocus } from "@/app/layoutFocus";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { LoadError, SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
@@ -8,7 +9,7 @@ import { seasonLabel } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
-import { isElementAttached } from "@/shared/focus";
+import { focusElement, isElementAttached } from "@/shared/focus";
 import { theme } from "@/styles";
 
 // Lightning applies `style` once on mount, so dynamic visuals (color/border)
@@ -48,6 +49,7 @@ const ITEMS_PER_ROW = 3;
 const SeriesEpisodes = () => {
   const params = useParams<{ id: string; season?: string }>();
   const navigate = useNavigate();
+  const layoutFocus = useLayoutFocus();
 
   const [series, { refetch }] = createResource(
     () => params.id,
@@ -57,6 +59,7 @@ const SeriesEpisodes = () => {
 
   let seasonsRow: ElementNode | undefined;
   let episodesGrid: ElementNode | undefined;
+  let errorPanel: ElementNode | undefined;
 
   const loadedSeries = () => {
     if (series.error) return undefined;
@@ -99,12 +102,23 @@ const SeriesEpisodes = () => {
     return true;
   }
 
+  function focusPage() {
+    return (
+      focusElement(seasonsRow) ||
+      focusElement(episodesGrid) ||
+      focusElement(errorPanel) ||
+      layoutFocus?.focusSidebar() ||
+      true
+    );
+  }
+
   return (
     <View
       width={CONTENT_WIDTH}
       height={1080}
       color={theme.background}
       clipping
+      forwardFocus={focusPage}
       onBack={handleBack}
       onLast={handleBack}
     >
@@ -120,6 +134,12 @@ const SeriesEpisodes = () => {
 
       <Show when={series.error}>
         <LoadError
+          ref={element => {
+            errorPanel = element;
+            onCleanup(() => {
+              if (errorPanel === element) errorPanel = undefined;
+            });
+          }}
           x={40}
           y={40}
           width={1620}
