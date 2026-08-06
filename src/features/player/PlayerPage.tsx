@@ -7,8 +7,9 @@ import { createLogger } from "@/shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import api, { ApiError, type Episode, type PlaybackTelemetryEvent } from "@/lib/api";
 import { authState } from "@/features/auth/auth";
-import PlayerManager, { type PlayerState } from "./core/playerManager";
+import PlayerManager, { type PlayerCallbacks, type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
+import { playbackErrorMessage } from "./playbackError";
 import { findNextEpisode, type PlayerType, resolvePlayerSource } from "./stream";
 
 const logger = createLogger("PlayerPage");
@@ -386,7 +387,7 @@ const PlayerPage = () => {
   }
 
   function handlePrimaryAction() {
-    if (state().error && loadedUrl) {
+    if (state().error) {
       return retryPlayback();
     }
 
@@ -419,20 +420,36 @@ const PlayerPage = () => {
   }
 
   function retryPlayback() {
-    if (!loadedUrl || recoveryInFlight) {
+    if (recoveryInFlight) {
       return true;
     }
 
+    const current = state();
     recoveryInFlight = true;
     telemetryFallbackCount += 1;
     resetControlsTimeout();
-    setState({ ...state(), error: null, buffering: true });
-    pendingResumePosition = state().currentTime > 5 ? state().currentTime : getSavedResumePosition();
+    setState({ ...current, error: null, buffering: true });
+    pendingResumePosition = current.currentTime > 5 ? current.currentTime : getSavedResumePosition();
 
-    void PlayerManager.load(loadedUrl)
+    void resolvePlayerSource(params.type, params.id, { refreshStream: true })
+      .then(source => {
+        if (destroyed) return;
+        loadedUrl = source.streamUrl;
+        setTitle(source.title);
+        setPosterUrl(source.posterUrl);
+        playbackRequestedAt = Date.now();
+        const ensurePlayer = PlayerManager.isInitialized()
+          ? Promise.resolve()
+          : PlayerManager.init(playerCallbacks());
+        return ensurePlayer.then(() => PlayerManager.load(source.streamUrl));
+      })
       .catch(error => {
         logger.error("Failed to retry playback", error);
-        sendTelemetry("error");
+        if (!destroyed && !state().error) {
+          const message = error instanceof Error ? error.message : "Could not refresh playback source";
+          setState({ ...state(), error: message, buffering: false });
+          sendTelemetry("error");
+        }
       })
       .finally(() => {
         recoveryInFlight = false;
@@ -631,31 +648,26 @@ const PlayerPage = () => {
     void PlayerManager.load(loadedUrl)
       .catch(error => {
         logger.error("Failed to recover stalled playback", error);
-        sendTelemetry("error");
+        if (!destroyed && !state().error) {
+          const message = error instanceof Error ? error.message : "Could not recover playback";
+          setState(previous => ({ ...previous, error: message, buffering: false }));
+          sendTelemetry("error");
+        }
       })
       .finally(() => {
         recoveryInFlight = false;
       });
   }
 
-  createEffect(() => {
-    const source = streamData();
-    if (!source?.streamUrl || destroyed || loadedUrl === source.streamUrl) {
-      return;
-    }
-
-    loadedUrl = source.streamUrl;
-    telemetryStarted = false;
-    lastTelemetryPosition = -1;
-    playbackRequestedAt = Date.now();
-    playbackSessionStartedAt = 0;
-    telemetryErrorCount = 0;
-    telemetryFallbackCount = 0;
-    pendingResumePosition = getSavedResumePosition();
-    void PlayerManager.init({
+  function playerCallbacks(): PlayerCallbacks {
+    return {
       onStateChange: nextState => {
         if (!destroyed) {
           setState(nextState);
+          if (!telemetryStarted && nextState.ready && nextState.playing && !nextState.error) {
+            telemetryStarted = true;
+            sendTelemetry("start");
+          }
         }
       },
       onComplete: () => {
@@ -672,19 +684,47 @@ const PlayerPage = () => {
         logger.error("Playback callback error", error);
         sendTelemetry("error");
       },
-    })
+    };
+  }
+
+  createEffect(() => {
+    if (streamData.error) return;
+    const source = streamData();
+    if (!source?.streamUrl || destroyed || loadedUrl === source.streamUrl) {
+      return;
+    }
+
+    loadedUrl = source.streamUrl;
+    telemetryStarted = false;
+    lastTelemetryPosition = -1;
+    playbackRequestedAt = Date.now();
+    playbackSessionStartedAt = 0;
+    telemetryErrorCount = 0;
+    telemetryFallbackCount = 0;
+    pendingResumePosition = getSavedResumePosition();
+    void PlayerManager.init(playerCallbacks())
       .then(() => {
         if (!destroyed) {
-          return PlayerManager.load(source.streamUrl).then(() => {
-            telemetryStarted = true;
-            sendTelemetry("start");
-          });
+          return PlayerManager.load(source.streamUrl);
         }
       })
       .catch(error => {
         logger.error("Failed to initialize player", error);
-        sendTelemetry("error");
+        if (!destroyed && !state().error) {
+          const message = error instanceof Error ? error.message : "Could not initialize playback";
+          setState(previous => ({ ...previous, error: message, buffering: false }));
+          sendTelemetry("error");
+        }
       });
+  });
+
+  createEffect(() => {
+    const error = streamData.error;
+    if (!error || destroyed) return;
+    const message = error instanceof Error ? error.message : "Could not resolve playback source";
+    logger.error("Failed to resolve playback source", error);
+    setState(previous => ({ ...previous, error: message, buffering: false }));
+    sendTelemetry("error");
   });
 
   createEffect(applyPendingResume);
@@ -733,14 +773,23 @@ const PlayerPage = () => {
       }
 
       wasHidden = false;
-      void PlayerManager.restore().then(restored => {
-        if (restored || destroyed || !loadedUrl) {
-          return;
-        }
+      void PlayerManager.restore()
+        .then(restored => {
+          if (restored || destroyed || !loadedUrl) {
+            return;
+          }
 
-        logger.warn("AVPlay restore failed; reloading source");
-        return PlayerManager.load(loadedUrl);
-      });
+          logger.warn("AVPlay restore failed; reloading source");
+          return PlayerManager.load(loadedUrl);
+        })
+        .catch(error => {
+          logger.error("Failed to reload AVPlay after resume", error);
+          if (!destroyed && !state().error) {
+            const message = error instanceof Error ? error.message : "Could not restore playback";
+            setState(previous => ({ ...previous, error: message, buffering: false }));
+            sendTelemetry("error");
+          }
+        });
     };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -847,7 +896,7 @@ const PlayerPage = () => {
               maxLines={3}
               lineHeight={34}
             >
-              {state().error ?? "Tente novamente em instantes."}
+              {playbackErrorMessage(state().error)}
             </Text>
 
             {/* Buttons — same focus pattern as components/Hero.tsx:

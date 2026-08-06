@@ -162,6 +162,7 @@ function getBackend() {
 
 export const PlayerManager = {
   init,
+  isInitialized: () => isInitialized,
   load,
   play,
   pause,

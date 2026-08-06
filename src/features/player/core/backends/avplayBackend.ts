@@ -4,6 +4,7 @@ import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("AVPlay");
+export const AVPLAY_PREPARE_TIMEOUT_MS = 20_000;
 
 type AVPlayStateValue = "NONE" | "IDLE" | "READY" | "PLAYING" | "PAUSED" | string;
 
@@ -62,13 +63,25 @@ let activeUrl: string | null = null;
 let suspendedAtMs = 0;
 let shouldResumePlayback = false;
 let isSuspended = false;
+let cancelActivePrepare: (() => void) | null = null;
 
 function getAVPlay(): AVPlayHandle | null {
   return (globalThis as WebApisRuntime).webapis?.avplay ?? null;
 }
 
 function toErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return fallback;
+}
+
+function reportLoadFailure(error: unknown, fallback: string, deps: AVPlayBackendDeps, prefix?: string) {
+  const detail = toErrorMessage(error, fallback);
+  const message = prefix ? `${prefix}: ${detail}` : detail;
+  logger.error("Failed to load AVPlay source", error);
+  deps.updateState({ error: message, buffering: false, ready: false, playing: false });
+  deps.callbacks.onError?.(message);
+  return new Error(message);
 }
 
 function createListener(deps: AVPlayBackendDeps): AVPlayListener {
@@ -147,6 +160,8 @@ export async function loadAVPlay(url: string, deps: AVPlayBackendDeps) {
   }
 
   activeDeps = deps;
+  cancelActivePrepare?.();
+  cancelActivePrepare = null;
   activeUrl = url;
   suspendedAtMs = 0;
   shouldResumePlayback = false;
@@ -171,35 +186,74 @@ export async function loadAVPlay(url: string, deps: AVPlayBackendDeps) {
         logger.warn("Failed to set adaptive streaming info", error);
       }
     }
-
-    avplay.prepareAsync(
-      () => {
-        deps.updateState({
-          duration: avplay.getDuration() / 1000,
-          buffering: false,
-          ready: true,
-          playing: true,
-        });
-        avplay.play();
-        try {
-          getTizen()?.power?.request("SCREEN", "SCREEN_NORMAL");
-        } catch (error) {
-          logger.warn("Failed to acquire wake lock", error);
-        }
-      },
-      error => {
-        const message = `Prepare error: ${toErrorMessage(error, "unknown")}`;
-        logger.error("Failed to prepare AVPlay source", error);
-        deps.updateState({ error: message, buffering: false });
-        deps.callbacks.onError?.(message);
-      },
-    );
   } catch (error) {
-    const message = toErrorMessage(error, "AVPlay load error");
-    logger.error("Failed to load AVPlay source", error);
-    deps.updateState({ error: message, buffering: false });
-    deps.callbacks.onError?.(message);
+    throw reportLoadFailure(error, "AVPlay load error", deps);
   }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const clearAttempt = () => {
+      clearTimeout(timeout);
+      if (cancelActivePrepare === cancel) cancelActivePrepare = null;
+    };
+    const cancel = () => {
+      if (settled) return;
+      settled = true;
+      clearAttempt();
+      resolve();
+    };
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      clearAttempt();
+      reject(
+        reportLoadFailure(
+          new Error(`AVPlay prepare timed out after ${AVPLAY_PREPARE_TIMEOUT_MS / 1000} seconds`),
+          "AVPlay prepare timeout",
+          deps,
+        ),
+      );
+    }, AVPLAY_PREPARE_TIMEOUT_MS);
+
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearAttempt();
+      reject(reportLoadFailure(error, "unknown", deps, "Prepare error"));
+    };
+
+    cancelActivePrepare = cancel;
+
+    try {
+      avplay.prepareAsync(() => {
+        if (settled) return;
+
+        try {
+          avplay.play();
+          deps.updateState({
+            duration: avplay.getDuration() / 1000,
+            buffering: false,
+            error: null,
+            ready: true,
+            playing: true,
+          });
+          try {
+            getTizen()?.power?.request("SCREEN", "SCREEN_NORMAL");
+          } catch (error) {
+            logger.warn("Failed to acquire wake lock", error);
+          }
+
+          settled = true;
+          clearAttempt();
+          resolve();
+        } catch (error) {
+          fail(error);
+        }
+      }, fail);
+    } catch (error) {
+      fail(error);
+    }
+  });
 }
 
 export function playAVPlay(updateState: (updates: Partial<PlayerState>) => void) {
@@ -353,6 +407,9 @@ export async function restoreAVPlay(updateState: (updates: Partial<PlayerState>)
 }
 
 export function destroyAVPlayBackend() {
+  cancelActivePrepare?.();
+  cancelActivePrepare = null;
+
   if (timeUpdateInterval) {
     clearInterval(timeUpdateInterval);
     timeUpdateInterval = null;
