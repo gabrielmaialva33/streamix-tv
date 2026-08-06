@@ -1,8 +1,9 @@
 import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@solidtv/solid";
-import { Row } from "@solidtv/solid/primitives";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { LazyRow } from "@solidtv/solid/primitives";
+import { createSignal, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { history, type HistoryItem } from "@/lib/storage";
+import { proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
 
 const CardStyle = {
@@ -87,66 +88,83 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
       </Show>
 
       <Show when={items().length > 0}>
-        <Row x={20} y={50} width={1660} height={200} gap={20} scroll="auto">
-          <For each={items()}>
-            {item => (
-              <View style={CardStyle} onEnter={() => handleSelect(item)} forwardStates>
-                {/* Thumbnail/Poster */}
-                <Show when={item.posterUrl}>
-                  <View width={120} height={180} src={item.posterUrl} color={0xffffffff} borderRadius={10} />
-                </Show>
-                <Show when={!item.posterUrl}>
-                  <View width={120} height={180} color={theme.surfaceLight} borderRadius={10} />
-                </Show>
+        <LazyRow
+          x={20}
+          y={50}
+          width={1660}
+          height={200}
+          gap={20}
+          scroll="auto"
+          each={items()}
+          upCount={6}
+          buffer={1}
+          delay={180}
+          sync
+        >
+          {item => (
+            <View item={item()} style={CardStyle} onEnter={() => handleSelect(item())} forwardStates>
+              {/* Thumbnail/Poster */}
+              <Show when={item().posterUrl}>
+                <View
+                  width={120}
+                  height={180}
+                  src={proxyImageUrl(item().posterUrl, 120)}
+                  color={0xffffffff}
+                  borderRadius={10}
+                  textureOptions={{ resizeMode: { type: "cover", clipX: 0.5, clipY: 0.15 } }}
+                />
+              </Show>
+              <Show when={!item().posterUrl}>
+                <View width={120} height={180} color={theme.surfaceLight} borderRadius={10} />
+              </Show>
 
-                {/* Info */}
-                <View x={130} y={10} width={180}>
+              {/* Info */}
+              <View x={130} y={10} width={180}>
+                <Text
+                  fontSize={16}
+                  fontWeight={700}
+                  color={theme.textPrimary}
+                  contain="width"
+                  width={180}
+                  maxLines={2}
+                >
+                  {item().title}
+                </Text>
+
+                {/* Episode info for series */}
+                <Show when={item().type === "series" && item().episodeTitle}>
                   <Text
-                    fontSize={16}
-                    fontWeight={700}
-                    color={theme.textPrimary}
+                    y={45}
+                    fontSize={13}
+                    color={theme.textSecondary}
                     contain="width"
                     width={180}
-                    maxLines={2}
+                    maxLines={1}
                   >
-                    {item.title}
+                    {`S${item().seasonNumber}E${item().episodeNumber}`}
                   </Text>
+                </Show>
 
-                  {/* Episode info for series */}
-                  <Show when={item.type === "series" && item.episodeTitle}>
-                    <Text
-                      y={45}
-                      fontSize={13}
-                      color={theme.textSecondary}
-                      contain="width"
-                      width={180}
-                      maxLines={1}
-                    >
-                      {`S${item.seasonNumber}E${item.episodeNumber}`}
-                    </Text>
-                  </Show>
+                {/* Time remaining */}
+                <Text y={item().type === "series" ? 70 : 50} fontSize={12} color={theme.textMuted}>
+                  {formatTime(item().duration - item().currentTime)}
+                </Text>
+              </View>
 
-                  {/* Time remaining */}
-                  <Text y={item.type === "series" ? 70 : 50} fontSize={12} color={theme.textMuted}>
-                    {formatTime(item.duration - item.currentTime)}
-                  </Text>
-                </View>
-
-                {/* Progress bar */}
-                <View x={10} y={165} width={300}>
-                  <View width={300} style={ProgressBarStyle}>
-                    <View
-                      width={Math.max(0, (300 * item.progress) / 100)}
-                      height={4}
-                      color={theme.primary}
-                      borderRadius={2}
-                    />
-                  </View>
+              {/* Progress bar */}
+              <View x={10} y={165} width={300}>
+                <View width={300} style={ProgressBarStyle}>
+                  <View
+                    width={Math.max(0, (300 * item().progress) / 100)}
+                    height={4}
+                    color={theme.primary}
+                    borderRadius={2}
+                  />
                 </View>
               </View>
-            )}
-          </For>
-        </Row>
+            </View>
+          )}
+        </LazyRow>
       </Show>
     </View>
   );

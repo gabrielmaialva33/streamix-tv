@@ -1,8 +1,8 @@
 import { ElementNode, Text, View } from "@solidtv/solid";
-import { Column, Row } from "@solidtv/solid/primitives";
-import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { Row, VirtualGrid } from "@solidtv/solid/primitives";
+import { batch, createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { Card, CategoryChip, LoadMoreButton, ScrollIndicator, SkeletonLoader } from "@/components";
+import { Card, CategoryChip, ScrollIndicator, SkeletonLoader } from "@/components";
 import api, { type Category, type CategoryFilter, type PaginatedResponse } from "@/lib/api";
 import { pickPoster } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
@@ -10,20 +10,17 @@ import { theme } from "@/styles";
 
 const ITEMS_PER_ROW = 6;
 const ITEMS_PER_PAGE = 30;
-const MAX_RENDERED_ITEMS = 90;
+const VISIBLE_ROWS = 2;
 const HEADER_HEIGHT = 196;
 const CATEGORY_ROW_Y = 136;
 const GRID_Y = 210;
 const GRID_HEIGHT = 1080 - GRID_Y - 10;
 const ROW_HEIGHT = 420;
-const ROW_GAP = 24;
-const IMAGE_REVEAL_ROW_DELAY = 70;
 
 interface CatalogItem {
   id: number;
   title: string | null;
   name: string;
-  // Poster variant fields consumed by pickPoster (present on Movie and Series).
   poster?: string | null;
   poster_url?: string;
   poster_w240?: string | null;
@@ -52,139 +49,84 @@ export interface CatalogGridPageProps<T extends CatalogItem> {
 }
 
 /**
- * Paginated poster grid with category chips, shared by the Movies and Series
- * pages. Only load-more textures within IMAGE_REVEAL_ROW_DELAY waves so VRAM
- * stays bounded when the user pages through a large catalog.
+ * Paginated poster grid shared by Movies and Series. VirtualGrid keeps only
+ * the visible rows plus a one-row buffer mounted while the data array grows.
  */
 function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = createSignal<number | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = createSignal<number>();
   const [offset, setOffset] = createSignal(0);
-  const [searchQuery, setSearchQuery] = createSignal<string | undefined>(undefined);
   const [accumulatedItems, setAccumulatedItems] = createSignal<T[]>([]);
   const [hasMore, setHasMore] = createSignal(false);
-  const [pendingFocusIndex, setPendingFocusIndex] = createSignal<number | null>(null);
   const [scrollPosition, setScrollPosition] = createSignal(0);
-  const [revealFromIndex, setRevealFromIndex] = createSignal(Number.POSITIVE_INFINITY);
 
   let categoriesRow: ElementNode | undefined;
   let contentGrid: ElementNode | undefined;
-  let loadMoreButton: ElementNode | undefined;
   let seenItemIds = new Set<T["id"]>();
 
-  // Reset to categories when the user re-clicks the page route in the sidebar.
   onNavReset(() => categoriesRow?.setFocus());
 
   const [categories] = createResource(() => api.getCategories(props.categoryType));
-
   const [itemsResource] = createResource(
     () => ({
       category_id: selectedCategory(),
       offset: offset(),
       limit: ITEMS_PER_PAGE,
-      search: searchQuery(),
     }),
     params => props.fetchPage(params),
   );
 
-  // Accumulate results when the resource updates.
   createEffect(() => {
     const result = itemsResource();
     if (!result) return;
 
     if (offset() === 0) {
-      // Fresh load (category change, search, etc) - replace data
       seenItemIds = new Set(result.data.map(item => item.id));
+      setAccumulatedItems(result.data);
       setHasMore(result.has_more && result.data.length > 0);
-      setAccumulatedItems(() => result.data);
       return;
     }
 
-    setAccumulatedItems(prev => {
-      const fresh = result.data.filter(item => !seenItemIds.has(item.id));
-      if (fresh.length === 0) {
-        // No new rows to add -> stop pagination so "Carregar Mais" hides.
-        setHasMore(false);
-        return prev;
-      }
-      fresh.forEach(item => seenItemIds.add(item.id));
-      const combined = [...prev, ...fresh];
-      const trimStart = Math.max(0, combined.length - MAX_RENDERED_ITEMS);
-      const next = combined.slice(trimStart);
-      const focusIndex = Math.max(0, prev.length - trimStart);
-      setPendingFocusIndex(focusIndex);
-      setRevealFromIndex(focusIndex);
-      setHasMore(result.has_more);
-      return next;
-    });
-
-    // If everything is loaded the <Show> unmounts the load-more button;
-    // setFocus() on the disposed ref would be a silent no-op and the D-pad
-    // would hang on a real TV. Fall back to the grid when that happens.
-    setTimeout(() => {
-      if (hasMore() && loadMoreButton?.parent) {
-        loadMoreButton.setFocus();
-      } else if (pendingFocusIndex() !== null) {
-        focusItemAt(Math.min(pendingFocusIndex() ?? 0, accumulatedItems().length - 1));
-      } else {
-        contentGrid?.setFocus();
-      }
-      setPendingFocusIndex(null);
-    });
+    const fresh = result.data.filter(item => !seenItemIds.has(item.id));
+    fresh.forEach(item => seenItemIds.add(item.id));
+    if (fresh.length > 0) setAccumulatedItems(previous => [...previous, ...fresh]);
+    setHasMore(result.has_more && fresh.length > 0);
   });
 
-  const itemRows = createMemo(() => {
-    const data = accumulatedItems();
-    const rows: T[][] = [];
-    for (let i = 0; i < data.length; i += ITEMS_PER_ROW) {
-      rows.push(data.slice(i, i + ITEMS_PER_ROW));
-    }
-    return rows;
-  });
-
-  const focusItemAt = (index: number) => {
-    const row = contentGrid?.children[Math.floor(index / ITEMS_PER_ROW)] as ElementNode | undefined;
-    const card = row?.children[index % ITEMS_PER_ROW] as ElementNode | undefined;
-    card?.setFocus();
-  };
-
-  // Handle loading more - save current position
   const loadMore = () => {
-    const currentCount = accumulatedItems().length;
     if (!itemsResource.loading && hasMore()) {
-      setPendingFocusIndex(currentCount);
-      setRevealFromIndex(currentCount);
-      setOffset(prev => prev + ITEMS_PER_PAGE);
+      setOffset(previous => previous + ITEMS_PER_PAGE);
     }
-  };
-
-  const imageDelayFor = (index: number) => {
-    const start = revealFromIndex();
-    return index >= start ? Math.floor((index - start) / ITEMS_PER_ROW) * IMAGE_REVEAL_ROW_DELAY : 0;
   };
 
   const selectCategory = (categoryId: number | undefined) => {
-    if (selectedCategory() === categoryId && !searchQuery()) return;
-    seenItemIds = new Set<T["id"]>();
-    setAccumulatedItems([]);
-    setHasMore(false);
-    setRevealFromIndex(Number.POSITIVE_INFINITY);
-    setSelectedCategory(categoryId);
-    setSearchQuery(undefined);
-    setOffset(0);
+    if (selectedCategory() === categoryId) return;
+    batch(() => {
+      seenItemIds = new Set<T["id"]>();
+      setAccumulatedItems([]);
+      setHasMore(false);
+      setScrollPosition(0);
+      setSelectedCategory(categoryId);
+      setOffset(0);
+    });
+  };
+
+  const leaveGridUp = () => {
+    const cursor = contentGrid?.cursor;
+    if (typeof cursor === "number" && cursor >= ITEMS_PER_ROW) return false;
+    categoriesRow?.setFocus();
+    return true;
   };
 
   return (
     <View
       width={1700}
       height={1080}
-      // When the page container forwards focus here, land on the categories row.
       forwardFocus={() => {
         categoriesRow?.setFocus();
         return true;
       }}
     >
-      {/* Fixed Header - solid background hides content scrolling behind */}
       <View x={0} y={0} width={1700} height={HEADER_HEIGHT} zIndex={10} color={theme.backgroundElevated}>
         <View width={1660} height={100} x={20} skipFocus>
           <Text y={14} fontSize={42} fontWeight={700} color={0xffffffff}>
@@ -196,7 +138,6 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
         </View>
         <View x={20} y={HEADER_HEIGHT - 1} width={1640} height={1} color={theme.border} skipFocus />
 
-        {/* Category Filter - horizontal scrolling */}
         <Row
           ref={categoriesRow}
           x={20}
@@ -211,14 +152,14 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
           <CategoryChip
             label={props.allLabel}
             width={100}
-            active={selectedCategory() === undefined && !searchQuery()}
+            active={selectedCategory() === undefined}
             onSelect={() => selectCategory(undefined)}
           />
           <For each={categories()}>
             {(category: Category) => (
               <CategoryChip
                 label={category.name}
-                active={selectedCategory() === category.id && !searchQuery()}
+                active={selectedCategory() === category.id}
                 onSelect={() => selectCategory(category.id)}
               />
             )}
@@ -226,83 +167,76 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
         </Row>
       </View>
 
-      {/* Content Grid - below fixed header with clipping */}
-      <Column
-        ref={contentGrid}
-        x={20}
-        y={GRID_Y}
-        width={1640}
-        height={GRID_HEIGHT}
-        gap={ROW_GAP}
-        scroll="auto"
-        plinko
-        clipping
-        onUp={() => categoriesRow?.setFocus()}
-        onScrolled={(ref, pos, isInitial) => {
-          if (!isInitial && ref.children.length > 0) {
-            const totalContentHeight = ref.children.length * (ROW_HEIGHT + ROW_GAP);
-            const maxScroll = Math.max(1, totalContentHeight - GRID_HEIGHT);
-            setScrollPosition(Math.abs(pos) / maxScroll);
-          }
-        }}
-      >
-        <Show when={itemsResource.loading && accumulatedItems().length === 0}>
-          {/* Skeleton loaders */}
-          <Row width={1640} height={ROW_HEIGHT} gap={16} scroll="none" skipFocus>
-            <For each={[1, 2, 3, 4, 5, 6]}>
-              {() => (
-                <View width={240} height={ROW_HEIGHT}>
-                  <SkeletonLoader width={240} height={360} />
-                  <SkeletonLoader width={180} height={20} y={370} borderRadius={4} />
-                </View>
-              )}
-            </For>
-          </Row>
-        </Show>
+      <Show when={itemsResource.loading && accumulatedItems().length === 0}>
+        <Row x={20} y={GRID_Y} width={1640} height={ROW_HEIGHT} gap={16} scroll="none" skipFocus>
+          <For each={[1, 2, 3, 4, 5, 6]}>
+            {() => (
+              <View width={240} height={ROW_HEIGHT}>
+                <SkeletonLoader width={240} height={360} />
+                <SkeletonLoader width={180} height={20} y={370} borderRadius={4} />
+              </View>
+            )}
+          </For>
+        </Row>
+      </Show>
 
-        <Show when={!itemsResource.loading && itemRows().length === 0}>
-          <View
-            width={1640}
-            height={400}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            skipFocus
-          >
-            <Text fontSize={28} color={theme.textMuted}>
-              {props.emptyMessage}
-            </Text>
-          </View>
-        </Show>
+      <Show when={!itemsResource.loading && accumulatedItems().length === 0}>
+        <View
+          x={20}
+          y={GRID_Y}
+          width={1640}
+          height={400}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          skipFocus
+        >
+          <Text fontSize={28} color={theme.textMuted}>
+            {props.emptyMessage}
+          </Text>
+        </View>
+      </Show>
 
-        <For each={itemRows()}>
-          {(row, rowIndex) => (
-            <Row width={1640} height={ROW_HEIGHT} gap={16} scroll="none">
-              <For each={row}>
-                {(item: T, itemIndex) => (
-                  <Card
-                    title={item.title || item.name || ""}
-                    imageUrl={pickPoster(item, 240)}
-                    imageDelay={imageDelayFor(rowIndex() * ITEMS_PER_ROW + itemIndex())}
-                    subtitle={props.caption(item)}
-                    onEnter={() => {
-                      navigate(props.detailHref(item));
-                      return true;
-                    }}
-                    item={{ id: item.id, type: props.itemType, href: props.detailHref(item) }}
-                  />
-                )}
-              </For>
-            </Row>
+      <Show when={accumulatedItems().length > 0}>
+        <VirtualGrid
+          ref={contentGrid}
+          x={20}
+          y={GRID_Y}
+          width={1640}
+          height={GRID_HEIGHT}
+          columns={ITEMS_PER_ROW}
+          rows={VISIBLE_ROWS}
+          buffer={1}
+          gap={16}
+          scroll="always"
+          plinko
+          clipping
+          each={accumulatedItems()}
+          onUp={leaveGridUp}
+          onEndReached={loadMore}
+          onEndReachedThreshold={ITEMS_PER_ROW * 2}
+          onSelectedChanged={(_index, _grid, active) => {
+            const absoluteIndex = accumulatedItems().indexOf(active.item as T);
+            if (absoluteIndex >= 0) {
+              setScrollPosition(absoluteIndex / Math.max(1, accumulatedItems().length - 1));
+            }
+          }}
+        >
+          {item => (
+            <Card
+              title={item().title || item().name || ""}
+              imageUrl={pickPoster(item(), 240)}
+              subtitle={props.caption(item())}
+              onEnter={() => {
+                navigate(props.detailHref(item()));
+                return true;
+              }}
+              item={item()}
+            />
           )}
-        </For>
+        </VirtualGrid>
+      </Show>
 
-        <Show when={accumulatedItems().length > 0 && hasMore()}>
-          <LoadMoreButton ref={loadMoreButton} loading={itemsResource.loading} onLoadMore={loadMore} />
-        </Show>
-      </Column>
-
-      {/* Scroll Indicator */}
       <ScrollIndicator
         x={1680}
         y={GRID_Y + 12}

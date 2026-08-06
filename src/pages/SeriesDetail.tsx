@@ -313,27 +313,25 @@ const SeriesDetail = () => {
                   >
                     <ContentRow
                       title="Séries parecidas"
+                      items={similar()}
                       onSelectedChanged={index => {
                         const item = similar()?.[index];
                         if (item) {
                           api.prefetchSeries(String(item.id));
                         }
                       }}
-                      onItemSelected={item => navigate(item.href || "/series")}
-                    >
-                      <For each={similar()}>
-                        {item => (
-                          <Card
-                            title={item.title || item.name || ""}
-                            imageUrl={relatedPoster(item)}
-                            subtitle={ratingCaption(item)}
-                            width={220}
-                            height={330}
-                            item={{ id: item.id, type: "series", href: `/series/${item.id}` }}
-                          />
-                        )}
-                      </For>
-                    </ContentRow>
+                      onItemSelected={item => navigate(`/series/${item.id}`)}
+                      renderItem={item => (
+                        <Card
+                          title={item().title || item().name || ""}
+                          imageUrl={relatedPoster(item())}
+                          subtitle={ratingCaption(item())}
+                          width={220}
+                          height={330}
+                          item={item()}
+                        />
+                      )}
+                    />
                   </View>
                 </Show>
               </Column>

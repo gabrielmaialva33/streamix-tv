@@ -329,20 +329,21 @@ const MovieDetail = () => {
                     return true;
                   }}
                 >
-                  <ContentRow title="Títulos parecidos" onItemSelected={item => navigate(item.href || "/")}>
-                    <For each={similar()}>
-                      {item => (
-                        <Card
-                          title={item.title || item.name || ""}
-                          imageUrl={relatedPoster(item)}
-                          subtitle={ratingCaption(item)}
-                          width={220}
-                          height={330}
-                          item={{ id: item.id, type: "movie", href: `/movie/${item.id}` }}
-                        />
-                      )}
-                    </For>
-                  </ContentRow>
+                  <ContentRow
+                    title="Títulos parecidos"
+                    items={similar()}
+                    onItemSelected={item => navigate(`/movie/${item.id}`)}
+                    renderItem={item => (
+                      <Card
+                        title={item().title || item().name || ""}
+                        imageUrl={relatedPoster(item())}
+                        subtitle={ratingCaption(item())}
+                        width={220}
+                        height={330}
+                        item={item()}
+                      />
+                    )}
+                  />
                 </View>
               </Show>
             </Column>

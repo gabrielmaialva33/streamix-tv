@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from "@solidtv/solid";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, on, Show } from "solid-js";
 import { radialGlowTexture } from "@/lib/gradientTexture";
 import { cssRgb, theme } from "@/styles";
 
@@ -68,20 +68,14 @@ const SubtitleStyle = {
   },
 } satisfies IntrinsicTextNodeStyleProps;
 
-export interface CardItem {
-  id: string | number;
-  type: "movie" | "series" | "channel";
-  href?: string;
-}
-
 export interface CardProps extends NodeProps {
   title: string;
   imageUrl?: string;
   subtitle?: string;
   width?: number;
   height?: number;
-  imageDelay?: number;
-  item?: CardItem;
+  /** Preserve the original data object for Lazy/Virtual collection identity. */
+  item?: unknown;
 }
 
 const Card = (props: CardProps) => {
@@ -92,24 +86,18 @@ const Card = (props: CardProps) => {
 
   // Track image errors only
   const [imageError, setImageError] = createSignal(false);
-  const [imageReady, setImageReady] = createSignal(!props.imageUrl || !props.imageDelay);
+
+  // Virtual collections reuse component instances as their item accessor
+  // changes. A failed previous texture must not poison the next card.
+  createEffect(
+    on(
+      () => props.imageUrl,
+      () => setImageError(false),
+    ),
+  );
 
   // Show placeholder only if no image or error
-  const showPlaceholder = () => !props.imageUrl || !imageReady() || imageError();
-
-  createEffect(() => {
-    const imageUrl = props.imageUrl;
-    const delay = props.imageDelay || 0;
-    setImageError(false);
-    if (!imageUrl || delay <= 0) {
-      setImageReady(!!imageUrl);
-      return;
-    }
-
-    setImageReady(false);
-    const timer = setTimeout(() => setImageReady(true), delay);
-    onCleanup(() => clearTimeout(timer));
-  });
+  const showPlaceholder = () => !props.imageUrl || imageError();
 
   return (
     <View {...props} width={width} height={height + infoHeight} item={props.item} forwardStates>
@@ -127,7 +115,7 @@ const Card = (props: CardProps) => {
       </Show>
 
       {/* Card Image with border - show when image URL exists and no error */}
-      <Show when={props.imageUrl && imageReady() && !imageError()}>
+      <Show when={props.imageUrl && !imageError()}>
         <View
           src={props.imageUrl}
           width={width}

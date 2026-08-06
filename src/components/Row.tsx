@@ -1,26 +1,27 @@
 import { ElementNode, type NodeProps, Text, View } from "@solidtv/solid";
-import { Row as LightningRow } from "@solidtv/solid/primitives";
-import { children as resolveChildren, type JSX, Show } from "solid-js";
+import { LazyRow } from "@solidtv/solid/primitives";
+import { type Accessor, type JSX, Show } from "solid-js";
 
-export interface ContentRowProps extends NodeProps {
+export interface ContentRowProps<T> extends Omit<NodeProps, "children"> {
   title?: string;
-  children: JSX.Element;
+  items: readonly T[] | null | undefined;
+  renderItem: (item: Accessor<T>, index: number) => JSX.Element;
   onSelectedChanged?: (selected: number) => void;
-  onItemSelected?: (item: any) => void;
+  onItemSelected?: (item: T) => void;
   autofocus?: boolean;
-  /** Forwarded to the inner Lightning Row. */
+  /** Forwarded to the inner LazyRow. */
   onUpRequest?: () => boolean;
 }
 
-// ContentRow = optional title + horizontal LightningRow.
-// Keep focus props on the inner row only to avoid conflicting focus targets.
-const ContentRow = (props: ContentRowProps) => {
-  const resolved = resolveChildren(() => props.children);
-
+/**
+ * Titled, data-driven content rail. LazyRow keeps the initial WebGL node and
+ * texture burst bounded, then mounts cards after D-pad scrolling settles.
+ */
+const ContentRow = <T,>(props: ContentRowProps<T>) => {
   function handleEnter(this: ElementNode) {
-    const focused = this.children.find(c => c.states?.has("$focus")) as ElementNode | undefined;
-    if (focused && focused.item) {
-      props.onItemSelected?.(focused.item);
+    const focused = this.children.find(child => child.states?.has("$focus")) as ElementNode | undefined;
+    if (focused?.item !== undefined) {
+      props.onItemSelected?.(focused.item as T);
       return true;
     }
     return false;
@@ -30,7 +31,7 @@ const ContentRow = (props: ContentRowProps) => {
     <View
       width={1700}
       height={props.title ? 520 : 460}
-      // Forward focus to the LightningRow instead of the wrapper View.
+      // Forward focus to the LazyRow instead of the wrapper View.
       forwardFocus={props.title ? 1 : 0}
     >
       <Show when={props.title}>
@@ -39,7 +40,7 @@ const ContentRow = (props: ContentRowProps) => {
         </Text>
       </Show>
 
-      <LightningRow
+      <LazyRow
         x={20}
         y={props.title ? 50 : 0}
         width={1660}
@@ -47,15 +48,18 @@ const ContentRow = (props: ContentRowProps) => {
         gap={24}
         scroll="always"
         plinko
+        each={props.items}
+        upCount={7}
+        buffer={2}
+        delay={180}
+        sync
         autofocus={props.autofocus}
         onEnter={handleEnter}
         onUp={props.onUpRequest}
-        onSelectedChanged={(idx, _el, _child, _lastIdx) => {
-          props.onSelectedChanged?.(idx);
-        }}
+        onSelectedChanged={index => props.onSelectedChanged?.(index)}
       >
-        {resolved()}
-      </LightningRow>
+        {props.renderItem}
+      </LazyRow>
     </View>
   );
 };

@@ -1,9 +1,9 @@
 import { type ElementNode, View } from "@solidtv/solid";
 import { Column } from "@solidtv/solid/primitives";
-import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createResource, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Card, ContentRow, ContinueWatchingRow, Hero } from "@/components";
-import api, { type FeaturedItem, type Movie, type RecommendationItem, type Series } from "@/lib/api";
+import api, { type FeaturedItem } from "@/lib/api";
 import { ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { pickPoster } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
@@ -11,11 +11,6 @@ import { theme } from "@/styles";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [featuredIndex, setFeaturedIndex] = createSignal(0);
-  // Staggered rail reveal: commercial TVs choke when ~100 Card textures land
-  // in a single frame (WebGL asset burst). Mount rails in waves so image
-  // decoding is distributed and first paint is not blocked.
-  const [railTick, setRailTick] = createSignal(0);
 
   let hero: ElementNode | undefined;
 
@@ -53,29 +48,6 @@ const Home = () => {
     window.dispatchEvent(new Event("streamix:ready"));
   });
 
-  // Register cleanup explicitly; returning from onMount does not dispose the timer.
-  onMount(() => {
-    const interval = setInterval(() => {
-      const items = featured();
-      if (items && items.length > 1) {
-        setFeaturedIndex(i => (i + 1) % items.length);
-      }
-    }, 8000);
-    // Stagger the remaining rails — Hero + first two rails paint fast, then
-    // every ~350ms another rail unlocks. User-initiated scroll down is already
-    // fine because Column only asks for focus on the next visible child.
-    const timers = [
-      setTimeout(() => setRailTick(1), 350),
-      setTimeout(() => setRailTick(2), 700),
-      setTimeout(() => setRailTick(3), 1050),
-      setTimeout(() => setRailTick(4), 1400),
-    ];
-    onCleanup(() => {
-      clearInterval(interval);
-      for (const t of timers) clearTimeout(t);
-    });
-  });
-
   // Fall back to the first trending movie if featured content is unavailable.
   const featuredList = (): FeaturedItem[] => {
     const items = featured();
@@ -101,7 +73,7 @@ const Home = () => {
     ];
   };
 
-  const currentFeatured = () => featuredList()[featuredIndex()];
+  const currentFeatured = () => featuredList()[0];
 
   const handlePlayFeatured = () => {
     const item = currentFeatured();
@@ -129,99 +101,89 @@ const Home = () => {
 
   return (
     <View width={1700} height={1080} color={theme.background} clipping forwardFocus={0}>
-      <Column
-        width={1700}
-        height={1080}
-        gap={28}
-        scroll="auto"
-        forwardFocus={0}
-        onDown={() => {
-          // Any downward nav reveals all rails at once so scroll has somewhere
-          // to go. Without this the stagger keeps later rails unmounted and
-          // the Column appears to freeze at the last visible child.
-          setRailTick(4);
-          return false;
-        }}
-      >
+      <Column width={1700} height={1080} gap={28} scroll="auto" forwardFocus={0}>
         <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
         <Show when={recommendedMovies()?.recommendations?.length}>
-          <ContentRow title="Para você" onItemSelected={item => navigate(item.href)}>
-            <For each={recommendedMovies()?.recommendations || []}>
-              {(movie: RecommendationItem) => (
-                <Card
-                  title={movie.title || movie.name || ""}
-                  imageUrl={relatedPoster(movie)}
-                  subtitle={ratingCaption(movie)}
-                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                />
-              )}
-            </For>
-          </ContentRow>
+          <ContentRow
+            title="Para você"
+            items={recommendedMovies()?.recommendations}
+            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+            renderItem={movie => (
+              <Card
+                title={movie().title || movie().name || ""}
+                imageUrl={relatedPoster(movie())}
+                subtitle={ratingCaption(movie())}
+                item={movie()}
+              />
+            )}
+          />
         </Show>
 
         <Show when={trendingMovies()?.length}>
-          <ContentRow title="Em alta" onItemSelected={item => navigate(item.href)}>
-            <For each={trendingMovies()}>
-              {(movie: Movie) => (
-                <Card
-                  title={movie.title || movie.name || ""}
-                  imageUrl={pickPoster(movie, 240)}
-                  subtitle={ratingCaption(movie)}
-                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                />
-              )}
-            </For>
-          </ContentRow>
+          <ContentRow
+            title="Em alta"
+            items={trendingMovies()}
+            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+            renderItem={movie => (
+              <Card
+                title={movie().title || movie().name || ""}
+                imageUrl={pickPoster(movie(), 240)}
+                subtitle={ratingCaption(movie())}
+                item={movie()}
+              />
+            )}
+          />
         </Show>
 
-        <Show when={railTick() >= 1 && recentMovies()?.length}>
-          <ContentRow title="Chegaram agora" onItemSelected={item => navigate(item.href)}>
-            <For each={recentMovies()}>
-              {(movie: Movie) => (
-                <Card
-                  title={movie.title || movie.name || ""}
-                  imageUrl={pickPoster(movie, 240)}
-                  subtitle={ratingCaption(movie)}
-                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                />
-              )}
-            </For>
-          </ContentRow>
+        <Show when={recentMovies()?.length}>
+          <ContentRow
+            title="Chegaram agora"
+            items={recentMovies()}
+            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+            renderItem={movie => (
+              <Card
+                title={movie().title || movie().name || ""}
+                imageUrl={pickPoster(movie(), 240)}
+                subtitle={ratingCaption(movie())}
+                item={movie()}
+              />
+            )}
+          />
         </Show>
 
-        <Show when={railTick() >= 2 && topRatedMovies()?.length}>
-          <ContentRow title="Mais elogiados" onItemSelected={item => navigate(item.href)}>
-            <For each={topRatedMovies()}>
-              {(movie: Movie) => (
-                <Card
-                  title={movie.title || movie.name || ""}
-                  imageUrl={pickPoster(movie, 240)}
-                  subtitle={ratingCaption(movie)}
-                  item={{ id: movie.id, type: "movie", href: `/movie/${movie.id}` }}
-                />
-              )}
-            </For>
-          </ContentRow>
+        <Show when={topRatedMovies()?.length}>
+          <ContentRow
+            title="Mais elogiados"
+            items={topRatedMovies()}
+            onItemSelected={movie => navigate(`/movie/${movie.id}`)}
+            renderItem={movie => (
+              <Card
+                title={movie().title || movie().name || ""}
+                imageUrl={pickPoster(movie(), 240)}
+                subtitle={ratingCaption(movie())}
+                item={movie()}
+              />
+            )}
+          />
         </Show>
 
-        <Show when={railTick() >= 3 && trendingSeries()?.length}>
-          <ContentRow title="Séries em alta" onItemSelected={item => navigate(item.href)}>
-            <For each={trendingSeries()}>
-              {(show: Series) => (
-                <Card
-                  title={show.title || show.name || ""}
-                  imageUrl={pickPoster(show, 240)}
-                  subtitle={show.year ? String(show.year) : undefined}
-                  item={{ id: show.id, type: "series", href: `/series/${show.id}` }}
-                />
-              )}
-            </For>
-          </ContentRow>
+        <Show when={trendingSeries()?.length}>
+          <ContentRow
+            title="Séries em alta"
+            items={trendingSeries()}
+            onItemSelected={show => navigate(`/series/${show.id}`)}
+            renderItem={show => (
+              <Card
+                title={show().title || show().name || ""}
+                imageUrl={pickPoster(show(), 240)}
+                subtitle={show().year ? String(show().year) : undefined}
+                item={show()}
+              />
+            )}
+          />
         </Show>
 
-        <Show when={railTick() >= 4}>
-          <ContinueWatchingRow limit={10} />
-        </Show>
+        <ContinueWatchingRow limit={10} />
       </Column>
     </View>
   );
