@@ -79,7 +79,6 @@ function buildResultRows(result?: SearchResultBuckets | null): SearchResultRow[]
 }
 
 const Search = () => {
-  const navigate = useNavigate();
   const [query, setQuery] = createSignal("");
   const [searchTriggered, setSearchTriggered] = createSignal(false);
   // Debounced mirror of `query` used to fire typeahead while the user types.
