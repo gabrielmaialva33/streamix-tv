@@ -233,11 +233,11 @@ describe("Streamix API contracts", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { default: api } = await import("./api");
 
-    await expect(api.search("space", 10, { provider_id: 7 })).resolves.toMatchObject({
+    await expect(api.search("space", 30, { provider_id: 7 })).resolves.toMatchObject({
       movies: [{ id: 1 }],
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe(`${API_V1}/catalog/search?q=space&limit=10&provider_id=7`);
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API_V1}/catalog/search?q=space&limit=20&provider_id=7`);
   });
 
   it("sends playback QoE through the canonical metrics batch", async () => {

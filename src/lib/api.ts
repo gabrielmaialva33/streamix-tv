@@ -45,6 +45,12 @@ let pendingPrefetchTimer: ReturnType<typeof setTimeout> | undefined;
 const PREFETCH_SETTLE_DELAY_MS = 450;
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 min
 const SHORT_TTL = 30 * 1000; // 30s for volatile data such as EPG now and stream URLs.
+const CATALOG_SEARCH_MAX_LIMIT = 20;
+
+function catalogSearchLimit(limit: number): number {
+  if (!Number.isFinite(limit)) return 10;
+  return Math.min(Math.max(Math.trunc(limit), 1), CATALOG_SEARCH_MAX_LIMIT);
+}
 
 function buildQuery(params: Record<string, unknown>): string {
   const parts: string[] = [];
@@ -1072,20 +1078,30 @@ export const api = {
   // catalog response. The lexical response remains authoritative if the AI
   // service is temporarily unavailable and is also the source for channels.
   search: async (query: string, limit = 10, filters: CatalogProviderParams = {}): Promise<SearchResults> => {
+    const safeLimit = catalogSearchLimit(limit);
     const semanticEnabled = filters.provider_id === undefined && filters.provider_type === undefined;
     const [catalogResult, movieResult, seriesResult] = await Promise.allSettled([
-      request<CatalogSearchEnvelope>(`${CATALOG_URL}/search${buildQuery({ q: query, limit, ...filters })}`, {
-        ttl: SHORT_TTL,
-      }),
+      request<CatalogSearchEnvelope>(
+        `${CATALOG_URL}/search${buildQuery({ q: query, limit: safeLimit, ...filters })}`,
+        {
+          ttl: SHORT_TTL,
+        },
+      ),
       semanticEnabled
-        ? request<SemanticMovieSearchResponse>(`${SEARCH_URL}/movies${buildQuery({ q: query, limit })}`, {
-            ttl: SHORT_TTL,
-          })
+        ? request<SemanticMovieSearchResponse>(
+            `${SEARCH_URL}/movies${buildQuery({ q: query, limit: safeLimit })}`,
+            {
+              ttl: SHORT_TTL,
+            },
+          )
         : Promise.resolve({ movies: [], query, semantic: false }),
       semanticEnabled
-        ? request<SemanticSeriesSearchResponse>(`${SEARCH_URL}/series${buildQuery({ q: query, limit })}`, {
-            ttl: SHORT_TTL,
-          })
+        ? request<SemanticSeriesSearchResponse>(
+            `${SEARCH_URL}/series${buildQuery({ q: query, limit: safeLimit })}`,
+            {
+              ttl: SHORT_TTL,
+            },
+          )
         : Promise.resolve({ series: [], query, semantic: false }),
     ]);
 
@@ -1099,14 +1115,14 @@ export const api = {
       movies: mergeById(
         movieResult.status === "fulfilled" ? (movieResult.value.movies || []).map(normMovie) : [],
         (catalog.movies || []).map(normMovie),
-        limit,
+        safeLimit,
       ),
       series: mergeById(
         seriesResult.status === "fulfilled" ? (seriesResult.value.series || []).map(normSeries) : [],
         (catalog.series || []).map(normSeries),
-        limit,
+        safeLimit,
       ),
-      channels: (catalog.channels || []).map(normChannel).slice(0, limit),
+      channels: (catalog.channels || []).map(normChannel).slice(0, safeLimit),
     };
   },
 
