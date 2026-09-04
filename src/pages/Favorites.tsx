@@ -137,6 +137,13 @@ const Favorites = () => {
           contentGrid.setFocus();
           return true;
         }}
+        // The tabs autofocus on mount, and with an empty collection there is no
+        // grid below them to take over — without a left exit the sidebar was
+        // only reachable with the Back key.
+        onLeft={() => {
+          if ((tabsRow?.selected ?? 0) > 0) return false;
+          return layoutFocus?.focusSidebar() ?? false;
+        }}
       >
         <For each={FILTER_TABS}>
           {tab => (
