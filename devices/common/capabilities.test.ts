@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { type DeviceProfile, rendererBudget } from "./capabilities";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { type DeviceProfile, hasPointerInput, rendererBudget } from "./capabilities";
 
 function profile(overrides: Partial<DeviceProfile> = {}): DeviceProfile {
   return {
@@ -70,5 +70,41 @@ describe("rendererBudget", () => {
     // just because it is a Fire TV, and vice versa.
     expect(rendererBudget(profile({ deviceMemoryGB: 4, isFireTV: true })).criticalThresholdMB).toBe(140);
     expect(rendererBudget(profile({ deviceMemoryGB: 1, tizenVersion: 10.0 })).criticalThresholdMB).toBe(56);
+  });
+});
+
+function withPointerQueries(matching: string[]): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({ matches: matching.includes(query) })),
+  );
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("hasPointerInput", () => {
+  it("is false on a remote-only TV", () => {
+    // What the Android TV / Fire TV WebView reports: pointer none.
+    withPointerQueries([]);
+    expect(hasPointerInput()).toBe(false);
+  });
+
+  it("is true for a pointer remote", () => {
+    // An LG magic remote moves a cursor and wants click-to-Enter translation.
+    withPointerQueries(["(any-pointer: fine)"]);
+    expect(hasPointerInput()).toBe(true);
+  });
+
+  it("is true for a touch screen", () => {
+    withPointerQueries(["(any-pointer: coarse)"]);
+    expect(hasPointerInput()).toBe(true);
+  });
+
+  it("assumes no pointer when the WebView cannot answer", () => {
+    // Too old to support matchMedia: a TV app's safe default is remote-only.
+    vi.stubGlobal("matchMedia", undefined);
+    expect(hasPointerInput()).toBe(false);
   });
 });
