@@ -16,6 +16,7 @@ environments/.env.production
 .codex
 .idea
 .playwright-mcp
+.playwright-cli
 *storybook.log
 streamix.log
 tmp
