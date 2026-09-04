@@ -1,4 +1,5 @@
 import { createLogger } from "@/shared/logging/logger";
+import { FALLBACK_MESSAGES, GENERIC_FALLBACK, GENERIC_REFUSAL, REFUSAL_MESSAGES } from "../../playbackError";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("HTML5Player");
@@ -107,18 +108,47 @@ export function initHTML5Backend(deps: HTML5BackendDeps) {
 type SourceProbe = {
   contentType: string;
   fallback: string | null;
+  /** `error.code` from a refusing proxy, e.g. "torrent_playback_required". */
+  errorCode: string | null;
 };
+
+const EMPTY_PROBE: SourceProbe = { contentType: "", fallback: null, errorCode: null };
+
+/**
+ * Read the proxy's reason for refusing a stream.
+ *
+ * A HEAD carries no body, and some proxied hosts reject HEAD outright, so the
+ * refusal only shows up on a GET. One byte is enough to get the status line and
+ * the JSON error the backend sends with it — without this the player receives a
+ * bare MEDIA_ERR_SRC_NOT_SUPPORTED from the video element and can only say
+ * "playback failed", inviting a retry that cannot succeed.
+ */
+async function probeRefusal(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { method: "GET", headers: { Range: "bytes=0-1" } });
+    if (response.ok || response.status === 206) return null;
+    const body = await response.json().catch(() => null);
+    const code = (body as { error?: { code?: string } } | null)?.error?.code;
+    return typeof code === "string" ? code : null;
+  } catch {
+    return null;
+  }
+}
 
 async function probeSource(url: string): Promise<SourceProbe> {
   try {
     const response = await fetch(url, { method: "HEAD" });
+    if (!response.ok) {
+      return { ...EMPTY_PROBE, errorCode: await probeRefusal(url) };
+    }
     return {
       contentType: response.headers.get("content-type") ?? "",
       fallback: response.headers.get("x-streamix-fallback"),
+      errorCode: null,
     };
   } catch (error) {
-    logger.warn("Stream HEAD probe failed; falling back to URL extension", error);
-    return { contentType: "", fallback: null };
+    logger.warn("Stream HEAD probe failed; asking for the refusal reason", error);
+    return { ...EMPTY_PROBE, errorCode: await probeRefusal(url) };
   }
 }
 
@@ -127,13 +157,6 @@ async function probeSource(url: string): Promise<SourceProbe> {
 // Backend uses "channel" in the category name even for movies/series — it's
 // the streaming-pipeline category, not the content type. The message stays
 // content-neutral so it makes sense in any of the three players.
-const FALLBACK_MESSAGES: Record<string, string> = {
-  channel_unavailable: "Conteúdo indisponível no momento. Tente novamente em alguns instantes.",
-  provider_unavailable: "Serviço de stream indisponível. Tente novamente em alguns instantes.",
-  account_expired: "Sua assinatura expirou. Atualize na página de perfil para continuar.",
-  stream_blocked: "Conteúdo bloqueado na sua região.",
-  rate_limited: "Muitas requisições agora. Aguarde um momento e tente de novo.",
-};
 
 function shouldUseHls(url: string, contentType: string) {
   if (url.includes(".m3u8")) return true;
@@ -157,8 +180,16 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
   try {
     const probe = await probeSource(url);
 
+    if (probe.errorCode) {
+      const message = REFUSAL_MESSAGES[probe.errorCode] ?? GENERIC_REFUSAL;
+      logger.warn("Stream proxy refused the source", { url, code: probe.errorCode });
+      deps.updateState({ error: message, buffering: false });
+      deps.callbacks.onError?.(message);
+      return;
+    }
+
     if (probe.fallback) {
-      const message = FALLBACK_MESSAGES[probe.fallback] ?? "Stream indisponível no momento";
+      const message = FALLBACK_MESSAGES[probe.fallback] ?? GENERIC_FALLBACK;
       logger.warn("Backend returned fallback stream", { url, category: probe.fallback });
       deps.updateState({ error: message, buffering: false });
       deps.callbacks.onError?.(message);
