@@ -147,6 +147,10 @@ const MovieDetail = () => {
         {currentMovie => {
           const metaItems = buildMeta(currentMovie());
           const posterUrl = pickPoster(currentMovie(), 240);
+          // DetailHero stretches this across a 1620px-wide banner when the title
+          // has no backdrop, so it needs its own larger variant — the 240px poster
+          // DetailPoster uses would be upscaled 6.75x and reads visibly soft on a TV.
+          const heroPosterUrl = pickPoster(currentMovie(), 720);
           const backdropUrl = pickBackdrop(currentMovie(), 1280);
 
           // The whole page scrolls as one Column: pressing Down from the
@@ -164,7 +168,12 @@ const MovieDetail = () => {
               {/* Hero block — backdrop, poster and the action panel. Height
                   covers the absolutely-positioned children inside it. */}
               <View width={1620} height={602} skipFocus>
-                <DetailHero backdropUrl={backdropUrl} posterUrl={posterUrl} badge="FILME" badgeWidth={112} />
+                <DetailHero
+                  backdropUrl={backdropUrl}
+                  posterUrl={heroPosterUrl}
+                  badge="FILME"
+                  badgeWidth={112}
+                />
                 <DetailPoster posterUrl={posterUrl} />
 
                 <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>

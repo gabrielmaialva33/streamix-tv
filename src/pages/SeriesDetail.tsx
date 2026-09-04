@@ -148,6 +148,10 @@ const SeriesDetail = () => {
         {currentSeries => {
           const metaItems = buildMeta(currentSeries());
           const posterUrl = pickPoster(currentSeries(), 240);
+          // DetailHero stretches this across a 1620px-wide banner when the title
+          // has no backdrop, so it needs its own larger variant — the 240px poster
+          // DetailPoster uses would be upscaled 6.75x and reads visibly soft on a TV.
+          const heroPosterUrl = pickPoster(currentSeries(), 720);
           const backdropUrl = pickBackdrop(currentSeries(), 1280);
 
           return (
@@ -159,7 +163,12 @@ const SeriesDetail = () => {
               scroll="none"
             >
               <View width={1620} height={602} skipFocus>
-                <DetailHero backdropUrl={backdropUrl} posterUrl={posterUrl} badge="SÉRIE" badgeWidth={122} />
+                <DetailHero
+                  backdropUrl={backdropUrl}
+                  posterUrl={heroPosterUrl}
+                  badge="SÉRIE"
+                  badgeWidth={122}
+                />
                 <DetailPoster posterUrl={posterUrl} />
 
                 <View x={268} y={320} width={1392} height={282} style={PANEL_STYLE}>
