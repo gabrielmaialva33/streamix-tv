@@ -82,6 +82,19 @@ function sanitizeTitle(title: string): string | null {
   return /[a-zA-ZÀ-ÿ]{3}/.test(cleaned) ? cleaned : null;
 }
 
+/**
+ * Build the label a viewer picks by.
+ *
+ * Declared language and channel count win over the track's own title, and the
+ * reason is provenance: `language` and `channels` come from ffprobe reading the
+ * container, while `title` is free text someone typed at encode time. A title
+ * reading "Inglês 5.1" only coincides with reality; `channels: 6` is reality.
+ * Releases do mislabel, and when they do this ordering is right and the title
+ * repeats the mistake.
+ *
+ * That leaves the title with the job it is actually good for: naming a track
+ * the container failed to describe at all.
+ */
 function labelFor(track: GindexTrack, kind: MediaTrack["kind"], position: number): string {
   const language = (track.language ?? "").trim().toLowerCase();
   const named = LANGUAGE_NAMES[language] ?? (language && language !== "und" ? language.toUpperCase() : "");
