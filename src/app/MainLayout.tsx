@@ -1,15 +1,6 @@
 import { activeElement, ElementNode, View } from "@solidtv/solid";
 import { useLocation, useNavigate } from "@solidjs/router";
-import {
-  children,
-  createEffect,
-  createMemo,
-  createSignal,
-  type JSX,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Suspense } from "@solidtv/solid/primitives";
 import { ExitDialog, ProviderHealthBanner, Sidebar } from "@/components";
 import { LayoutFocusContext } from "@/app/layoutFocus";
@@ -34,7 +25,6 @@ const MainLayout = (props: MainLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showExitDialog, setShowExitDialog] = createSignal(false);
-  const resolvedChildren = children(() => props.children);
   const providerHealth = createProviderHealthPolling();
   const catalogBrowse = createMemo(() => catalogBrowseConfigForPath(location.pathname));
   const currentSidebarWidth = () => (catalogBrowse() ? CATALOG_SIDEBAR_WIDTH : SIDEBAR_WIDTH);
@@ -196,7 +186,7 @@ const MainLayout = (props: MainLayoutProps) => {
           <Suspense
             fallback={<View width={currentContentWidth()} height={CONTENT_HEIGHT} color={theme.background} />}
           >
-            {resolvedChildren()}
+            {props.children}
           </Suspense>
         </LayoutFocusContext.Provider>
       </View>
