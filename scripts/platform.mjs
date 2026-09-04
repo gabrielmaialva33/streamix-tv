@@ -147,7 +147,11 @@ function apk(targetName) {
   if (!target.apkCommand) fail(`Target "${targetName}" does not define an APK command.`);
   sync(targetName);
   run(target.apkCommand[0], target.apkCommand[1], target.apkCommand[2], {
-    JAVA_HOME: process.env.JAVA_HOME ?? "/usr/lib/jvm/java-21-openjdk",
+    // ANDROID_JAVA_HOME wins over the shell's JAVA_HOME on purpose: Gradle 8.14
+    // and AGP 8.13 reject Java 25 ("Unsupported class file major version 69"),
+    // so a machine whose default toolchain is newer still needs to point the
+    // Android build at a supported JDK without changing that default.
+    JAVA_HOME: process.env.ANDROID_JAVA_HOME ?? process.env.JAVA_HOME ?? "/usr/lib/jvm/java-21-openjdk",
     ANDROID_HOME: process.env.ANDROID_HOME ?? path.join(process.env.HOME ?? "", "Android/Sdk"),
   });
 }
