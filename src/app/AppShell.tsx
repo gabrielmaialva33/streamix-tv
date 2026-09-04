@@ -2,6 +2,7 @@ import { ElementNode, View } from "@solidtv/solid";
 import { useAnnouncer, useFocusManager, useMouse } from "@solidtv/solid/primitives";
 import { lazy, Show } from "solid-js";
 import { Suspense } from "@solidtv/solid/primitives";
+import { hasPointerInput } from "#devices/common/capabilities";
 import { preferences } from "@/lib/storage";
 import { isDebugOverlayEnabled, toggleDebugOverlay } from "@/debug/overlayState";
 import { noteBackReachedRoot } from "@/platform/backKey";
@@ -22,7 +23,10 @@ interface AppShellProps {
 
 const AppShell = (props: AppShellProps) => {
   useFocusManager(activeKeys);
-  useMouse();
+  // Only where a cursor exists: on a remote-only TV this turns every Enter into
+  // two, because the browser's own activation click comes back as a second
+  // Enter. See hasPointerInput.
+  if (hasPointerInput()) useMouse();
 
   const announcer = useAnnouncer();
   announcer.debug = false;
