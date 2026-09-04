@@ -47,7 +47,32 @@ import { theme } from "@/styles";
 
 const PROVIDER_AWARE_ROUTES = new Set(["/movies", "/series", "/channels"]);
 const CATEGORY_WINDOW_SIZE = 9;
-const numberFormatter = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+// `notation: "compact"` needs Chrome 77. Tizen 6.0 ships Chromium M76 and every
+// older set is further behind, and there the option is silently ignored rather
+// than throwing — so those TVs rendered raw counts ("12345") while newer ones
+// rendered "12,3 mil". Detect support once and fall back to an equivalent
+// manual form so the rail reads the same on every model.
+const compactFormatter = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const plainFormatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+const supportsCompactNotation = compactFormatter.format(12345) !== plainFormatter.format(12345);
+
+const COMPACT_UNITS = [
+  { limit: 1e9, suffix: " bi" },
+  { limit: 1e6, suffix: " mi" },
+  { limit: 1e3, suffix: " mil" },
+] as const;
+
+function formatCompactNumber(value: number): string {
+  if (supportsCompactNotation) return compactFormatter.format(value);
+  const magnitude = Math.abs(value);
+  for (const unit of COMPACT_UNITS) {
+    if (magnitude >= unit.limit) return plainFormatter.format(value / unit.limit) + unit.suffix;
+  }
+  return plainFormatter.format(value);
+}
 const logger = createLogger("Sidebar");
 const NAVIGATION_PRELOAD_DELAY_MS = 180;
 
@@ -82,7 +107,9 @@ const NavButtonActiveStyle = {
 } satisfies IntrinsicNodeStyleProps;
 
 const NavButtonTextStyle = {
-  fontSize: 18,
+  // Android TV sizes browse menu categories at 20sp; the sidebar is the most
+  // read text in the app and 18 sat under that from a 3m viewing distance.
+  fontSize: 20,
   x: 16,
   y: 14,
   height: 50,
@@ -916,7 +943,7 @@ const Sidebar = (props: SidebarProps) => {
                     const count = () => {
                       const contentType = browseConfig()?.contentType;
                       const value = contentType && option.provider?.catalog_counts[contentType];
-                      return typeof value === "number" ? numberFormatter.format(value) : undefined;
+                      return typeof value === "number" ? formatCompactNumber(value) : undefined;
                     };
                     return (
                       <RailOption

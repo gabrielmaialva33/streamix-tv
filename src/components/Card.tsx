@@ -48,7 +48,9 @@ const CardImageStyle = {
 
 // Title style - transitions to white on focus
 const CardTitleStyle = {
-  fontSize: 17,
+  // 18 is Android TV's default body size for 10-foot reading; the subtitle
+  // below stays at 14, which is the guideline's "details subtext" size.
+  fontSize: 18,
   color: theme.textSecondary,
   contain: "width",
   maxLines: 1,
