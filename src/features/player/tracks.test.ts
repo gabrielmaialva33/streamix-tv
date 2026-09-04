@@ -132,18 +132,39 @@ describe("fetchMediaTracks", () => {
       tracks: [{ index: 4, kind: "audio", label: "Português", language: "por", isDefault: false }],
     });
   });
-  it("ignores release-group branding in the track title", async () => {
-    // Real titles carry things like "WWW.BLUDV.COM 5.1 [BR]"; the language the
-    // container declares is what a viewer actually chooses by.
+  // The seven distinct titles the production catalog actually carries. Every one
+  // is watermarked, but two of them are also the only descriptive labels in the
+  // set — discarding on a match would throw those away with the noise.
+  const REAL_TITLES: Array<[string, string]> = [
+    ["COMANDO.TO", "Faixa 1"],
+    ["LAPUMiA", "Faixa 1"],
+    ["LAPUMiAFiLMES.COM", "Faixa 1"],
+    ["WWW.BLUDV.COM", "Faixa 1"],
+    ["WWW.BLUDV.COM 5.1 [BR]", "Faixa 1"],
+    ["Inglês 5.1 - LAPUMiA", "Inglês 5.1"],
+    ["Português 2.0 - LAPUMiA", "Português 2.0"],
+  ];
+
+  for (const [title, expected] of REAL_TITLES) {
+    it(`cleans rather than discards ${JSON.stringify(title)}`, async () => {
+      getGindexTracks.mockResolvedValue({
+        audio: [{ index: 1, language: "und", title, channels: null }],
+        subtitle: [],
+      });
+      const result = await resolveWithTimers(fetchMediaTracks("movie", 1));
+      expect((result as { tracks: Array<{ label: string }> }).tracks[0].label).toBe(expected);
+    });
+  }
+
+  it("prefers the declared language over the title when both are usable", async () => {
+    // Language is normalised and the channel layout comes from its own field,
+    // so a title only has to carry the load when the container declares none.
     getGindexTracks.mockResolvedValue({
-      audio: [{ index: 1, language: "por", title: "WWW.BLUDV.COM 5.1 [BR]", channels: 6 }],
+      audio: [{ index: 1, language: "eng", title: "Inglês 5.1 - LAPUMiA", channels: 6 }],
       subtitle: [],
     });
     const result = await resolveWithTimers(fetchMediaTracks("movie", 1));
-    expect(result).toEqual({
-      status: "ready",
-      tracks: [{ index: 1, kind: "audio", label: "Português · 5.1", language: "por", isDefault: false }],
-    });
+    expect((result as { tracks: Array<{ label: string }> }).tracks[0].label).toBe("Inglês · 5.1");
   });
 
   it("keeps a meaningful title when the container declares no language", async () => {

@@ -54,20 +54,41 @@ const CHANNEL_LAYOUTS: Record<number, string> = {
   8: "7.1",
 };
 
+/** Domain-shaped tokens and the release groups this catalog actually carries. */
+const BRANDING_PATTERNS: RegExp[] = [
+  /\b(?:www\.)?[a-z0-9-]+\.(?:com|net|org|to|tv|me|cc)\b/gi,
+  /\b(?:lapumia|bludv|comando)[a-z]*\b/gi,
+];
+
 /**
- * Release groups stuff their own branding into the track title, so a title is
- * only worth showing when the container declared no usable language.
+ * Strip release-group branding from a track title, keeping whatever names the
+ * track.
+ *
+ * Every distinct title in the production catalog carries a watermark, but two
+ * of them ("Português 2.0 - LAPUMiA", "Inglês 5.1 - LAPUMiA") are also the only
+ * genuinely descriptive labels in the set — so discarding a title outright
+ * throws away the useful ones along with the noise. What is left has to contain
+ * a real word to count as a label: "WWW.BLUDV.COM 5.1 [BR]" reduces to
+ * "5.1 [BR]", which says nothing the `channels` field does not already say.
+ *
+ * The backend sanitises this too (streamix c540d065), but that is not deployed
+ * yet and a new group name would slip past either side, so this stays as the
+ * near-side net. Cleaning is idempotent: an already-clean title passes through.
  */
-function looksLikeBranding(title: string): boolean {
-  return /www\.|\.com|\.net|\.org|torrent|bludv|comando/i.test(title);
+function sanitizeTitle(title: string): string | null {
+  let cleaned = title;
+  for (const pattern of BRANDING_PATTERNS) cleaned = cleaned.replace(pattern, " ");
+  cleaned = cleaned.replace(/[\s\-–—_|/\\[\]()]+/g, " ").trim();
+  return /[a-zA-ZÀ-ÿ]{3}/.test(cleaned) ? cleaned : null;
 }
 
 function labelFor(track: GindexTrack, kind: MediaTrack["kind"], position: number): string {
   const language = (track.language ?? "").trim().toLowerCase();
   const named = LANGUAGE_NAMES[language] ?? (language && language !== "und" ? language.toUpperCase() : "");
-  const title = (track.title ?? "").trim();
+  const rawTitle = (track.title ?? "").trim();
+  const title = rawTitle ? sanitizeTitle(rawTitle) : null;
 
-  const base = named || (title && !looksLikeBranding(title) ? title : "") || `Faixa ${position + 1}`;
+  const base = named || title || `Faixa ${position + 1}`;
 
   if (kind === "audio" && typeof track.channels === "number") {
     const layout = CHANNEL_LAYOUTS[track.channels];
