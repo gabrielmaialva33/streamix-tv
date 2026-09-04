@@ -8,6 +8,7 @@ import {
   pauseAVPlay,
   playAVPlay,
   restoreAVPlay,
+  selectAVPlayTrack,
   seekAVPlay,
   seekToAVPlay,
   suspendAVPlay,
@@ -20,6 +21,7 @@ import {
   playHTML5,
   seekHTML5,
   seekToHTML5,
+  selectHTML5Track,
 } from "./backends/html5Backend";
 import { prepareDomForAvplayPlayback, prepareDomForHtml5Playback, restorePlaybackDom } from "./playbackDom";
 import {
@@ -117,6 +119,16 @@ function seekTo(positionSeconds: number) {
   seekToHTML5(positionSeconds, state.duration);
 }
 
+/**
+ * Returns false when the active backend cannot switch tracks, so the UI can
+ * keep the control hidden instead of offering a choice that does nothing.
+ */
+function selectTrack(kind: "audio" | "subtitle", index: number): boolean {
+  if (currentBackend === "avplay") return selectAVPlayTrack(kind, index);
+  if (currentBackend === "html5") return selectHTML5Track(kind, index);
+  return false;
+}
+
 function suspend() {
   if (currentBackend !== "avplay") {
     return false;
@@ -169,6 +181,7 @@ export const PlayerManager = {
   togglePlayPause,
   seek,
   seekTo,
+  selectTrack,
   suspend,
   restore,
   getCurrentTime,

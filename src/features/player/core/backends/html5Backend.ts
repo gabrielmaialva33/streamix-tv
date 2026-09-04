@@ -10,7 +10,7 @@ interface HTML5BackendDeps {
 }
 
 let videoElement: HTMLVideoElement | null = null;
-let hlsInstance: { destroy(): void } | null = null;
+let hlsInstance: { destroy(): void; audioTrack?: number; subtitleTrack?: number } | null = null;
 // Self-healing for fatal hls.js errors (IPTV streams hiccup a lot): retry
 // with exponential backoff before surfacing the error modal. Counter resets
 // once a fragment buffers again (stream is healthy).
@@ -304,6 +304,27 @@ export function seekToHTML5(position: number, duration: number) {
   }
 
   videoElement.currentTime = Math.max(0, Math.min(duration, position));
+}
+
+/**
+ * Track switching on the HTML5 path only works through hls.js.
+ *
+ * Chromium never implemented `HTMLMediaElement.audioTracks`, and an MKV served
+ * progressively exposes no `textTracks` either — verified on a Fire OS WebView
+ * playing a real GIndex file. So for anything but HLS this reports failure and
+ * the caller keeps the control hidden rather than offering a dead button.
+ */
+export function selectHTML5Track(kind: "audio" | "subtitle", index: number): boolean {
+  if (!hlsInstance) return false;
+
+  try {
+    if (kind === "audio") hlsInstance.audioTrack = index;
+    else hlsInstance.subtitleTrack = index;
+    return true;
+  } catch (error) {
+    logger.warn("hls.js refused the track change", { kind, index, error });
+    return false;
+  }
 }
 
 export function destroyHTML5Backend() {

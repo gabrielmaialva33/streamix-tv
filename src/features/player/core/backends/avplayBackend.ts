@@ -37,6 +37,11 @@ interface AVPlayHandle {
   seekTo(positionMs: number): void;
   stop(): void;
   suspend?(): void;
+  /**
+   * Older firmware predates these, hence optional. `setSelectTrack` takes
+   * Tizen's own type names ("AUDIO" / "TEXT"), not our track kinds.
+   */
+  setSelectTrack?(type: "AUDIO" | "TEXT", index: number): void;
   restoreAsync?(
     url?: string,
     resumeTime?: number,
@@ -404,6 +409,29 @@ export async function restoreAVPlay(updateState: (updates: Partial<PlayerState>)
       resolve(false);
     }
   });
+}
+
+/**
+ * Switch the audio or subtitle track on the native player.
+ *
+ * AVPlay is the only backend on which this is possible for progressive files:
+ * Chromium never shipped `HTMLMediaElement.audioTracks`, so the HTML5 path can
+ * only do this for HLS, where hls.js keeps its own track list.
+ */
+export function selectAVPlayTrack(kind: "audio" | "subtitle", index: number): boolean {
+  const avplay = getAVPlay();
+  if (!avplay?.setSelectTrack) {
+    logger.debug("AVPlay build has no setSelectTrack; ignoring track change");
+    return false;
+  }
+
+  try {
+    avplay.setSelectTrack(kind === "audio" ? "AUDIO" : "TEXT", index);
+    return true;
+  } catch (error) {
+    logger.warn("AVPlay refused the track change", { kind, index, error });
+    return false;
+  }
 }
 
 export function destroyAVPlayBackend() {
