@@ -6,7 +6,7 @@ const logger = createLogger("DeviceCommon");
 
 export class DeviceCommon {
   type: EDeviceType;
-  platform: string;
+  platform: EDevicePlatform;
   macAddress: string;
   osVersion: string;
   model: string;

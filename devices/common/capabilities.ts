@@ -20,6 +20,16 @@ const LEGACY_FIRE_TV_MODELS = ["AFTM", "AFTT", "AFTRS"];
 export type DeviceProfile = {
   isFireTV: boolean;
   isLegacyFireTV: boolean;
+  isTizen: boolean;
+  /**
+   * Approximate RAM in GB from `navigator.deviceMemory`, or null where the
+   * WebView predates it (Chrome 63 — so Fire OS 5/6 and Tizen 4.0 lack it).
+   * The spec quantises this to 0.25/0.5/1/2/4/8, which is exactly the
+   * granularity the texture budget needs.
+   */
+  deviceMemoryGB: number | null;
+  /** Platform version parsed from the UA (5.0, 6.5, 10.0...), null off-Tizen. */
+  tizenVersion: number | null;
   hasWebGL: boolean;
   hasWebGL2: boolean;
 };
@@ -32,6 +42,15 @@ export function detectDeviceProfile(): DeviceProfile {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isFireTV = /AFT/.test(ua);
   const isLegacyFireTV = LEGACY_FIRE_TV_MODELS.some(model => ua.includes(model));
+  // Samsung sets report e.g. "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) ...".
+  const tizenMatch = ua.match(/Tizen (\d+(?:\.\d+)?)/);
+  const tizenVersion = tizenMatch ? Number(tizenMatch[1]) : null;
+  const isTizen = tizenVersion !== null || /Tizen/.test(ua);
+  const reportedMemory =
+    typeof navigator !== "undefined"
+      ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+      : undefined;
+  const deviceMemoryGB = typeof reportedMemory === "number" && reportedMemory > 0 ? reportedMemory : null;
 
   let hasWebGL = false;
   let hasWebGL2 = false;
@@ -45,36 +64,81 @@ export function detectDeviceProfile(): DeviceProfile {
     }
   }
 
-  cached = { isFireTV, isLegacyFireTV, hasWebGL, hasWebGL2 };
+  cached = { isFireTV, isLegacyFireTV, isTizen, tizenVersion, deviceMemoryGB, hasWebGL, hasWebGL2 };
   return cached;
 }
 
-/**
- * Returns memory/perf settings tuned for the detected profile. These get
- * spread into LightningJS `rendererOptions` so the device-specific bits
- * stay in one place.
- */
-export function rendererTuning(profile = detectDeviceProfile()) {
-  if (profile.isLegacyFireTV) {
-    return {
-      criticalThresholdMB: 64, // 2 GB RAM total, share with Fire OS + WebView
-      cleanupTargetLevel: 0.5, // free more aggressively after cleanup
-      boundsMargin: 100, // smaller off-screen preload
-      cleanupIntervalMs: 3500, // sweep more often
-    };
-  }
+export interface RendererBudget {
+  criticalThresholdMB: number;
+  cleanupTargetLevel: number;
+  boundsMargin: number;
+  cleanupIntervalMs: number;
+  textureProcessingTimeLimit: number;
+}
 
-  return {
-    // Bumped 100→180MB: at 100MB a few 1280px backdrops (~3.7MB each in VRAM)
-    // plus a screenful of posters tripped the critical threshold, so rapid
-    // detail→detail navigation churned the texture cache — evicted posters got
-    // re-fetched in bursts and some loads failed (net::ERR_FAILED) with the
-    // main-thread image loader (numImageWorkers:0). 180MB gives headroom on
-    // 2GB+ Tizen/webOS/modern Fire TV without risking the legacy 2GB profile,
-    // which keeps its tighter 64MB budget above.
-    criticalThresholdMB: 180, // mid/high-end Fire TV / Tizen / webOS
-    cleanupTargetLevel: 0.6,
-    boundsMargin: 240,
-    cleanupIntervalMs: 5000,
-  };
+const BUDGET_BY_RAM: ReadonlyArray<{ maxGB: number; budget: RendererBudget }> = [
+  {
+    maxGB: 1,
+    budget: {
+      criticalThresholdMB: 56,
+      cleanupTargetLevel: 0.5,
+      boundsMargin: 320,
+      cleanupIntervalMs: 20000,
+      textureProcessingTimeLimit: 4,
+    },
+  },
+  {
+    maxGB: 2,
+    budget: {
+      criticalThresholdMB: 80,
+      cleanupTargetLevel: 0.55,
+      boundsMargin: 560,
+      cleanupIntervalMs: 30000,
+      textureProcessingTimeLimit: 6,
+    },
+  },
+  {
+    maxGB: Number.POSITIVE_INFINITY,
+    budget: {
+      criticalThresholdMB: 140,
+      cleanupTargetLevel: 0.6,
+      boundsMargin: 720,
+      cleanupIntervalMs: 30000,
+      textureProcessingTimeLimit: 8,
+    },
+  },
+];
+
+/** RAM the device most likely has when `navigator.deviceMemory` is missing. */
+function estimatedMemoryGB(profile: DeviceProfile): number {
+  // Pre-Chrome-63 WebViews: Fire OS 5/6 sticks and Tizen 4.0 sets. Both eras
+  // shipped 1-1.5GB, and guessing high there is the expensive mistake.
+  if (profile.isLegacyFireTV) return 1;
+  if (profile.isFireTV) return 1;
+  if (profile.tizenVersion !== null && profile.tizenVersion < 6.0) return 1;
+  // Unknown platform with a WebView too old to report: assume the middle tier,
+  // which is the only one exercised on real hardware.
+  return 2;
+}
+
+/**
+ * Texture/preload budget sized to the device's actual RAM.
+ *
+ * Model codes and OS versions both looked like usable proxies and both are
+ * wrong: Amazon ships a 1GB Fire TV Stick Lite on Fire OS 7 (2020) alongside a
+ * 1.5GB Stick 4K on Fire OS 6 (2018), so a newer OS can mean *less* memory —
+ * and the Fire TV model list runs to dozens of codes with no stable pattern.
+ * `navigator.deviceMemory` measures the thing we actually care about, and it
+ * reports correctly on both Tizen and Fire OS WebViews. Model/version
+ * heuristics survive only as the fallback for WebViews too old to expose it.
+ *
+ * The three tiers are conservative brackets, not measurements: only the middle
+ * one has run on real hardware. Re-measure before widening either end.
+ */
+export function rendererBudget(profile = detectDeviceProfile()): RendererBudget {
+  const ram = profile.deviceMemoryGB ?? estimatedMemoryGB(profile);
+  const tier = BUDGET_BY_RAM.find(entry => ram <= entry.maxGB);
+  // The last bracket is unbounded, so `find` always matches; the fallback only
+  // exists to keep the return type non-optional.
+  return tier ? tier.budget : BUDGET_BY_RAM[BUDGET_BY_RAM.length - 1].budget;
 }

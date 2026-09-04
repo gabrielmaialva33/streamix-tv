@@ -1,16 +1,29 @@
 import { DeviceConfig } from "#devices/devices";
-import { merge } from "lodash-es";
 import { config as common } from "#devices/common";
+import { mergeConfig } from "#devices/common/mergeConfig";
+import { rendererBudget } from "#devices/common/capabilities";
 import { FireTVDevice } from "./device";
 
 // Fire TV remote keycodes as delivered through the Android WebView (Capacitor).
 // Directional keys come through as standard DOM ArrowKeys, but the Back button
 // fires as Escape (27), and media keys follow the Android KeyEvent mapping.
-export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
+const budget = rendererBudget();
+
+export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<DeviceConfig>>{
   name: "firetv",
   lightning: {
     rendererOptions: {
+      // Older Fire OS WebViews crash with image workers, so decode runs on the
+      // main thread across the whole family.
       numImageWorkers: 0,
+      // Which makes the per-frame decode cap matter here for the same reason it
+      // does on Tizen, and makes the hard ceiling worth enforcing: the family
+      // still includes 1GB sticks (Stick Lite, Stick 3rd gen) where overshooting
+      // the texture budget is what pushes the WebView into a kill.
+      textureProcessingTimeLimit: budget.textureProcessingTimeLimit,
+      textureMemory: {
+        doNotExceedCriticalThreshold: true,
+      },
     },
   },
   keys: {

@@ -2,15 +2,25 @@ import { SdfTextRenderer, WebGlCoreRenderer } from "@solidtv/renderer/webgl";
 import { CanvasCoreRenderer, CanvasTextRenderer } from "@solidtv/renderer/canvas";
 import { Inspector } from "@solidtv/renderer/inspector";
 import { DeviceCommon } from "./device";
-import { detectDeviceProfile, rendererTuning } from "./capabilities";
+import { detectDeviceProfile, rendererBudget } from "./capabilities";
 
 const profile = detectDeviceProfile();
-const tuning = rendererTuning(profile);
+const budget = rendererBudget(profile);
 
 // Fall back to the Canvas2D rendering pipeline when WebGL is unavailable
 // (1st-gen Fire TV Stick after a Fire OS update sometimes loses GL).
 const renderEngine = profile.hasWebGL ? WebGlCoreRenderer : CanvasCoreRenderer;
 const fontEngines = profile.hasWebGL ? [SdfTextRenderer, CanvasTextRenderer] : [CanvasTextRenderer];
+
+function logicalPixelRatio(): number {
+  if (typeof window === "undefined") return 1;
+  const byHeight = window.innerHeight / 1080;
+  const byWidth = window.innerWidth / 1920;
+  const fitted = Math.min(byWidth, byHeight);
+  // A zero/NaN viewport (some WebViews report 0 before first layout) must not
+  // collapse the stage; fall back to the height-only ratio, then to 1.
+  return fitted > 0 ? fitted : byHeight > 0 ? byHeight : 1;
+}
 
 export const config = {
   name: "common",
@@ -44,20 +54,25 @@ export const config = {
       renderEngine,
       inspector: import.meta.env.DEV ? Inspector : undefined,
       // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2.
-      // Compute from the actual viewport so the same 1920×1080 lógico fits
-      // any TV without page refactor — same pattern as @solidtv/solid-demo-app.
-      deviceLogicalPixelRatio: typeof window === "undefined" ? 1 : window.innerHeight / 1080,
+      // Fit the fixed 1920x1080 logical stage inside whatever viewport the set
+      // reports, so one layout serves every panel without a page refactor.
+      // Scaling on height alone (the previous behaviour) only holds on exact
+      // 16:9 output: anything narrower renders a stage wider than the panel and
+      // silently clips the right-hand side, which is where the sidebar-relative
+      // layout puts content. Taking the smaller ratio letterboxes instead of
+      // cropping, and is identical to the old value on true 16:9 sets.
+      deviceLogicalPixelRatio: logicalPixelRatio(),
       devicePhysicalPixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
       // Off-screen preload window. Tighter on legacy hardware so we don't
       // decode/upload textures that won't be seen for several rows.
-      boundsMargin: tuning.boundsMargin,
+      boundsMargin: budget.boundsMargin,
       // Transparent background for video playback (allows HTML5 video to show through)
       clearColor: 0x00000000,
       // Texture Memory Manager — tuned per device profile (capabilities.ts).
       textureMemory: {
-        criticalThreshold: tuning.criticalThresholdMB * 1e6,
-        targetThresholdLevel: tuning.cleanupTargetLevel,
-        cleanupInterval: tuning.cleanupIntervalMs,
+        criticalThreshold: budget.criticalThresholdMB * 1e6,
+        targetThresholdLevel: budget.cleanupTargetLevel,
+        cleanupInterval: budget.cleanupIntervalMs,
         debugLogging: import.meta.env.DEV,
       },
     },

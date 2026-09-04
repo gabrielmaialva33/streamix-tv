@@ -1,9 +1,12 @@
 import { DeviceConfig } from "#devices/devices";
-import { merge } from "lodash-es";
 import { config as common } from "#devices/common";
+import { mergeConfig } from "#devices/common/mergeConfig";
+import { rendererBudget } from "#devices/common/capabilities";
 import { TizenDevice } from "./device";
 
-export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
+const budget = rendererBudget();
+
+export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<DeviceConfig>>{
   name: "tizen",
   quality: {
     image: {
@@ -14,17 +17,17 @@ export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
   lightning: {
     rendererOptions: {
       numImageWorkers: 0,
-      // Keep roughly two poster pitches decoded ahead of horizontal focus.
-      // Lazy collections still mount cooperatively, so this avoids a startup
-      // burst while preventing textures from popping in during fast D-pad use.
-      boundsMargin: 560,
-      // Image decode runs on the main thread on Tizen. Cap its per-frame work
-      // so background preloading leaves enough of a 16.6ms frame for layout.
-      textureProcessingTimeLimit: 6,
+      // Sized from the set's actual RAM (see rendererBudget): the package
+      // installs from Tizen 5.0 up, and one fixed budget would either starve a
+      // 2025 set or over-commit a 2019 one. boundsMargin keeps roughly two
+      // poster pitches decoded ahead of horizontal focus; textureProcessingTimeLimit
+      // caps per-frame decode work because image decode runs on the main thread.
+      boundsMargin: budget.boundsMargin,
+      textureProcessingTimeLimit: budget.textureProcessingTimeLimit,
       textureMemory: {
-        criticalThreshold: 80e6,
-        targetThresholdLevel: 0.55,
-        cleanupInterval: 30000,
+        criticalThreshold: budget.criticalThresholdMB * 1e6,
+        targetThresholdLevel: budget.cleanupTargetLevel,
+        cleanupInterval: budget.cleanupIntervalMs,
         doNotExceedCriticalThreshold: true,
         debugLogging: import.meta.env.DEV,
       },
