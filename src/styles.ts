@@ -1,19 +1,8 @@
-// Augment existing intrinsic style prop interfaces to include focus and active states
-declare module "@solidtv/solid" {
-  interface IntrinsicNodeStyleProps {
-    $focus?: IntrinsicNodeStyleProps;
-    $active?: IntrinsicNodeStyleProps;
-    $hover?: IntrinsicNodeStyleProps;
-    $pressed?: IntrinsicNodeStyleProps;
-  }
-
-  interface IntrinsicTextNodeStyleProps {
-    $focus?: IntrinsicTextNodeStyleProps;
-    $active?: IntrinsicTextNodeStyleProps;
-    $hover?: IntrinsicTextNodeStyleProps;
-    $pressed?: IntrinsicTextNodeStyleProps;
-  }
-}
+// `$focus` / `$active` / `$hover` / `$pressed` used to need a local module
+// augmentation here. Since @solidtv/solid 1.5.2, NodeStyles/TextStyles declare
+// `[key: `$${string}`]: NodeProps` themselves, so re-declaring the properties
+// conflicts with that index signature (TS2411) — the state styles are typed
+// upstream now.
 
 // Theme colors - refined palette
 export const theme = {
