@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://streamix.app/tv"
         version="1.0.026" viewmodes="maximized">
-    <tizen:application id="EI8qhrd7xh.streamix" package="EI8qhrd7xh" required_version="6.0"/>
+    <!-- required_version is the minimum platform the package installs on; devel.api.version
+         below stays at 6.0 as the API level the app codes against. Samsung launches the app
+         on older platforms and simply no-ops APIs they lack, so the two differ on purpose.
+         5.0 covers 2019+ sets (Chromium M63); the bundle is ES2015 and every runtime API it
+         uses is either polyfilled or has a fallback. Going below this needs 2018 hardware to
+         validate the texture budget, not a manifest edit. -->
+    <tizen:application id="EI8qhrd7xh.streamix" package="EI8qhrd7xh" required_version="5.0"/>
     <content src="index.html"/>
 
     <!-- Screen features -->
