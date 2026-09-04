@@ -86,7 +86,7 @@ export default defineConfig(({ mode }) => {
       // `development` env file points the API base at /sx-api.
       proxy: {
         "/sx-api": {
-          target: "https://streamix.mahina.cloud",
+          target: "https://streamix.mahina.fun",
           changeOrigin: true,
           secure: true,
           rewrite: p => p.replace(/^\/sx-api/, ""),

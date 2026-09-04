@@ -5,8 +5,8 @@
     <title>Streamix</title>
     <!-- Pre-warm DNS for the API host so the very first auth call doesn't pay
          the resolution latency (~100-300ms on Fire TV's slow lookup). -->
-    <link rel="dns-prefetch" href="https://streamix.mahina.cloud" />
-    <link rel="preconnect" href="https://streamix.mahina.cloud" crossorigin />
+    <link rel="dns-prefetch" href="https://streamix.mahina.fun" />
+    <link rel="preconnect" href="https://streamix.mahina.fun" crossorigin />
     <style>
       html,
       body,
@@ -347,7 +347,7 @@
     </script>
     <script>
       // CapacitorHttp.enabled=true is needed so cross-origin API calls
-      // (streamix.mahina.cloud) bypass WebView CORS. But Capacitor patches
+      // (streamix.mahina.fun) bypass WebView CORS. But Capacitor patches
       // both window.fetch *and* window.XMLHttpRequest, which breaks loading
       // bundled assets at https://localhost/* (LightningJS uses XHR for SDF
       // font atlases). Solution: keep fetch patched (so the API works), but

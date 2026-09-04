@@ -6,7 +6,7 @@ const LOCAL_WEBVIEW_URL = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/;
 const IMAGE_URL =
   /(?:\/catalog\/images\/resize\b|\/t\/p\/|gstaticontent\.com|file\.gstaticontent\.com|\.jpe?g(?:[?#]|$)|\.png(?:[?#]|$)|\.webp(?:[?#]|$)|\.svg(?:[?#]|$))/i;
 const RESIZE_ENDPOINT =
-  (import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog").replace(/\/$/, "") +
+  (import.meta.env.VITE_API_URL || "https://streamix.mahina.fun/api/v1/catalog").replace(/\/$/, "") +
   "/images/resize";
 const RESIZE_API_KEY = import.meta.env.VITE_API_KEY || "";
 

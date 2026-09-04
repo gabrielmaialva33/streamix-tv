@@ -9,7 +9,7 @@
 //    X-API-Key header before the renderer sends the texture request.
 
 const RESIZE_ENDPOINT =
-  (import.meta.env.VITE_API_URL || "https://streamix.mahina.cloud/api/v1/catalog").replace(/\/$/, "") +
+  (import.meta.env.VITE_API_URL || "https://streamix.mahina.fun/api/v1/catalog").replace(/\/$/, "") +
   "/images/resize";
 // Streamix resize ladder — anything outside these widths is coerced server-side
 // but we pick locally to avoid unnecessary cache misses.

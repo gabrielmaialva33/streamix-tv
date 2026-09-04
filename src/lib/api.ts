@@ -13,7 +13,7 @@ import { authSession } from "./storage";
 
 const logger = createLogger("API");
 
-const DEFAULT_API_V1_URL = "https://streamix.mahina.cloud/api/v1";
+const DEFAULT_API_V1_URL = "https://streamix.mahina.fun/api/v1";
 const CATALOG_URL = (import.meta.env.VITE_API_URL || `${DEFAULT_API_V1_URL}/catalog`).replace(/\/$/, "");
 const API_V1_URL = (import.meta.env.VITE_API_BASE_URL || CATALOG_URL.replace(/\/catalog$/, "")).replace(
   /\/$/,
