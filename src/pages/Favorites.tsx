@@ -2,7 +2,7 @@ import { ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/
 import { Column, Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { Card } from "@/components";
 import { authState } from "@/features/auth/auth";
 import { isGridRowStart } from "@/features/catalog/catalogBrowse";
@@ -56,7 +56,7 @@ const FILTER_TABS: Array<{ value: FilterType; label: string; width: number }> = 
 
 const Favorites = () => {
   const navigate = useNavigate();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
   const [items, setItems] = createSignal<FavoriteItem[]>([]);
   const [filter, setFilter] = createSignal<FilterType>("all");
 
@@ -92,7 +92,7 @@ const Favorites = () => {
 
   const leaveGridLeft = () => {
     if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
-    return layoutFocus?.focusSidebar() ?? false;
+    return exitToSidebar();
   };
 
   return (
@@ -142,7 +142,7 @@ const Favorites = () => {
         // only reachable with the Back key.
         onLeft={() => {
           if ((tabsRow?.selected ?? 0) > 0) return false;
-          return layoutFocus?.focusSidebar() ?? false;
+          return exitToSidebar();
         }}
       >
         <For each={FILTER_TABS}>

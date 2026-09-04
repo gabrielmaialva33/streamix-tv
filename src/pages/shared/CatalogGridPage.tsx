@@ -2,7 +2,7 @@ import { Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, LoadError, ScrollIndicator, SkeletonLoader } from "@/components";
 import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
@@ -54,7 +54,7 @@ export interface CatalogGridPageProps<T extends CatalogItem> {
  */
 function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) {
   const navigate = useNavigate();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
   const {
     providerId: selectedProvider,
     categoryId: selectedCategory,
@@ -89,7 +89,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
     queueMicrotask(() =>
       queueMicrotask(() => {
         if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
-        else layoutFocus?.focusSidebar();
+        else exitToSidebar();
       }),
     );
   };
@@ -144,7 +144,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
 
   const leaveGridLeft = () => {
     if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
-    return layoutFocus?.focusSidebar() ?? false;
+    return exitToSidebar();
   };
 
   return (

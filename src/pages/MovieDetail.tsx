@@ -2,7 +2,7 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Movie } from "@/lib/api";
 import { formatPlaybackTime, isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
@@ -41,7 +41,7 @@ const RELATED_SECTION_TOP = 570;
 const MovieDetail = () => {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
 
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
@@ -91,7 +91,7 @@ const MovieDetail = () => {
   }
 
   function focusPage() {
-    return focusElement(actionRow) || focusElement(errorPanel) || layoutFocus?.focusSidebar() || true;
+    return focusElement(actionRow) || focusElement(errorPanel) || exitToSidebar() || true;
   }
 
   function focusActions() {

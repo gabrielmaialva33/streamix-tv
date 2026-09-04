@@ -2,7 +2,7 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Series } from "@/lib/api";
 import { isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
@@ -41,7 +41,7 @@ const RELATED_SECTION_TOP = 570;
 const SeriesDetail = () => {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
 
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
@@ -92,7 +92,7 @@ const SeriesDetail = () => {
   }
 
   function focusPage() {
-    return focusElement(actionRow) || focusElement(errorPanel) || layoutFocus?.focusSidebar() || true;
+    return focusElement(actionRow) || focusElement(errorPanel) || exitToSidebar() || true;
   }
 
   function focusActions() {

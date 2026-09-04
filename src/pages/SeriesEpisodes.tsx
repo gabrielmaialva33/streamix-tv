@@ -1,7 +1,7 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { LoadError, SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
@@ -49,7 +49,7 @@ const ITEMS_PER_ROW = 3;
 const SeriesEpisodes = () => {
   const params = useParams<{ id: string; season?: string }>();
   const navigate = useNavigate();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
 
   const [series, { refetch }] = createResource(
     () => params.id,
@@ -107,7 +107,7 @@ const SeriesEpisodes = () => {
       focusElement(seasonsRow) ||
       focusElement(episodesGrid) ||
       focusElement(errorPanel) ||
-      layoutFocus?.focusSidebar() ||
+      exitToSidebar() ||
       true
     );
   }

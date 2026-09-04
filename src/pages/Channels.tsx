@@ -2,7 +2,7 @@ import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { LoadError, SkeletonLoader } from "@/components";
 import { isGridRowStart } from "@/features/catalog/catalogBrowse";
 import { useCatalogBrowseFilters } from "@/features/catalog/catalogFilters";
@@ -63,7 +63,7 @@ function channelInitial(name: string): string {
 
 const Channels = () => {
   const navigate = useNavigate();
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
   const {
     providerId: selectedProvider,
     categoryId: selectedCategory,
@@ -97,7 +97,7 @@ const Channels = () => {
     queueMicrotask(() =>
       queueMicrotask(() => {
         if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
-        else layoutFocus?.focusSidebar();
+        else exitToSidebar();
       }),
     );
   };
@@ -151,7 +151,7 @@ const Channels = () => {
 
   const leaveGridLeft = () => {
     if (!isGridRowStart(contentGrid?.cursor, ITEMS_PER_ROW)) return false;
-    return layoutFocus?.focusSidebar() ?? false;
+    return exitToSidebar();
   };
 
   return (

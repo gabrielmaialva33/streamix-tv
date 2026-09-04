@@ -13,7 +13,7 @@ import {
   startTransition,
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useLayoutFocus } from "@/app/layoutFocus";
+import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, VirtualKeyboard } from "@/components";
 import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
 import { chunkIntoRows } from "@/lib/contentMeta";
@@ -110,7 +110,7 @@ function buildResultRows(result?: SearchResultBuckets | null): SearchResultRow[]
 }
 
 const Search = () => {
-  const layoutFocus = useLayoutFocus();
+  const exitToSidebar = useSidebarExit();
   const [query, setQuery] = createSignal("");
   const [searchTriggered, setSearchTriggered] = createSignal(false);
   // Debounced mirror of `query` used to fire typeahead while the user types.
@@ -253,7 +253,7 @@ const Search = () => {
     return resultsColumn !== undefined;
   };
 
-  const leaveResultsLeft = () => layoutFocus?.focusSidebar() ?? false;
+  const leaveResultsLeft = () => exitToSidebar();
 
   const leaveResultsUp = () => {
     if ((resultsColumn?.selected ?? 0) > 0) return false;
