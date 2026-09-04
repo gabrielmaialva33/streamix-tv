@@ -1,6 +1,7 @@
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { createLogger } from "@/shared/logging/logger";
+import { dispatchBackKey } from "./backKey";
 
 const logger = createLogger("CapacitorBackButton");
 
@@ -13,9 +14,9 @@ let installed = false;
  * history (we use HashRouter), calls `App.exitApp()` — the app vanishes
  * before LightningJS' `handleBack` in MainLayout ever fires.
  *
- * Forward the event to the Lightning runtime by synthesising a Backspace/Escape
- * keydown so the existing keymap (`Back: [27, 8, 166]` in devices/firetv) and
- * the existing exit dialog flow take over.
+ * Forward the event to the Lightning runtime so the existing keymap
+ * (`Back: [27, 8, 166]` in devices/firetv) and the existing exit dialog flow
+ * take over. `dispatchBackKey` reports whether any page consumed it.
  */
 export function installCapacitorBackButton() {
   if (installed) return;
@@ -25,28 +26,16 @@ export function installCapacitorBackButton() {
   App.addListener("backButton", ({ canGoBack }) => {
     logger.debug("Capacitor backButton", { canGoBack, hash: location.hash });
 
-    // Forward to Lightning's focusManager (which listens on `document` keydown)
-    // so each page's own onBack handler runs first — PlayerPage cleans up the
-    // backend before navigating, MainLayout opens the ExitDialog at the root,
-    // etc. Lightning's keymap binds Back to [27, 8, 166]; Escape (27) matches.
+    // Hand the key to the focus tree first, so each page's own onBack runs:
+    // PlayerPage tears down the backend before navigating, the sidebar closes
+    // its provider list, the player closes its track picker, MainLayout opens
+    // the exit dialog at the root.
     //
-    // If a focused node returns true from onBack, Lightning calls
-    // preventDefault on the event; in that case we don't fall through to
-    // history.back(). Otherwise we still pop the route so the user is never
-    // stuck.
-    const event = new KeyboardEvent("keydown", {
-      key: "Escape",
-      code: "Escape",
-      keyCode: 27,
-      which: 27,
-      bubbles: true,
-      cancelable: true,
-    });
-    document.dispatchEvent(event);
-
-    if (event.defaultPrevented) {
-      return;
-    }
+    // Only pop the route when nothing claimed the key, so that dismissing an
+    // overlay dismisses the overlay and nothing else. Falling through
+    // regardless is what made Back unpredictable here: the dialog closed and
+    // the route jumped in the same press.
+    if (!dispatchBackKey()) return;
 
     if (window.history.length > 1) {
       window.history.back();
