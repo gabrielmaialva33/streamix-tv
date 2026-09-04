@@ -1,7 +1,7 @@
 // Presentation helpers shared by catalog/detail pages. Keep these free of
 // component state so any page can use them without coupling.
 
-import type { RecommendationItem, Season, SimilarContentItem } from "./api";
+import type { Episode, RecommendationItem, Season, SimilarContentItem } from "./api";
 import { pickPoster } from "./imageUrl";
 
 /** "2021 • 7.5 IMDb" — joins year and rating when present. */
@@ -50,4 +50,24 @@ export function formatPlaybackTime(seconds: number): string {
 /** Resumable progress entry: started for real and not effectively finished. */
 export function isResumable(saved: { duration: number; currentTime: number; progress: number }): boolean {
   return saved.duration > 0 && saved.currentTime >= 30 && saved.progress < 95;
+}
+
+/**
+ * The name to show for an episode.
+ *
+ * TMDB leads for the same reason declared language leads over a track title:
+ * it names the episode by its number inside a season it curates, while `title`
+ * is whatever a provider's filename happened to render — often nothing, often
+ * just the series name and episode number repeated. Both are absent for most of
+ * the catalog, so the numbered fallback is the common case, not an edge one.
+ */
+export function episodeLabel(
+  episode: Pick<Episode, "tmdb_title" | "title" | "episode_num" | "number">,
+): string {
+  const curated = (episode.tmdb_title ?? "").trim();
+  if (curated) return curated;
+  const provided = (episode.title ?? "").trim();
+  if (provided) return provided;
+  const position = episode.episode_num ?? episode.number;
+  return position === undefined || position === null ? "Episódio" : `Episódio ${position}`;
 }

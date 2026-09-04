@@ -5,7 +5,7 @@ import { useSidebarExit } from "@/app/layoutFocus";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { LoadError, SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
-import { seasonLabel } from "@/lib/contentMeta";
+import { seasonLabel, episodeLabel } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
@@ -301,7 +301,7 @@ const SeriesEpisodes = () => {
                         maxLines={1}
                         contain="width"
                       >
-                        {episode().title || `Episódio ${episode().episode_num ?? episode().number ?? ""}`}
+                        {episodeLabel(episode())}
                       </Text>
                       <Text
                         y={56}

@@ -1,4 +1,5 @@
 import api, { type Channel, type Episode, type Movie, type Series, type StreamUrl } from "@/lib/api";
+import { episodeLabel } from "@/lib/contentMeta";
 import { isTizenRuntime } from "@/platform/runtime";
 import { createLogger } from "@/shared/logging/logger";
 
@@ -62,13 +63,13 @@ function toMovieSource(movie: Movie) {
 
 function toEpisodeSource(episode: Episode) {
   return {
-    title: `S${episode.season_number}E${episode.episode_num} - ${episode.title}`,
+    title: `S${episode.season_number}E${episode.episode_num} - ${episodeLabel(episode)}`,
     posterUrl: episode.thumbnail_url,
     streamUrl: "",
     episode: {
       seasonNumber: episode.season_number,
       episodeNumber: episode.episode_num ?? episode.number,
-      title: episode.title,
+      title: episodeLabel(episode),
     },
   };
 }

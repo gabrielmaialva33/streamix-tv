@@ -431,7 +431,16 @@ export interface Season {
 
 export interface Episode {
   id: number;
+  /**
+   * What the provider's filename rendered. Two thirds of the catalog has none,
+   * and much of the rest just restates the series and episode number.
+   */
   title: string;
+  /**
+   * The episode's name as TMDB curates it, when the season has been enriched.
+   * Nullable, and null for every episode until the backend backfills it.
+   */
+  tmdb_title?: string | null;
   duration: string | null;
   plot: string | null;
   air_date: string | null;
