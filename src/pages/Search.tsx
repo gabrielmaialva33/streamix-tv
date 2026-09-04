@@ -30,8 +30,28 @@ const KEYBOARD_Y = 226;
 const SIDE_PANEL_TITLE_Y = SEARCH_INPUT_Y + 8;
 const SIDE_PANEL_CONTENT_Y = 212;
 const SIDE_PANEL_CONTENT_HEIGHT = 820;
-const SUGGESTION_PANEL_HEIGHT = 650;
 const SUGGESTION_SLOT_HEIGHT = 68;
+const SUGGESTION_SLOT_COUNT = 8;
+const SUGGESTION_SLOT_GAP = 8;
+const SUGGESTION_PANEL_PADDING = 16;
+// Derived, not hand-tuned: a hardcoded 650 stopped 44px short of the slot
+// column, so the eighth suggestion rendered outside the panel background.
+const SUGGESTION_PANEL_HEIGHT =
+  SIDE_PANEL_CONTENT_Y -
+  (SIDE_PANEL_TITLE_Y - SUGGESTION_PANEL_PADDING) +
+  SUGGESTION_SLOT_COUNT * SUGGESTION_SLOT_HEIGHT +
+  (SUGGESTION_SLOT_COUNT - 1) * SUGGESTION_SLOT_GAP +
+  SUGGESTION_PANEL_PADDING;
+// Idle-state discovery rail: before the query is long enough to suggest
+// anything, the right panel was pure black. Three posters at the real 2:3
+// aspect fit the panel's 616px of content height with room to breathe.
+const DISCOVER_COUNT = 3;
+const DISCOVER_CARD_WIDTH = 224;
+const DISCOVER_CARD_HEIGHT = 336;
+const DISCOVER_CARD_GAP = 16;
+
+// Stable identity so <Index> instantiates the slot views exactly once.
+const SUGGESTION_SLOTS = Array.from({ length: SUGGESTION_SLOT_COUNT }, (_, index) => index);
 const RESULTS_PANEL_X = 20;
 const RESULTS_PANEL_WIDTH = 1660;
 const RESULTS_TITLE_Y = 202;
@@ -96,9 +116,12 @@ const Search = () => {
   // Debounced mirror of `query` used to fire typeahead while the user types.
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
 
+  const navigate = useNavigate();
+
   let keyboardColumn: ElementNode | undefined;
   let searchInput: ElementNode | undefined;
   let suggestionsColumn: ElementNode | undefined;
+  let discoverRow: ElementNode | undefined;
   let resultsColumn: ElementNode | undefined;
   const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
   const [focusedSuggestionSlot, setFocusedSuggestionSlot] = createSignal(-1);
@@ -182,7 +205,19 @@ const Search = () => {
   // response we saw.
   const latestSuggestions = () => suggestions.latest ?? null;
   const suggestionItems = (): SuggestItem[] =>
-    (latestSuggestions()?.items ?? []).filter((item): item is SuggestItem => !!item).slice(0, 8);
+    (latestSuggestions()?.items ?? [])
+      .filter((item): item is SuggestItem => !!item)
+      .slice(0, SUGGESTION_SLOT_COUNT);
+  // Trending stands in while the user has not typed enough to suggest. Kept
+  // out of the suggestion resource so a failure here never blocks typeahead.
+  const [discover] = createResource(() =>
+    api
+      .getTrending("movie", DISCOVER_COUNT)
+      .then(response => response.items)
+      .catch(() => []),
+  );
+  const discoverItems = () => (discover.latest ?? []).slice(0, DISCOVER_COUNT);
+
   const searchInputWidth = () => (searchTriggered() ? RESULTS_PANEL_WIDTH : LEFT_PANEL_WIDTH);
   const searchAccentWidth = () =>
     query() ? Math.min(searchInputWidth() - 40, Math.max(88, query().length * 18)) : 0;
@@ -194,6 +229,10 @@ const Search = () => {
   const focusResults = () => {
     if (!searchTriggered() && suggestionItems().length) {
       suggestionsColumn?.setFocus();
+      return true;
+    }
+    if (!searchTriggered() && discoverItems().length && discoverRow) {
+      discoverRow.setFocus();
       return true;
     }
     if (searchTriggered() && totalResults() > 0) {
@@ -286,6 +325,10 @@ const Search = () => {
             onChange={handleKeyboardChange}
             onSubmit={submitSearch}
             onRight={focusResults}
+            // Without this the keyboard is a dead end: Left wraps inside the
+            // key grid and the sidebar is only reachable with the Back key.
+            // LoginPage already wires its own onLeft for the same reason.
+            onLeft={leaveResultsLeft}
           />
         </View>
       </Show>
@@ -296,11 +339,12 @@ const Search = () => {
            in/out lets the scene graph stay stable. */}
       {(() => {
         const showSuggestions = () => !searchTriggered() && suggestionItems().length > 0;
+        const showDiscover = () => !showSuggestions() && discoverItems().length > 0;
         return (
           <>
             <View
               x={RIGHT_PANEL_X - 18}
-              y={SIDE_PANEL_TITLE_Y - 16}
+              y={SIDE_PANEL_TITLE_Y - SUGGESTION_PANEL_PADDING}
               width={RIGHT_PANEL_WIDTH + 36}
               height={SUGGESTION_PANEL_HEIGHT}
               color={theme.panel}
@@ -340,7 +384,7 @@ const Search = () => {
               y={SIDE_PANEL_CONTENT_Y}
               width={RIGHT_PANEL_WIDTH}
               height={SIDE_PANEL_CONTENT_HEIGHT}
-              gap={8}
+              gap={SUGGESTION_SLOT_GAP}
               scroll="none"
               alpha={showSuggestions() ? 1 : 0}
               transition={{ alpha: { duration: 80 } }}
@@ -355,7 +399,7 @@ const Search = () => {
               graph never grows or shrinks, so the typeahead block doesn't
               flash when new data lands. Slots with no data go alpha=0 +
               skipFocus. */}
-              <Index each={[0, 1, 2, 3, 4, 5, 6, 7]}>
+              <Index each={SUGGESTION_SLOTS}>
                 {slotIndex => {
                   const item = () => suggestionItems()[slotIndex()];
                   const hasItem = () => !!item();
@@ -436,6 +480,62 @@ const Search = () => {
                 }}
               </Index>
             </Column>
+
+            {/* Idle state: suggestions need two characters, so until then the
+                right panel had nothing in it. Trending posters give the user
+                something to browse (and a reachable focus target) instead. */}
+            <View
+              x={RIGHT_PANEL_X}
+              y={SIDE_PANEL_TITLE_Y}
+              width={RIGHT_PANEL_WIDTH}
+              height={60}
+              alpha={showDiscover() ? 1 : 0}
+              transition={{ alpha: { duration: 80 } }}
+              skipFocus
+            >
+              <Text fontSize={20} fontWeight={700} color={theme.textPrimary}>
+                Em alta
+              </Text>
+            </View>
+            <Row
+              ref={discoverRow}
+              x={RIGHT_PANEL_X}
+              y={SIDE_PANEL_CONTENT_Y}
+              width={RIGHT_PANEL_WIDTH}
+              height={DISCOVER_CARD_HEIGHT + 60}
+              gap={DISCOVER_CARD_GAP}
+              scroll="none"
+              alpha={showDiscover() ? 1 : 0}
+              transition={{ alpha: { duration: 80 } }}
+              skipFocus={!showDiscover()}
+              // Only the first poster hands focus back to the keyboard; from
+              // any other column Left has to keep travelling inside the row.
+              onLeft={() => {
+                if ((discoverRow?.selected ?? 0) > 0) return false;
+                return focusKeyboardHome();
+              }}
+            >
+              <For each={discoverItems()}>
+                {movie => (
+                  <View
+                    width={DISCOVER_CARD_WIDTH}
+                    height={DISCOVER_CARD_HEIGHT + 44}
+                    onEnter={() => {
+                      navigate(`/movie/${movie.id}`);
+                      return true;
+                    }}
+                  >
+                    <Card
+                      title={movie.title || movie.name || ""}
+                      imageUrl={pickPoster(movie, DISCOVER_CARD_WIDTH)}
+                      width={DISCOVER_CARD_WIDTH}
+                      height={DISCOVER_CARD_HEIGHT}
+                      item={movie}
+                    />
+                  </View>
+                )}
+              </For>
+            </Row>
           </>
         );
       })()}
