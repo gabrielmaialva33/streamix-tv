@@ -23,6 +23,15 @@ Use `pnpm`; the repo pins it in `package.json`.
 - `pnpm format` / `pnpm format:check`: apply or verify Prettier formatting.
 - `pnpm storybook`: run Storybook locally.
 
+### TypeScript 6 / 7 side-by-side
+
+TypeScript 7 dropped the programmatic API that `typescript-eslint` imports, so `package.json` carries two npm
+aliases: `typescript` resolves to `@typescript/typescript6` (the API `typescript-eslint` loads, exposed on the CLI
+as `tsc6`) and `@typescript/native` resolves to the real `typescript@7` (which owns the `tsc` binary). So `pnpm tsc`
+type-checks with 7.x while `pnpm lint` keeps working against the 6.x API. Do not "simplify" `typescript` back to a
+plain `^7` range — that silently kills ESLint. Collapse both aliases into one dependency once typescript-eslint
+supports TS >= 7.1 (typescript-eslint#10940).
+
 ## Coding Style & Naming Conventions
 
 Use TypeScript and SolidJS with 2-space indentation, double quotes, semicolons, and trailing commas in multiline
