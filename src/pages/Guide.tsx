@@ -223,174 +223,190 @@ const Guide = () => {
       </View>
 
       {/* EPG Grid */}
-      <Column ref={guideGrid} x={20} width={GUIDE_WIDTH} height={910} gap={3} scroll="auto" autofocus>
-        <Show when={channels.loading && !channels.error}>
-          <View
-            width={1640}
-            height={400}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            skipFocus
-          >
-            <Text fontSize={28} color={theme.textMuted}>
-              Carregando guia...
-            </Text>
-          </View>
-        </Show>
+      {/* A scrolling Column translates itself, so its own clipping box travels
+          with it and cannot protect anything above. The rows need a viewport
+          that stays put: without this the rows scrolled past the top keep
+          painting and land over the title and the time ruler, which have no
+          background of their own to hide them. Same wrapper the catalog grid
+          and the search results use. */}
+      <View x={20} width={GUIDE_WIDTH} height={910} clipping skipFocus>
+        <Column ref={guideGrid} width={GUIDE_WIDTH} height={910} gap={3} scroll="auto" autofocus>
+          <Show when={channels.loading && !channels.error}>
+            <View
+              width={1640}
+              height={400}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              skipFocus
+            >
+              <Text fontSize={28} color={theme.textMuted}>
+                Carregando guia...
+              </Text>
+            </View>
+          </Show>
 
-        <Show when={channels.error}>
-          <LoadError
-            width={GUIDE_WIDTH}
-            height={720}
-            title="Guia indisponível"
-            message="Não conseguimos carregar os canais do guia agora."
-            onRetry={retryGuide}
-          />
-        </Show>
+          <Show when={channels.error}>
+            <LoadError
+              width={GUIDE_WIDTH}
+              height={720}
+              title="Guia indisponível"
+              message="Não conseguimos carregar os canais do guia agora."
+              onRetry={retryGuide}
+            />
+          </Show>
 
-        <Show when={!channels.loading && !channels.error && channelsWithPrograms().length === 0}>
-          <View
-            width={GUIDE_WIDTH}
-            height={320}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            skipFocus
-          >
-            <Text fontSize={26} color={theme.textMuted}>
-              Nenhum canal disponível no guia
-            </Text>
-          </View>
-        </Show>
+          <Show when={!channels.loading && !channels.error && channelsWithPrograms().length === 0}>
+            <View
+              width={GUIDE_WIDTH}
+              height={320}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              skipFocus
+            >
+              <Text fontSize={26} color={theme.textMuted}>
+                Nenhum canal disponível no guia
+              </Text>
+            </View>
+          </Show>
 
-        <For each={channelsWithPrograms()}>
-          {({ channel, programs }) => (
-            <View width={GUIDE_WIDTH} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
-              {/* Channel info */}
-              <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.panel}>
-                <Show when={channel.logo_url}>
-                  <View
-                    x={12}
-                    y={13}
-                    width={60}
-                    height={40}
-                    src={proxyImageUrl(channel.logo_url, 120)}
+          <For each={channelsWithPrograms()}>
+            {({ channel, programs }) => (
+              <View width={GUIDE_WIDTH} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
+                {/* Channel info */}
+                <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.panel}>
+                  <Show when={channel.logo_url}>
+                    <View
+                      x={12}
+                      y={13}
+                      width={60}
+                      height={40}
+                      src={proxyImageUrl(channel.logo_url, 120)}
+                      color={0xffffffff}
+                    />
+                  </Show>
+                  <Text
+                    x={84}
+                    y={24}
+                    fontSize={15}
                     color={0xffffffff}
-                  />
-                </Show>
-                <Text x={84} y={24} fontSize={15} color={0xffffffff} contain="width" width={120} maxLines={2}>
-                  {channel.name}
-                </Text>
-              </View>
+                    contain="width"
+                    width={120}
+                    maxLines={2}
+                  >
+                    {channel.name}
+                  </Text>
+                </View>
 
-              {/* Allow direct channel playback when EPG data is unavailable. */}
-              <Show when={programs.length === 0}>
-                <View
+                {/* Allow direct channel playback when EPG data is unavailable. */}
+                <Show when={programs.length === 0}>
+                  <View
+                    x={CHANNEL_COLUMN_WIDTH}
+                    width={PROGRAM_AREA_WIDTH}
+                    height={ROW_HEIGHT}
+                    color={theme.surface}
+                    borderRadius={6}
+                    border={{ color: theme.borderSubtle, width: 1 }}
+                    transition={{ color: { duration: 150 } }}
+                    $focus={{ color: theme.surfaceHover, border: { color: theme.primary, width: 2 } }}
+                    onEnter={() => {
+                      handleChannelSelect(channel);
+                      return true;
+                    }}
+                  >
+                    <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
+                      {epg.loading
+                        ? "Carregando programação… · OK para assistir ao vivo"
+                        : epg.error
+                          ? "Programação indisponível agora · OK para assistir ao vivo"
+                          : "Sem programação disponível · OK para assistir ao vivo"}
+                    </Text>
+                  </View>
+                </Show>
+
+                {/* Programs */}
+                <Row
                   x={CHANNEL_COLUMN_WIDTH}
                   width={PROGRAM_AREA_WIDTH}
                   height={ROW_HEIGHT}
-                  color={theme.surface}
-                  borderRadius={6}
-                  border={{ color: theme.borderSubtle, width: 1 }}
-                  transition={{ color: { duration: 150 } }}
-                  $focus={{ color: theme.surfaceHover, border: { color: theme.primary, width: 2 } }}
-                  onEnter={() => {
-                    handleChannelSelect(channel);
-                    return true;
-                  }}
+                  gap={4}
+                  scroll="auto"
+                  clipping
                 >
-                  <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
-                    {epg.loading
-                      ? "Carregando programação… · OK para assistir ao vivo"
-                      : epg.error
-                        ? "Programação indisponível agora · OK para assistir ao vivo"
-                        : "Sem programação disponível · OK para assistir ao vivo"}
-                  </Text>
-                </View>
-              </Show>
-
-              {/* Programs */}
-              <Row
-                x={CHANNEL_COLUMN_WIDTH}
-                width={PROGRAM_AREA_WIDTH}
-                height={ROW_HEIGHT}
-                gap={4}
-                scroll="auto"
-                clipping
-              >
-                <For each={programs}>
-                  {program => (
-                    <View
-                      width={program.width - 4}
-                      height={ROW_HEIGHT - 4}
-                      y={2}
-                      color={isNowPlaying(program) ? theme.surfaceActive : theme.surface}
-                      borderRadius={6}
-                      border={{ color: isNowPlaying(program) ? 0x7a1f27ff : theme.borderSubtle, width: 1 }}
-                      style={{
-                        transition: { color: { duration: 150 }, scale: { duration: 150 } },
-                        $focus: {
-                          color: theme.surfaceHover,
-                          scale: 1.02,
-                          border: { color: theme.primary, width: 2 },
-                        },
-                      }}
-                      onEnter={() => {
-                        handleChannelSelect(channel);
-                        return true;
-                      }}
-                      forwardStates
-                    >
-                      {/* Now playing indicator */}
-                      <Show when={isNowPlaying(program)}>
-                        <View
-                          width={4}
-                          height={ROW_HEIGHT - 8}
-                          y={2}
-                          x={2}
-                          color={theme.primary}
-                          borderRadius={2}
-                        />
-                        <View
-                          x={9}
-                          y={ROW_HEIGHT - 10}
-                          width={getProgramProgressWidth(program)}
-                          height={3}
-                          color={theme.primary}
-                          borderRadius={3}
-                        />
-                      </Show>
-
-                      <Text
-                        x={isNowPlaying(program) ? 14 : 8}
-                        y={8}
-                        fontSize={14}
-                        fontWeight={700}
-                        color={0xffffffff}
-                        contain="width"
-                        width={program.width - 20}
-                        maxLines={1}
+                  <For each={programs}>
+                    {program => (
+                      <View
+                        width={program.width - 4}
+                        height={ROW_HEIGHT - 4}
+                        y={2}
+                        color={isNowPlaying(program) ? theme.surfaceActive : theme.surface}
+                        borderRadius={6}
+                        border={{ color: isNowPlaying(program) ? 0x7a1f27ff : theme.borderSubtle, width: 1 }}
+                        style={{
+                          transition: { color: { duration: 150 }, scale: { duration: 150 } },
+                          $focus: {
+                            color: theme.surfaceHover,
+                            scale: 1.02,
+                            border: { color: theme.primary, width: 2 },
+                          },
+                        }}
+                        onEnter={() => {
+                          handleChannelSelect(channel);
+                          return true;
+                        }}
+                        forwardStates
                       >
-                        {program.title}
-                      </Text>
+                        {/* Now playing indicator */}
+                        <Show when={isNowPlaying(program)}>
+                          <View
+                            width={4}
+                            height={ROW_HEIGHT - 8}
+                            y={2}
+                            x={2}
+                            color={theme.primary}
+                            borderRadius={2}
+                          />
+                          <View
+                            x={9}
+                            y={ROW_HEIGHT - 10}
+                            width={getProgramProgressWidth(program)}
+                            height={3}
+                            color={theme.primary}
+                            borderRadius={3}
+                          />
+                        </Show>
 
-                      <Text
-                        x={isNowPlaying(program) ? 14 : 8}
-                        y={30}
-                        fontSize={12}
-                        color={theme.textSecondary}
-                      >
-                        {formatProgramSchedule(program)}
-                      </Text>
-                    </View>
-                  )}
-                </For>
-              </Row>
-            </View>
-          )}
-        </For>
-      </Column>
+                        <Text
+                          x={isNowPlaying(program) ? 14 : 8}
+                          y={8}
+                          fontSize={14}
+                          fontWeight={700}
+                          color={0xffffffff}
+                          contain="width"
+                          width={program.width - 20}
+                          maxLines={1}
+                        >
+                          {program.title}
+                        </Text>
+
+                        <Text
+                          x={isNowPlaying(program) ? 14 : 8}
+                          y={30}
+                          fontSize={12}
+                          color={theme.textSecondary}
+                        >
+                          {formatProgramSchedule(program)}
+                        </Text>
+                      </View>
+                    )}
+                  </For>
+                </Row>
+              </View>
+            )}
+          </For>
+        </Column>
+      </View>
 
       {/* Legend */}
       <View x={20} y={1000} display="flex" gap={30} skipFocus>
