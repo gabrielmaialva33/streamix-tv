@@ -1,6 +1,6 @@
 import { type ElementNode, Text, View } from "@solidtv/solid";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
 import { theme } from "@/styles";
 import { createLogger } from "@/shared/logging/logger";
@@ -11,6 +11,13 @@ import PlayerManager, { type PlayerCallbacks, type PlayerState } from "./core/pl
 import { createInitialPlayerState } from "./core/playerState";
 import { playbackErrorMessage } from "./playbackError";
 import { findNextEpisode, type PlayerType, resolvePlayerSource } from "./stream";
+import {
+  defaultTrackIndex,
+  fetchMediaTracks,
+  hasSelectableTracks,
+  type MediaTrack,
+  splitByKind,
+} from "./tracks";
 
 const logger = createLogger("PlayerPage");
 const SEEK_BAR_WIDTH = 1800;
@@ -23,7 +30,7 @@ const SEEK_COMMIT_DELAY_MS = 900;
 const SEEK_ACCELERATION_WINDOW_MS = 1400;
 const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 5;
-type PlayerControl = "timeline" | "back" | "play" | "forward";
+type PlayerControl = "timeline" | "back" | "play" | "forward" | "tracks";
 type PlaybackTelemetrySignal = "start" | "progress" | "pause" | "resume" | "complete" | "error";
 
 const TELEMETRY_OUTCOMES: Record<PlaybackTelemetrySignal, PlaybackTelemetryEvent["outcome"]> = {
@@ -60,6 +67,10 @@ const PlayerPage = () => {
   const [accumulatedSeek, setAccumulatedSeek] = createSignal(0);
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
   const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
+  const [tracks, setTracks] = createSignal<MediaTrack[]>([]);
+  const [trackPickerOpen, setTrackPickerOpen] = createSignal(false);
+  const [trackCursor, setTrackCursor] = createSignal(0);
+  const [activeAudioTrack, setActiveAudioTrack] = createSignal<number | null>(null);
   const [nextUp, setNextUp] = createSignal<Episode | null>(null);
   const [nextUpSeconds, setNextUpSeconds] = createSignal(NEXT_EPISODE_COUNTDOWN_SECONDS);
   let nextUpInterval: number | null = null;
@@ -96,6 +107,23 @@ const PlayerPage = () => {
       setTitle(source.title);
       setPosterUrl(source.posterUrl);
       return source;
+    },
+  );
+
+  // Probed server-side, independent of the stream resource: a failure here must
+  // never delay or block playback, so the picker simply stays hidden.
+  createResource(
+    () => ({ type: params.type, id: params.id }),
+    async ({ type, id }) => {
+      setTracks([]);
+      setActiveAudioTrack(null);
+      const result = await fetchMediaTracks(type, id);
+      if (result.status === "ready") {
+        setTracks(result.tracks);
+        // Whatever the container marks default is what already started playing.
+        setActiveAudioTrack(defaultTrackIndex(result.tracks, "audio"));
+      }
+      return result.status;
     },
   );
 
@@ -413,6 +441,16 @@ const PlayerPage = () => {
       case "forward":
         handleSeek(1);
         return true;
+      case "tracks":
+        setTrackCursor(
+          Math.max(
+            0,
+            audioTracks().findIndex(t => t.index === activeAudioTrack()),
+          ),
+        );
+        setTrackPickerOpen(true);
+        resetControlsTimeout();
+        return true;
       case "play":
       default:
         return handlePrimaryAction();
@@ -529,6 +567,54 @@ const PlayerPage = () => {
     seekFeedbackTimeout = window.setTimeout(commitSeek, SEEK_COMMIT_DELAY_MS);
   }
 
+  const audioTracks = () => splitByKind(tracks()).audio;
+  const canPickTracks = () => hasSelectableTracks(tracks());
+
+  /** Left-to-right order of the control row, minus anything not offered. */
+  const controlOrder = (): PlayerControl[] =>
+    canPickTracks() ? ["back", "play", "forward", "tracks"] : ["back", "play", "forward"];
+
+  function stepControl(direction: -1 | 1) {
+    const order = controlOrder();
+    const at = order.indexOf(selectedControl());
+    if (at < 0) return;
+    const next = order[at + direction];
+    if (next) setSelectedControl(next);
+  }
+
+  function applyAudioTrack(track: MediaTrack) {
+    // The backend cannot switch tracks for us — selection is a player call, and
+    // on a progressive MKV in a Chromium WebView there is no API at all. Report
+    // that instead of leaving the viewer thinking the choice took effect.
+    if (!PlayerManager.selectTrack("audio", track.index)) {
+      showSyncMessage("Esta TV não permite trocar o áudio deste vídeo");
+      return;
+    }
+    setActiveAudioTrack(track.index);
+    showSyncMessage(`Áudio: ${track.label}`);
+  }
+
+  function closeTrackPicker() {
+    setTrackPickerOpen(false);
+    resetControlsTimeout();
+    return true;
+  }
+
+  function moveTrackCursor(direction: -1 | 1) {
+    const list = audioTracks();
+    if (list.length === 0) return true;
+    const next = trackCursor() + direction;
+    if (next < 0 || next >= list.length) return true;
+    setTrackCursor(next);
+    return true;
+  }
+
+  function confirmTrackChoice() {
+    const chosen = audioTracks()[trackCursor()];
+    if (chosen) applyAudioTrack(chosen);
+    return closeTrackPicker();
+  }
+
   function selectPreviousControl() {
     const current = selectedControl();
     if (current === "timeline") {
@@ -536,11 +622,7 @@ const PlayerPage = () => {
       return true;
     }
 
-    if (current === "forward") {
-      setSelectedControl("play");
-    } else if (current === "play") {
-      setSelectedControl("back");
-    }
+    stepControl(-1);
 
     resetControlsTimeout();
     return true;
@@ -553,11 +635,7 @@ const PlayerPage = () => {
       return true;
     }
 
-    if (current === "back") {
-      setSelectedControl("play");
-    } else if (current === "play") {
-      setSelectedControl("forward");
-    }
+    stepControl(1);
 
     resetControlsTimeout();
     return true;
@@ -807,13 +885,13 @@ const PlayerPage = () => {
       width={SCREEN_WIDTH}
       height={SCREEN_HEIGHT}
       color={0x00000000}
-      onEnter={handleSelectedControl}
+      onEnter={() => (trackPickerOpen() ? confirmTrackChoice() : handleSelectedControl())}
       onLast={handleClose}
-      onBack={handleClose}
-      onLeft={selectPreviousControl}
-      onRight={selectNextControl}
-      onUp={selectTimeline}
-      onDown={selectControls}
+      onBack={() => (trackPickerOpen() ? closeTrackPicker() : handleClose())}
+      onLeft={() => (trackPickerOpen() ? true : selectPreviousControl())}
+      onRight={() => (trackPickerOpen() ? true : selectNextControl())}
+      onUp={() => (trackPickerOpen() ? moveTrackCursor(-1) : selectTimeline())}
+      onDown={() => (trackPickerOpen() ? moveTrackCursor(1) : selectControls())}
       onPlay={handlePlay}
       onPause={handlePause}
       onPlayPause={handlePlayPause}
@@ -1211,8 +1289,82 @@ const PlayerPage = () => {
             />
           </View>
 
-          <Text x={320} y={218} fontSize={18} color={0xc6c6d6ff}>
+          <Show when={canPickTracks()}>
+            <View
+              x={308}
+              y={202}
+              width={56}
+              height={56}
+              color={controlColor("tracks", 0x0f1018cc)}
+              border={controlBorder("tracks")}
+              borderRadius={28}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Text fontSize={20} fontWeight={700} color={controlIconColor("tracks")}>
+                CC
+              </Text>
+            </View>
+          </Show>
+
+          <Text x={canPickTracks() ? 396 : 320} y={218} fontSize={18} color={0xc6c6d6ff}>
             {remainingTime()}
+          </Text>
+        </View>
+      </Show>
+
+      {/* Track picker. Vertical list because a TV remote's Up/Down is the only
+          axis free while the transport controls own Left/Right. */}
+      <Show when={trackPickerOpen()}>
+        <View x={0} y={0} width={1920} height={1080} color={0x000000b8} zIndex={400} />
+        <View
+          x={660}
+          y={280}
+          width={600}
+          height={Math.min(520, 116 + audioTracks().length * 64)}
+          color={theme.panel}
+          borderRadius={20}
+          border={{ color: theme.panelBorder, width: 2 }}
+          zIndex={401}
+        >
+          <Text x={32} y={28} fontSize={26} fontWeight={700} color={theme.textPrimary}>
+            Faixa de áudio
+          </Text>
+
+          <For each={audioTracks()}>
+            {(track, index) => (
+              <View
+                x={24}
+                y={76 + index() * 64}
+                width={552}
+                height={56}
+                borderRadius={12}
+                color={trackCursor() === index() ? theme.surfaceHover : 0x00000000}
+                border={{
+                  color: trackCursor() === index() ? theme.primary : 0x00000000,
+                  width: trackCursor() === index() ? 2 : 0,
+                }}
+              >
+                <Text x={20} y={16} fontSize={20} color={theme.textPrimary} contain="width" width={440}>
+                  {track.label}
+                </Text>
+                <Show when={activeAudioTrack() === track.index}>
+                  <Text x={484} y={16} fontSize={20} color={theme.primary}>
+                    ATUAL
+                  </Text>
+                </Show>
+              </View>
+            )}
+          </For>
+
+          <Text
+            x={32}
+            y={Math.min(520, 116 + audioTracks().length * 64) - 40}
+            fontSize={16}
+            color={theme.textMuted}
+          >
+            Cima/baixo escolhe · OK aplica · Voltar fecha
           </Text>
         </View>
       </Show>

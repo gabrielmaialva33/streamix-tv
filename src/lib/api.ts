@@ -750,12 +750,24 @@ export interface FavoriteSyncResponse {
 }
 
 export interface GindexTrack {
+  /** Stream index inside the container — what the player selects by. */
   index: number;
-  type?: "audio" | "subtitle";
-  language?: string | null;
   codec?: string | null;
+  /** ISO-639-2, or "und" when the container declares nothing. */
+  language?: string | null;
+  /** Often null, and sometimes release-group noise rather than a real name. */
   title?: string | null;
-  [key: string]: unknown;
+  /** Audio only; null on subtitle tracks. */
+  channels?: number | null;
+  default?: boolean;
+  forced?: boolean;
+}
+
+/** `ffprobe` output grouped by kind, as GindexTracksController returns it. */
+export interface GindexTracks {
+  audio: GindexTrack[];
+  subtitle: GindexTrack[];
+  probed_at?: string;
 }
 
 export interface HealthResponse {
@@ -1442,7 +1454,7 @@ export const api = {
     }),
 
   getGindexTracks: (type: "movie" | "episode", id: string | number) =>
-    request<GindexTrack[] | { status: "probing"; retry_after: number }>(
+    request<GindexTracks | { status: "probing"; retry_after: number }>(
       `${API_ROOT_URL}/gindex-tracks/${type}/${id}`,
       { ttl: DEFAULT_TTL, auth: false, apiKey: false },
     ),
