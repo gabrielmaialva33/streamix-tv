@@ -142,3 +142,24 @@ export function rendererBudget(profile = detectDeviceProfile()): RendererBudget 
   // exists to keep the return type non-optional.
   return tier ? tier.budget : BUDGET_BY_RAM[BUDGET_BY_RAM.length - 1].budget;
 }
+
+/**
+ * Whether the device has a pointing device the viewer can actually move.
+ *
+ * `useMouse` exists to let a cursor drive a focus-based UI: it turns a click
+ * into a synthetic Enter. On a remote-only TV that trade runs backwards.
+ * Pressing Enter makes the browser fire its own activation click, `useMouse`
+ * turns that click back into a second Enter, and every button activates twice
+ * — measured on the Android TV WebView as keydown(Enter) → click → synthetic
+ * keydown(Enter). The visible symptom is a two-step flow collapsing into one
+ * press: the audio track picker opened and confirmed the current track in the
+ * same keystroke, so no other track could ever be chosen.
+ *
+ * A Fire TV / Android TV WebView reports `pointer: none`, while an LG magic
+ * remote reports a fine pointer and does want the translation — so ask the
+ * platform rather than naming devices.
+ */
+export function hasPointerInput(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return ["(any-pointer: fine)", "(any-pointer: coarse)"].some(query => window.matchMedia(query).matches);
+}
