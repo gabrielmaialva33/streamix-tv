@@ -260,10 +260,14 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
     })
     .catch(err => {
       inFlight.delete(cacheKey);
-      // Expected auth/rate-limit/not-found failures are demoted to warn so
-      // pages that handle them gracefully don't pollute the console.
+      // Expected auth/rate-limit/not-found/plan-gated failures are demoted to
+      // warn so pages that handle them gracefully don't pollute the console.
+      // 402 is the backend's "this account's plan lacks advanced AI" answer for
+      // the recommendation endpoints; every caller already falls back to the
+      // public catalog, so it is a routine outcome rather than a fault.
       const expected =
-        err instanceof ApiError && (err.isUnauthorized() || err.status === 429 || err.status === 404);
+        err instanceof ApiError &&
+        (err.isUnauthorized() || err.status === 402 || err.status === 429 || err.status === 404);
       if (expected) logger.warn(`${method} ${url}`, err.message);
       else logger.error(`${method} ${url}`, err);
       throw err;
