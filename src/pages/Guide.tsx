@@ -10,6 +10,10 @@ import { theme } from "@/styles";
 
 const EPG_WINDOW_HOURS = 8;
 const TIME_SLOT_WIDTH = 200;
+// One half-hour slot before "now" plus six hours ahead. The header and the
+// program bars share this so a bar can never claim time the grid isn't showing.
+const TIMELINE_SLOTS = 13;
+const TIMELINE_WIDTH = TIMELINE_SLOTS * TIME_SLOT_WIDTH;
 const CHANNEL_COLUMN_WIDTH = 220;
 const ROW_HEIGHT = 82;
 const GUIDE_WIDTH = 1660;
@@ -49,7 +53,10 @@ interface ChannelWithPrograms {
 
 const programWidthFromDates = (start: Date, end: Date) => {
   const durationMinutes = Math.max(15, (end.getTime() - start.getTime()) / (1000 * 60));
-  return Math.max(120, (durationMinutes / 30) * TIME_SLOT_WIDTH);
+  // Clamp to the rendered window: providers without a real EPG feed emit
+  // day-long placeholder blocks, which would otherwise compute a ~9600px bar
+  // inside a 1440px viewport and bury the time ruler entirely.
+  return Math.min(TIMELINE_WIDTH, Math.max(120, (durationMinutes / 30) * TIME_SLOT_WIDTH));
 };
 
 // Convert EPG payload strings into date objects.
@@ -116,13 +123,13 @@ const Guide = () => {
     onCleanup(() => clearInterval(interval));
   });
 
-  // Time slots for header (6 hours window)
+  // Time slots for the header ruler, aligned with TIMELINE_SLOTS.
   const timeSlots = () => {
     const slots: Date[] = [];
     const now = new Date();
     now.setMinutes(0, 0, 0);
 
-    for (let i = -1; i < 12; i++) {
+    for (let i = -1; i < TIMELINE_SLOTS - 1; i++) {
       slots.push(new Date(now.getTime() + i * 30 * 60 * 1000));
     }
     return slots;
@@ -131,6 +138,19 @@ const Guide = () => {
   // Format time
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  // Providers without a real EPG feed emit one placeholder block per day
+  // (00:00Z-23:59Z). Rendered as a plain range that becomes "21:00 - 20:59" in
+  // UTC-3, which reads as an error rather than as "all day". Anything spanning
+  // most of a day gets a label instead of a misleading start/end pair.
+  const ALL_DAY_THRESHOLD_MS = 20 * 60 * 60 * 1000;
+
+  const formatProgramSchedule = (program: Program) => {
+    if (program.end.getTime() - program.start.getTime() >= ALL_DAY_THRESHOLD_MS) {
+      return "Programação contínua";
+    }
+    return `${formatTime(program.start)} - ${formatTime(program.end)}`;
   };
 
   // Check if program is currently playing
@@ -361,7 +381,7 @@ const Guide = () => {
                         fontSize={12}
                         color={theme.textSecondary}
                       >
-                        {formatTime(program.start)} - {formatTime(program.end)}
+                        {formatProgramSchedule(program)}
                       </Text>
                     </View>
                   )}
