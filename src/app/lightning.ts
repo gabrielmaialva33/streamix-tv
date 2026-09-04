@@ -9,8 +9,8 @@ import {
   RoundedWithShadow,
   Shadow,
 } from "@solidtv/renderer/webgl/shaders";
-import { merge } from "lodash-es";
 import { config } from "#devices/common";
+import { mergeConfigInto } from "#devices/common/mergeConfig";
 import fonts from "@/fonts";
 
 let appRenderer: ReturnType<typeof createRenderer> | null = null;
@@ -36,7 +36,7 @@ export function getAppRenderer() {
     return appRenderer;
   }
 
-  merge(LightningConfig, config.lightning);
+  mergeConfigInto(LightningConfig, config.lightning);
   appRenderer = createRenderer();
   loadFonts(fonts);
   registerShaders();

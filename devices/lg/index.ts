@@ -1,9 +1,9 @@
 import { DeviceConfig } from "#devices/devices";
 import { config as common } from "#devices/common";
+import { mergeConfig } from "#devices/common/mergeConfig";
 import { LgDevice } from "./device";
-import { merge } from "lodash-es";
 
-export const config: DeviceConfig = merge({}, common, <Partial<DeviceConfig>>{
+export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<DeviceConfig>>{
   name: "lg",
   quality: {
     image: {
