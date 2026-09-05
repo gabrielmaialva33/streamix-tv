@@ -604,6 +604,7 @@ const Sidebar = (props: SidebarProps) => {
 
   return (
     <View
+      id="sidebar"
       ref={props.ref}
       width={railWidth()}
       height={1080}

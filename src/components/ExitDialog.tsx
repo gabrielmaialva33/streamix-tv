@@ -78,7 +78,7 @@ const ExitDialog = (props: ExitDialogProps) => {
   }
 
   return (
-    <View style={OverlayStyle}>
+    <View id="exitDialog" style={OverlayStyle}>
       <View
         style={DialogStyle}
         forwardFocus={() => focusCancel()}

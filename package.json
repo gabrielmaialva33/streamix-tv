@@ -36,6 +36,7 @@
     "build:analyze": "vite-bundle-visualizer",
     "preview": "vite preview --open --port 8080",
     "test": "vitest",
+    "test:tv": "playwright test",
     "tsc": "tsc",
     "storybook": "STREAMIX_STORYBOOK=true storybook dev -p 6006",
     "build-storybook": "STREAMIX_STORYBOOK=true storybook build",
