@@ -46,11 +46,6 @@ interface Program {
   width: number;
 }
 
-interface ChannelWithPrograms {
-  channel: Channel;
-  programs: Program[];
-}
-
 const programWidthFromDates = (start: Date, end: Date) => {
   const durationMinutes = Math.max(15, (end.getTime() - start.getTime()) / (1000 * 60));
   // Clamp to the rendered window: providers without a real EPG feed emit
@@ -100,18 +95,16 @@ const Guide = () => {
     },
   );
 
-  const channelsWithPrograms = createMemo<ChannelWithPrograms[]>(() => {
+  const programsFor = (channel: Channel) => (epg.error ? [] : epg()?.[String(channel.id)] || []);
+
+  const visibleChannels = createMemo(() => {
     if (channels.error) return [];
     const data = channels()?.data || [];
-    const epgMap = epg.error ? {} : epg() || {};
-    const rows = data.map((channel, index) => ({
-      channel,
-      index,
-      programs: epgMap[String(channel.id)] || [],
-    }));
-    const withPrograms = rows.filter(row => row.programs.length > 0);
-    const emptyRows = rows.filter(row => row.programs.length === 0).slice(0, EMPTY_ROWS_AFTER);
-    return [...withPrograms, ...emptyRows].map(({ channel, programs }) => ({ channel, programs }));
+    const withPrograms = data.filter(channel => programsFor(channel).length > 0);
+    const emptyRows = data.filter(channel => programsFor(channel).length === 0).slice(0, EMPTY_ROWS_AFTER);
+    // Keep the channel objects as For keys. Wrapping them in new objects when
+    // EPG arrives unmounts the focused row, even for an empty EPG response.
+    return [...withPrograms, ...emptyRows];
   });
 
   // Update current time every minute. Cleanup must go through onCleanup —
@@ -256,7 +249,7 @@ const Guide = () => {
             />
           </Show>
 
-          <Show when={!channels.loading && !channels.error && channelsWithPrograms().length === 0}>
+          <Show when={!channels.loading && !channels.error && visibleChannels().length === 0}>
             <View
               width={GUIDE_WIDTH}
               height={320}
@@ -271,9 +264,19 @@ const Guide = () => {
             </View>
           </Show>
 
-          <For each={channelsWithPrograms()}>
-            {({ channel, programs }) => (
-              <View width={GUIDE_WIDTH} height={ROW_HEIGHT} style={ChannelRowStyle} forwardStates>
+          <For each={visibleChannels()}>
+            {channel => (
+              <View
+                id={`guide-channel-${channel.id}`}
+                width={GUIDE_WIDTH}
+                height={ROW_HEIGHT}
+                style={ChannelRowStyle}
+                onEnter={() => {
+                  handleChannelSelect(channel);
+                  return true;
+                }}
+                forwardStates
+              >
                 {/* Channel info */}
                 <View width={CHANNEL_COLUMN_WIDTH} height={ROW_HEIGHT} color={theme.panel}>
                   <Show when={channel.logo_url}>
@@ -300,7 +303,7 @@ const Guide = () => {
                 </View>
 
                 {/* Allow direct channel playback when EPG data is unavailable. */}
-                <Show when={programs.length === 0}>
+                <Show when={programsFor(channel).length === 0}>
                   <View
                     x={CHANNEL_COLUMN_WIDTH}
                     width={PROGRAM_AREA_WIDTH}
@@ -334,7 +337,7 @@ const Guide = () => {
                   scroll="auto"
                   clipping
                 >
-                  <For each={programs}>
+                  <For each={programsFor(channel)}>
                     {program => (
                       <View
                         width={program.width - 4}
