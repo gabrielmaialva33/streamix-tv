@@ -22,6 +22,7 @@ Use `pnpm`; the repo pins it in `package.json`.
 - `pnpm lint`: run ESLint on JS/TS/Solid files.
 - `pnpm format` / `pnpm format:check`: apply or verify Prettier formatting.
 - `pnpm storybook`: run Storybook locally.
+- `pnpm test:tv`: run browser navigation tests with the Fire TV, Tizen, and webOS device configs.
 
 ### TypeScript 6 / 7 side-by-side
 
@@ -43,10 +44,15 @@ permits it.
 
 ## Testing Guidelines
 
-Vitest is the test runner (`vitest.config.ts`, jsdom environment). Place tests beside the code they cover using
-`*.test.{js,jsx,ts,tsx}`. There are currently no test suites — `passWithNoTests` keeps `pnpm test` green — so new
-tests for storage helpers, `lib/contentMeta`, and player/device logic are welcome and should become the gate once they
-exist.
+Vitest is the unit test runner (`vitest.config.ts`, jsdom environment). Place tests beside the code they cover using
+`*.test.{js,jsx,ts,tsx}` and run them once with `pnpm exec vitest run`.
+
+Playwright runs `*.e2e.ts` beside the code they cover via `pnpm test:tv`. It uses the installed Chrome, the real
+Lightning scene and device configs, and local API fixtures without credentials. `src/test/tvScene.ts` reads the
+actual focus manager; inspect ancestry rather than screen coordinates or forwarded focus styles. Add navigation
+regressions here when fixing remote input or asynchronous focus restoration. These tests cover browser behavior;
+native AVPlay, Capacitor events, codecs, and device memory still require emulator/hardware validation. Traces and
+screenshots on failure go to `tmp/playwright-results`.
 
 ## Commit & Pull Request Guidelines
 

@@ -338,6 +338,7 @@ pnpm platform -- build tizen
 pnpm platform -- build webos
 pnpm platform -- build firetv
 pnpm test               # vitest
+pnpm test:tv            # remote navigation with Fire TV, Tizen, and webOS configs
 pnpm tsc                # type-check only
 pnpm lint               # eslint
 pnpm lint-fix           # eslint --fix
@@ -356,6 +357,14 @@ pnpm firetv:apk         # build Android debug APK from dist/firetv/
 ```
 
 ## :memo: Project Notes
+
+Browser navigation tests use the installed Chrome (`pnpm exec playwright install chrome` if needed). They start
+isolated Vite servers with each device config and intercept API requests with local fixtures; no backend credentials
+are required. They cover sidebar access, Back/OK handling, exit dialogs, live-channel selection, and focus during
+delayed catalog/EPG responses.
+The actual Lightning focus manager is inspected through `src/test/tvScene.ts`, since the UI is not a DOM tree.
+Failure traces and screenshots are saved under `tmp/playwright-results`. Run these alongside the unit tests when
+changing navigation. Native playback and physical remote/device behavior still need emulator or hardware checks.
 
 - Keep `@solidtv/solid` and `@solidtv/renderer` aligned with the peer dependency range published by SolidTV.
 - MSDF fonts are required; the Tizen 4 Chromium (M56) cannot `fetch` `file://` URLs, so the font config uses relative
