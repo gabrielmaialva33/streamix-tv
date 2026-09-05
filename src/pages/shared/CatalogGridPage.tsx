@@ -1,4 +1,4 @@
-import { Text, View } from "@solidtv/solid";
+import { type ElementNode, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -65,6 +65,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
   const [hasMore, setHasMore] = createSignal(false);
   const [scrollPosition, setScrollPosition] = createSignal(0);
 
+  let pageRoot: ElementNode | undefined;
   let contentGrid: NavigableElement | undefined;
   let seenItemIds = new Set<T["id"]>();
   let focusGridAfterRetry = false;
@@ -88,6 +89,9 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
     focusGridWhenReady = false;
     queueMicrotask(() =>
       queueMicrotask(() => {
+        // Loading may finish after the viewer has moved back to the sidebar
+        // or opened its provider picker. That newer focus choice wins.
+        if (!pageRoot?.states.has("$focus")) return;
         if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
         else exitToSidebar();
       }),
@@ -149,6 +153,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
 
   return (
     <View
+      ref={pageRoot}
       width={PAGE_WIDTH}
       height={1080}
       forwardFocus={() => {

@@ -1,4 +1,4 @@
-import { type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
+import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid, type NavigableElement } from "@solidtv/solid/primitives";
 import { batch, createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -73,6 +73,7 @@ const Channels = () => {
   const [hasMore, setHasMore] = createSignal(false);
   const [channelsData, setChannelsData] = createSignal<Channel[]>([]);
 
+  let pageRoot: ElementNode | undefined;
   let contentGrid: NavigableElement | undefined;
   let seenChannelIds = new Set<Channel["id"]>();
   let focusGridAfterRetry = false;
@@ -96,6 +97,8 @@ const Channels = () => {
     focusGridWhenReady = false;
     queueMicrotask(() =>
       queueMicrotask(() => {
+        // A late response must not override a newer sidebar/picker selection.
+        if (!pageRoot?.states.has("$focus")) return;
         if (itemCount > 0 && isElementAttached(contentGrid)) contentGrid.setFocus();
         else exitToSidebar();
       }),
@@ -156,6 +159,7 @@ const Channels = () => {
 
   return (
     <View
+      ref={pageRoot}
       width={PAGE_WIDTH}
       height={1080}
       forwardFocus={() => {
