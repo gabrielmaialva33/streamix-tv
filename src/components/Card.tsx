@@ -168,7 +168,11 @@ const Card = (props: CardProps) => {
 
       {/* Subtitle if provided */}
       <Show when={props.subtitle}>
-        <Text y={height + 36} width={width} style={SubtitleStyle}>
+        {/* Below the two-line title zone, not one line under the title: with
+            titles wrapping, the old offset drew the rating over the second
+            line. A fixed position also keeps the rating baseline level across a
+            row, whatever each title's length. */}
+        <Text y={height + 64} width={width} style={SubtitleStyle}>
           {props.subtitle}
         </Text>
       </Show>
