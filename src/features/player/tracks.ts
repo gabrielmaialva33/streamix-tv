@@ -95,7 +95,10 @@ function sanitizeTitle(title: string): string | null {
  * That leaves the title with the job it is actually good for: naming a track
  * the container failed to describe at all.
  */
-function labelFor(track: GindexTrack, kind: MediaTrack["kind"], position: number): string {
+type LabelSource = Pick<GindexTrack, "language" | "channels"> &
+  Partial<Pick<GindexTrack, "title" | "forced">>;
+
+function labelFor(track: LabelSource, kind: MediaTrack["kind"], position: number): string {
   const language = (track.language ?? "").trim().toLowerCase();
   const named = LANGUAGE_NAMES[language] ?? (language && language !== "und" ? language.toUpperCase() : "");
   const rawTitle = (track.title ?? "").trim();
@@ -175,6 +178,60 @@ export async function fetchMediaTracks(type: PlayerType, id: string | number): P
 
   logger.debug("Track probe still running after the attempt budget", { type, id });
   return { status: "unknown" };
+}
+
+/**
+ * A track the player itself reports, already in the index space it selects by.
+ *
+ * Kept separate from `MediaTrack` because it carries no label: naming stays one
+ * policy, in `labelFor`, whatever the source.
+ */
+export interface NativeTrack {
+  index: number;
+  kind: MediaTrack["kind"];
+  language: string | null;
+  channels: number | null;
+}
+
+function sameTrack(native: NativeTrack, probed: MediaTrack): boolean {
+  if (native.kind !== probed.kind) return false;
+  const a = (native.language ?? "").toLowerCase();
+  const b = (probed.language ?? "").toLowerCase();
+  return a.length > 0 && a === b;
+}
+
+/**
+ * Build the picker list from what the player reports, borrowing the probe's
+ * label where the two describe the same track.
+ *
+ * The player decides *which tracks exist and what index selects them* — it is
+ * the thing that will be asked to switch, and on Tizen it omits codecs the set
+ * cannot decode. The probe only improves *naming*, which is where it is
+ * genuinely better: ffprobe reads a subtitle's language that AVPlay reports as
+ * an empty `track_lang`.
+ *
+ * Matching is by language alone, not language plus channel count, because the
+ * two sources disagree on channels for the same stream often enough that a
+ * stricter rule mostly just loses labels. A duplicate language takes the first
+ * unclaimed probe entry, so two Portuguese tracks keep distinct labels.
+ */
+export function mergeNativeTracks(native: NativeTrack[], probed: MediaTrack[]): MediaTrack[] {
+  const unclaimed = [...probed];
+
+  return native.map((track, position) => {
+    const at = unclaimed.findIndex(candidate => sameTrack(track, candidate));
+    const match = at >= 0 ? unclaimed.splice(at, 1)[0] : undefined;
+
+    return {
+      index: track.index,
+      kind: track.kind,
+      label:
+        match?.label ??
+        labelFor({ language: track.language, channels: track.channels }, track.kind, position),
+      language: track.language,
+      isDefault: position === 0,
+    };
+  });
 }
 
 /** Group a flat list into the two pickers the UI offers. */
