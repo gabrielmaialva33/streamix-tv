@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type DeviceProfile, hasPointerInput, rendererBudget } from "./capabilities";
+import { type DeviceProfile, hasPointerInput, imageWorkerCount, rendererBudget } from "./capabilities";
 
 function profile(overrides: Partial<DeviceProfile> = {}): DeviceProfile {
   return {
@@ -10,6 +10,9 @@ function profile(overrides: Partial<DeviceProfile> = {}): DeviceProfile {
     deviceMemoryGB: 2,
     hasWebGL: true,
     hasWebGL2: true,
+    cores: 4,
+    hasWorkers: true,
+    hasCreateImageBitmap: true,
     ...overrides,
   };
 }
@@ -106,5 +109,33 @@ describe("hasPointerInput", () => {
     // Too old to support matchMedia: a TV app's safe default is remote-only.
     vi.stubGlobal("matchMedia", undefined);
     expect(hasPointerInput()).toBe(false);
+  });
+});
+
+describe("imageWorkerCount", () => {
+  it("runs decode workers on a set that can actually use them", () => {
+    // What a 2023 Samsung BE55C-H reports: four cores, Worker and
+    // createImageBitmap both present.
+    expect(imageWorkerCount(profile({ cores: 4, hasWorkers: true, hasCreateImageBitmap: true }))).toBe(2);
+  });
+
+  it("stays off without createImageBitmap", () => {
+    // The worker would hand back bytes the render thread has to decode anyway.
+    expect(imageWorkerCount(profile({ hasCreateImageBitmap: false }))).toBe(0);
+  });
+
+  it("stays off without Worker at all", () => {
+    expect(imageWorkerCount(profile({ hasWorkers: false }))).toBe(0);
+  });
+
+  it("stays off where there are too few cores to spare one", () => {
+    expect(imageWorkerCount(profile({ cores: 2 }))).toBe(0);
+    expect(imageWorkerCount(profile({ cores: 1 }))).toBe(0);
+  });
+
+  it("stays off when the WebView will not say how many cores it has", () => {
+    // Old engines report nothing here; guessing high is how you stall a render
+    // loop on a 1GB stick.
+    expect(imageWorkerCount(profile({ cores: null }))).toBe(0);
   });
 });
