@@ -33,6 +33,29 @@ type-checks with 7.x while `pnpm lint` keeps working against the 6.x API. Do not
 plain `^7` range — that silently kills ESLint. Collapse both aliases into one dependency once typescript-eslint
 supports TS >= 7.1 (typescript-eslint#10940).
 
+### `@solidtv/renderer` 2.x is paired with a `@solidtv/solid` prerelease
+
+The two move together and neither range may be bumped alone. Renderer 2.x is only supported by
+`@solidtv/solid@1.7.0-0`; the newest _stable_ wrapper (1.6.5) still declares
+`peerDependencies: { "@solidtv/renderer": "^1.10.1" }`. So `pnpm up --latest` on `@solidtv/solid` will quietly drop
+back to 1.6.5 and leave an unmet peer against renderer 2.x. Re-pin both, or move both back to renderer `^1.10.1` plus
+solid `^1.6.5`.
+
+What 2.x changed here, in case either file needs touching again:
+
+- `./webgl` and `./canvas` subpath exports are gone. `devices/common/index.ts` no longer picks a `renderEngine` or
+  `fontEngines` — 2.x ships one pipeline, WebGL with SDF text.
+- **There is no in-process Canvas2D fallback any more.** The old config chose `CanvasCoreRenderer` when
+  `profile.hasWebGL` was false (a 1st-gen Fire TV Stick can lose GL after a Fire OS update). `@solidtv/solid` offers a
+  DOM renderer in its place, but it sits behind the `SOLIDTV_DOM_RENDERING` build global and is compiled out by
+  default, so it is a separate build, not a runtime branch. `profile.hasWebGL` is still detected but no longer changes
+  any renderer setting.
+- `registerShaderType` moved off `stage.shManager` onto the renderer itself. `src/app/lightning.ts` now calls
+  `registerDefaultShaders()` from `@solidtv/solid`, which registers the same eight names the app used to wire by hand.
+
+Payload, measured on the firetv build: the renderer chunk grows 199 KB → 248 KB, while total JS drops
+1,119 KB → 1,096 KB, because dropping the Canvas engines and the hand-rolled shader imports removes more than 2.x adds.
+
 ## Coding Style & Naming Conventions
 
 Use TypeScript and SolidJS with 2-space indentation, double quotes, semicolons, and trailing commas in multiline
