@@ -1,12 +1,26 @@
 import { createLogger } from "@/shared/logging/logger";
 import { getTizen, isTizenRuntime } from "@/platform/runtime";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
+import type { NativeTrack } from "../../tracks";
 import type { PlayerCallbacks, PlayerState } from "../playerState";
 
 const logger = createLogger("AVPlay");
 export const AVPLAY_PREPARE_TIMEOUT_MS = 20_000;
 
 type AVPlayStateValue = "NONE" | "IDLE" | "READY" | "PLAYING" | "PAUSED" | string;
+
+/**
+ * One row of `getTotalTrackInfo()`. `extra_info` is a JSON *string*, and every
+ * value inside it is a string too — verified on a 2023 Samsung BE55C-H
+ * (Tizen 9.0), where an audio row reads
+ * `{"language":"por","channels":"2","sample_rate":"48000",...}` and a subtitle
+ * row `{"track_num":"0","track_lang":"","subtitle_type":"-1",...}`.
+ */
+interface AVPlayTrackInfo {
+  index: number;
+  type: "AUDIO" | "VIDEO" | "TEXT" | string;
+  extra_info?: string;
+}
 
 interface AVPlayListener {
   onbufferingstart?(): void;
@@ -42,6 +56,7 @@ interface AVPlayHandle {
    * Tizen's own type names ("AUDIO" / "TEXT"), not our track kinds.
    */
   setSelectTrack?(type: "AUDIO" | "TEXT", index: number): void;
+  getTotalTrackInfo?(): AVPlayTrackInfo[];
   restoreAsync?(
     url?: string,
     resumeTime?: number,
@@ -418,6 +433,64 @@ export async function restoreAVPlay(updateState: (updates: Partial<PlayerState>)
  * Chromium never shipped `HTMLMediaElement.audioTracks`, so the HTML5 path can
  * only do this for HLS, where hls.js keeps its own track list.
  */
+function parseExtraInfo(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function numeric(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * The tracks AVPlay itself will play, in the index space `setSelectTrack` reads.
+ *
+ * This has to be the source of truth rather than the server-side probe, for two
+ * reasons measured on real hardware. The indices differ: ffprobe numbers every
+ * stream in the container, so a file whose second audio stream is index 2 has a
+ * subtitle at AVPlay's index 2, and selecting by the probe's number raises
+ * `PLAYER_ERROR_INVALID_PARAMETER`. And the sets differ: AVPlay omits what it
+ * cannot decode — a DTS track the probe reports simply is not in this list on a
+ * TV without DTS — so the probe can offer a track that does not exist here.
+ *
+ * Returns null when the platform predates the API, which keeps the probe as the
+ * fallback rather than emptying the picker.
+ */
+export function listAVPlayTracks(): NativeTrack[] | null {
+  const avplay = getAVPlay();
+  if (!avplay?.getTotalTrackInfo) return null;
+
+  let rows: AVPlayTrackInfo[];
+  try {
+    rows = avplay.getTotalTrackInfo() ?? [];
+  } catch (error) {
+    logger.warn("AVPlay could not enumerate its tracks", error);
+    return null;
+  }
+
+  return rows.flatMap(row => {
+    const kind = row.type === "AUDIO" ? "audio" : row.type === "TEXT" ? "subtitle" : null;
+    if (!kind || !Number.isInteger(row.index)) return [];
+    const extra = parseExtraInfo(row.extra_info);
+    const language = (extra.language ?? extra.track_lang ?? "").trim();
+    return [
+      {
+        index: row.index,
+        kind,
+        language: language.length > 0 ? language : null,
+        channels: numeric(extra.channels),
+      },
+    ];
+  });
+}
+
 export function selectAVPlayTrack(kind: "audio" | "subtitle", index: number): boolean {
   const avplay = getAVPlay();
   if (!avplay?.setSelectTrack) {

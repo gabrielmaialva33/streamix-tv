@@ -1,5 +1,6 @@
 import { createLogger } from "@/shared/logging/logger";
 import { isTizenRuntime } from "@/platform/runtime";
+import type { NativeTrack } from "../tracks";
 import {
   destroyAVPlayBackend,
   hasAVPlaySupport,
@@ -8,6 +9,7 @@ import {
   pauseAVPlay,
   playAVPlay,
   restoreAVPlay,
+  listAVPlayTracks,
   selectAVPlayTrack,
   seekAVPlay,
   seekToAVPlay,
@@ -120,6 +122,18 @@ function seekTo(positionSeconds: number) {
 }
 
 /**
+ * What the active player reports about its own tracks, or null when it has no
+ * such API and the server-side probe has to stand in on its own.
+ *
+ * Only AVPlay answers: Chromium never implemented `HTMLMediaElement.audioTracks`,
+ * so the html5 backend has nothing to enumerate.
+ */
+function listNativeTracks(): NativeTrack[] | null {
+  if (currentBackend === "avplay") return listAVPlayTracks();
+  return null;
+}
+
+/**
  * Returns false when the active backend cannot switch tracks, so the UI can
  * keep the control hidden instead of offering a choice that does nothing.
  */
@@ -182,6 +196,7 @@ export const PlayerManager = {
   seek,
   seekTo,
   selectTrack,
+  listNativeTracks,
   suspend,
   restore,
   getCurrentTime,
