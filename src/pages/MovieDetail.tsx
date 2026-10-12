@@ -9,6 +9,7 @@ import { history } from "@/lib/storage";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { focusElement } from "@/shared/focus";
+import { displayTitle } from "@/lib/displayTitle";
 import { theme } from "@/styles";
 import DetailHero, {
   DetailPoster,
@@ -227,7 +228,7 @@ const MovieDetail = () => {
                     maxLines={1}
                     contain="width"
                   >
-                    {currentMovie().title || currentMovie().name}
+                    {displayTitle(currentMovie().title || currentMovie().name)}
                   </Text>
                   <Row
                     x={30}

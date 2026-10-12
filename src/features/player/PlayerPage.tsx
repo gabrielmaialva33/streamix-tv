@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
+import { displayTitle } from "@/lib/displayTitle";
 import { theme } from "@/styles";
 import { createLogger } from "@/shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
@@ -1111,7 +1112,7 @@ const PlayerPage = () => {
             contain="width"
             maxLines={2}
           >
-            {title()}
+            {displayTitle(title())}
           </Text>
           <Text x={60} y={SCREEN_HEIGHT / 2 + 40} fontSize={24} color={0xc6c6d6ff}>
             Preparando o vídeo…
@@ -1376,7 +1377,7 @@ const PlayerPage = () => {
             textOverflow="ellipsis"
             maxLines={1}
           >
-            {title()}
+            {displayTitle(title())}
           </Text>
           <Text x={60} y={104} fontSize={18} color={0xbbbbccff}>
             {state().playing ? "Reproduzindo" : state().buffering ? "Carregando..." : "Pausado"}

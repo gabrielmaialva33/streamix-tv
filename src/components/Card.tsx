@@ -1,3 +1,4 @@
+import { displayTitle } from "@/lib/displayTitle";
 import {
   type IntrinsicNodeStyleProps,
   type IntrinsicTextNodeStyleProps,
@@ -163,7 +164,7 @@ const Card = (props: CardProps) => {
 
       {/* Card Title - below image */}
       <Text y={height + 8} width={width} style={CardTitleStyle}>
-        {props.title}
+        {displayTitle(props.title)}
       </Text>
 
       {/* Subtitle if provided */}

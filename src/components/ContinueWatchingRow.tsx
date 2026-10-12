@@ -2,6 +2,7 @@ import { type ElementNode, type IntrinsicNodeStyleProps, type NodeProps, Text, V
 import { LazyRow } from "@solidtv/solid/primitives";
 import { createSignal, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { displayTitle } from "@/lib/displayTitle";
 import { history, type HistoryItem } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
@@ -161,7 +162,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                   width={180}
                   maxLines={2}
                 >
-                  {item().title}
+                  {displayTitle(item().title)}
                 </Text>
 
                 {/* Episode info for series */}

@@ -9,6 +9,7 @@ import { history } from "@/lib/storage";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { focusElement } from "@/shared/focus";
+import { displayTitle } from "@/lib/displayTitle";
 import { theme } from "@/styles";
 import DetailHero, {
   DetailPoster,
@@ -195,7 +196,7 @@ const SeriesDetail = () => {
                       maxLines={2}
                       contain="width"
                     >
-                      {currentSeries().title || currentSeries().name}
+                      {displayTitle(currentSeries().title || currentSeries().name)}
                     </Text>
                     <Row width={1332} height={34} gap={12} scroll="none">
                       <For each={metaItems}>

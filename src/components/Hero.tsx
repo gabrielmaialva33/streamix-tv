@@ -1,3 +1,4 @@
+import { displayTitle } from "@/lib/displayTitle";
 import {
   ElementNode,
   type IntrinsicNodeStyleProps,
@@ -254,7 +255,7 @@ const Hero = (props: HeroProps) => {
           // Shrink the hero title to fit long names (e.g. "True Beauty: The
           // Movie - Part 2 [L]") within two lines without clipping. The 748px
           // panel fits roughly 16 chars at 56px, 22 at 46px, 28 at 38px.
-          const title = () => props.item?.title || "Bem-vindo ao Streamix";
+          const title = () => displayTitle(props.item?.title) || "Bem-vindo ao Streamix";
           const dynamicFontSize = () => {
             const len = title().length;
             if (len <= 20) return 54;
