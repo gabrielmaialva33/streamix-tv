@@ -10,18 +10,18 @@ import {
 describe("playbackErrorMessage", () => {
   it("turns AVPlay connection details into user-facing copy", () => {
     expect(playbackErrorMessage("Prepare error: PLAYER_ERROR_CONNECTION_FAILED")).toBe(
-      "O servidor deste conteúdo não respondeu como esperado. Tente novamente.",
+      "O servidor deste título não respondeu. Tente de novo ou troque de provedor.",
     );
   });
 
   it("distinguishes timeout and unsupported formats", () => {
     expect(playbackErrorMessage("PLAYER_ERROR_CONNECTION_TIMEOUT")).toContain("demorou demais");
-    expect(playbackErrorMessage("PLAYER_ERROR_NOT_SUPPORTED_FILE")).toContain("não é compatível");
+    expect(playbackErrorMessage("PLAYER_ERROR_NOT_SUPPORTED_FILE")).toContain("não reproduz este formato");
   });
 
   it("does not expose unknown implementation details", () => {
     expect(playbackErrorMessage("opaque-internal-player-detail")).toBe(
-      "A reprodução falhou. Tente novamente em instantes.",
+      "Não conseguimos abrir o vídeo. Tente de novo ou troque de provedor.",
     );
   });
 });
@@ -49,6 +49,6 @@ describe("authored messages survive the mapper", () => {
 
   it("still maps raw technical errors", () => {
     expect(playbackErrorMessage("PLAYER_ERROR_CONNECTION_FAILED")).not.toBe("PLAYER_ERROR_CONNECTION_FAILED");
-    expect(playbackErrorMessage("PLAYER_ERROR_NOT_SUPPORTED")).toMatch(/não é compatível/);
+    expect(playbackErrorMessage("PLAYER_ERROR_NOT_SUPPORTED")).toMatch(/não reproduz este formato/);
   });
 });

@@ -10,21 +10,29 @@
  */
 
 /** Backend served a placeholder because the upstream source is unusable. */
+/**
+ * Every message names the next step the viewer can actually take on a remote.
+ * Two rules learned from reading these out loud: no backend vocabulary
+ * ("stream", "requisições", "fluxo de torrent" mean nothing on a sofa), and
+ * never point at a screen that cannot solve the problem — `account_expired`
+ * used to send people to Perfil, which offers only "Sair da conta".
+ */
 export const FALLBACK_MESSAGES: Record<string, string> = {
-  channel_unavailable: "Conteúdo indisponível no momento. Tente novamente em alguns instantes.",
-  provider_unavailable: "Serviço de stream indisponível. Tente novamente em alguns instantes.",
-  account_expired: "Sua assinatura expirou. Atualize na página de perfil para continuar.",
-  stream_blocked: "Conteúdo bloqueado na sua região.",
-  rate_limited: "Muitas requisições agora. Aguarde um momento e tente de novo.",
+  channel_unavailable: "Este canal está fora do ar agora. Tente outro canal ou volte em alguns minutos.",
+  provider_unavailable: "A fonte deste título está fora do ar. Troque de provedor na barra lateral.",
+  account_expired: "Sua assinatura venceu. Renove no site ou no celular para voltar a assistir.",
+  // No next step exists for this one, so it says so instead of implying a retry.
+  stream_blocked: "Este título não está liberado na sua região. Escolha outro título.",
+  rate_limited: "O servidor está ocupado. Espere alguns segundos e tente de novo.",
 };
 
 /** Proxy refused outright. Not transient, so the copy must not invite a retry. */
 export const REFUSAL_MESSAGES: Record<string, string> = {
-  torrent_playback_required: "Este título só reproduz pelo fluxo de torrent, ainda não disponível nesta TV.",
+  torrent_playback_required: "Esta versão não roda nesta TV. Procure o mesmo título em outro provedor.",
 };
 
-export const GENERIC_REFUSAL = "Este conteúdo não pode ser reproduzido nesta TV.";
-export const GENERIC_FALLBACK = "Stream indisponível no momento";
+export const GENERIC_REFUSAL = "Esta versão não roda nesta TV. Tente o mesmo título em outro provedor.";
+export const GENERIC_FALLBACK = "Este título não está disponível agora. Tente outro provedor.";
 
 const AUTHORED_MESSAGES: ReadonlySet<string> = new Set([
   ...Object.values(FALLBACK_MESSAGES),
@@ -41,20 +49,20 @@ const SOURCE_ERROR_PATTERN = /no stream url|source.*unavailable|404|not found/i;
 
 /** Keep backend/AVPlay details in logs while presenting useful TV copy. */
 export function playbackErrorMessage(error?: string | null): string {
-  if (!error) return "A reprodução falhou. Tente novamente em instantes.";
+  if (!error) return "Não conseguimos abrir o vídeo. Tente de novo ou troque de provedor.";
   // Already written for the viewer by the backend — pass it through untouched.
   if (AUTHORED_MESSAGES.has(error)) return error;
   if (TIMEOUT_ERROR_PATTERN.test(error)) {
-    return "O servidor demorou demais para responder. Tente novamente.";
+    return "O servidor demorou demais para responder. Tente de novo.";
   }
   if (CONNECTION_ERROR_PATTERN.test(error)) {
-    return "O servidor deste conteúdo não respondeu como esperado. Tente novamente.";
+    return "O servidor deste título não respondeu. Tente de novo ou troque de provedor.";
   }
   if (FORMAT_ERROR_PATTERN.test(error)) {
-    return "Este formato de vídeo não é compatível com a sua TV.";
+    return "Sua TV não reproduz este formato. Procure outra versão deste título em outro provedor.";
   }
   if (SOURCE_ERROR_PATTERN.test(error)) {
-    return "Este conteúdo está temporariamente sem uma fonte de reprodução.";
+    return "Este título está sem fonte de reprodução agora. Tente outro provedor.";
   }
-  return "A reprodução falhou. Tente novamente em instantes.";
+  return "Não conseguimos abrir o vídeo. Tente de novo ou troque de provedor.";
 }
