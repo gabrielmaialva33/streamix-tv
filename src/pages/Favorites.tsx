@@ -100,26 +100,17 @@ const Favorites = () => {
       {/* Header */}
       <View width={1660} height={108} x={20} skipFocus>
         <Text y={10} fontSize={42} fontWeight={700} color={0xffffffff}>
-          Meus Favoritos
+          Minha lista
         </Text>
         <Text y={62} fontSize={18} color={theme.textSecondary}>
-          {`Sua coleção sincronizada${authState.user()?.name ? ` • ${authState.user()?.name}` : ""}`}
+          {`Salvo na sua conta${authState.user()?.name ? ` • ${authState.user()?.name}` : ""}`}
         </Text>
-        <View
-          x={1210}
-          y={18}
-          width={210}
-          height={34}
-          color={theme.surfaceMuted}
-          borderRadius={10}
-          border={{ color: theme.borderSubtle, width: 1 }}
-        >
-          <Text y={8} width={210} fontSize={15} color={theme.textPrimary} textAlign="center" contain="width">
-            Favoritos da sua conta
-          </Text>
-        </View>
-        <Text x={1450} y={25} fontSize={20} color={theme.textMuted}>
-          {`${filteredItems().length} itens`}
+        {/* The account pill repeated the subtitle, and both it and the count
+            lived under the provider banner's footprint (x≥1180, y 20-68), so
+            neither was ever visible. The count now sits beside the subtitle,
+            where there is nothing on top of it. */}
+        <Text x={20} y={96} fontSize={18} color={theme.textMuted}>
+          {`${filteredItems().length} ${filteredItems().length === 1 ? "título" : "títulos"}`}
         </Text>
       </View>
       <View x={20} width={1640} height={1} color={theme.border} skipFocus />
@@ -155,7 +146,7 @@ const Favorites = () => {
                 return true;
               }}
             >
-              <Text fontSize={16} color={0xffffffff}>
+              <Text fontSize={18} color={0xffffffff}>
                 {tab.label}
               </Text>
             </View>
@@ -180,10 +171,10 @@ const Favorites = () => {
             ★
           </Text>
           <Text fontSize={28} color={theme.textSecondary}>
-            Nenhum favorito ainda
+            Sua lista está vazia
           </Text>
           <Text fontSize={18} color={theme.textMuted}>
-            {`Adicione filmes, séries ou canais para montar a sua seleção${authState.user()?.name ? `, ${authState.user()?.name}` : ""}`}
+            {'Aperte "+ Minha lista" em qualquer filme, série ou canal para guardar aqui.'}
           </Text>
         </View>
       </Show>
