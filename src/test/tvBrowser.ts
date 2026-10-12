@@ -130,7 +130,19 @@ export const test = base.extend<{ remote: TvRemote }>({
       if (url.pathname === "/$WEBAPIS/webapis/webapis.js") {
         return route.fulfill({
           contentType: "application/javascript",
-          body: "window.tizen = { tvinputdevice: { registerKey() {} } };",
+          // Mirrors the real platform closely enough for key registration to take
+          // the same branch it takes on a set: a 2023 BE55C-H offers 46
+          // registerable keys and "Back" is not among them, so the app filters
+          // it out rather than asking for it.
+          body:
+            "window.tizen = { tvinputdevice: { registerKey() {}, " +
+            "getSupportedKeys: () => [{ name: 'MediaPlay', code: 415 }, { name: 'MediaPause', code: 19 }, " +
+            "{ name: 'MediaPlayPause', code: 10252 }, { name: 'MediaStop', code: 413 }, " +
+            "{ name: 'MediaFastForward', code: 417 }, { name: 'MediaRewind', code: 412 }, " +
+            "{ name: 'MediaTrackPrevious', code: 10232 }, { name: 'MediaTrackNext', code: 10233 }, " +
+            "{ name: 'ColorF0Red', code: 403 }, { name: 'ColorF1Green', code: 404 }, " +
+            "{ name: 'ColorF2Yellow', code: 405 }, { name: 'ColorF3Blue', code: 406 }, " +
+            "{ name: 'Exit', code: 10182 }] } };",
         });
       }
       if (!url.pathname.startsWith("/api/")) return route.continue();
