@@ -11,6 +11,7 @@ import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js"
 import { authState, registerAccount, signIn } from "./auth";
 import { ApiError } from "@/lib/api";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
+import { exitCurrentApp } from "@/platform/tizen";
 import { theme } from "@/styles";
 import { VirtualKeyboard } from "@/components";
 
@@ -117,6 +118,8 @@ interface FieldChipProps {
   active: boolean;
   onSelect: () => void;
   onRight?: () => boolean;
+  onUp?: () => boolean;
+  onDown?: () => boolean;
   ref?: ElementNode;
 }
 
@@ -134,6 +137,8 @@ const FieldChip = (props: FieldChipProps) => (
       return true;
     }}
     onRight={props.onRight}
+    onUp={props.onUp}
+    onDown={props.onDown}
   >
     <Text x={18} y={14} fontSize={13} fontWeight={700} color={theme.textMuted}>
       {props.label}
@@ -183,6 +188,36 @@ const LoginPage = () => {
 
   function focusKeyboardHome() {
     setKeyboardFocusRequest(value => value + 1);
+    return true;
+  }
+
+  let modeRowRef: ElementNode | undefined;
+  let submitRef: ElementNode | undefined;
+
+  /**
+   * The screen is three stacked blocks — mode chips, fields, submit — plus the
+   * keyboard on the right. Only the field↔keyboard hop was wired, which left
+   * "Criar conta" and the submit button with no key sequence that reaches them:
+   * signing up on a TV was impossible. These close the vertical chain.
+   */
+  function focusField(target: ElementNode | undefined) {
+    target?.setFocus();
+    return true;
+  }
+
+  function focusModeRow() {
+    modeRowRef?.setFocus();
+    return true;
+  }
+
+  function focusSubmit() {
+    submitRef?.setFocus();
+    return true;
+  }
+
+  function focusFirstField() {
+    const first = mode() === "register" ? nameFieldRef : emailFieldRef;
+    first?.setFocus();
     return true;
   }
 
@@ -250,13 +285,24 @@ const LoginPage = () => {
   }
 
   return (
-    <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={theme.background}>
+    <View
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
+      color={theme.background}
+      // Login is the first screen and sits outside MainLayout, so there is no
+      // exit dialog and no route to pop behind it: without this, Back is a
+      // no-op and the viewer has no way out of the app at all.
+      onBack={() => {
+        exitCurrentApp();
+        return true;
+      }}
+    >
       <View x={60} y={100} width={900}>
         <Text fontSize={26} fontWeight={700} color={theme.primary}>
           STREAMIX
         </Text>
 
-        <Row y={52} width={400} height={44} gap={12} scroll="none">
+        <Row ref={modeRowRef} y={52} width={400} height={44} gap={12} scroll="none" onDown={focusFirstField}>
           <ModeChip label="Entrar" active={mode() === "login"} onSelect={() => switchMode("login")} />
           <ModeChip
             label="Criar conta"
@@ -291,6 +337,8 @@ const LoginPage = () => {
               active={activeField() === "name"}
               onSelect={() => selectField("name")}
               onRight={focusKeyboardHome}
+              onUp={focusModeRow}
+              onDown={() => focusField(emailFieldRef)}
             />
           </View>
         </Show>
@@ -304,6 +352,8 @@ const LoginPage = () => {
             active={activeField() === "email"}
             onSelect={() => selectField("email")}
             onRight={focusKeyboardHome}
+            onUp={() => (mode() === "register" ? focusField(nameFieldRef) : focusModeRow())}
+            onDown={() => focusField(passwordFieldRef)}
           />
         </View>
 
@@ -316,16 +366,21 @@ const LoginPage = () => {
             active={activeField() === "password"}
             onSelect={() => selectField("password")}
             onRight={focusKeyboardHome}
+            onUp={() => focusField(emailFieldRef)}
+            onDown={focusSubmit}
           />
         </View>
 
         <View y={mode() === "register" ? 548 : 444}>
           <View
+            ref={submitRef}
             style={PRIMARY_ACTION_STYLE}
             onEnter={() => {
               void submit();
               return true;
             }}
+            onUp={() => focusField(passwordFieldRef)}
+            onRight={focusKeyboardHome}
           >
             <Text fontSize={22} fontWeight={700} color={0xffffffff}>
               {submitting() ? "Aguarde..." : authModeLabel(mode())}
