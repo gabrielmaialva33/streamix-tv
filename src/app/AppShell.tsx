@@ -9,6 +9,8 @@ import { noteBackReachedRoot } from "@/platform/backKey";
 import { activeKeys, type AppChildren } from "@/platform/keys";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 
+import AppErrorBoundary from "@/components/AppErrorBoundary";
+
 const DebugOverlay = lazy(() => import("@/components/DebugOverlay"));
 
 declare global {
@@ -64,9 +66,11 @@ const AppShell = (props: AppShellProps) => {
         return true;
       }}
     >
-      <Suspense fallback={<View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x0d0d12ff} />}>
-        {props.children}
-      </Suspense>
+      <AppErrorBoundary>
+        <Suspense fallback={<View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x0d0d12ff} />}>
+          {props.children}
+        </Suspense>
+      </AppErrorBoundary>
       <Show when={isDebugOverlayEnabled}>
         <DebugOverlay />
       </Show>
