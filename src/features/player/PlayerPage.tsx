@@ -1170,7 +1170,18 @@ const PlayerPage = () => {
             borderRadius={24}
             border={{ color: 0x38394aff, width: 1 }}
           >
-            <Text y={15} width={500} fontSize={16} color={0xffd7d7ff} textAlign="center" maxLines={1}>
+            {/* contain="width" is what makes textAlign mean anything: without a
+                contained box the renderer has no width to centre within, and
+                warns instead of centring. */}
+            <Text
+              y={15}
+              width={500}
+              fontSize={16}
+              color={0xffd7d7ff}
+              textAlign="center"
+              contain="width"
+              maxLines={1}
+            >
               {syncMessage() || ""}
             </Text>
           </View>
