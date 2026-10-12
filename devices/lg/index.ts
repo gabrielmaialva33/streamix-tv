@@ -12,9 +12,7 @@ export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<D
     },
   },
   lightning: {
-    rendererOptions: {
-      numImageWorkers: 0,
-    },
+    rendererOptions: {},
   },
   keys: {
     Back: 461,

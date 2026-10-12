@@ -22,7 +22,8 @@ export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<D
   lightning: {
     rendererOptions: {
       // Older Fire OS WebViews crash with image workers, so decode runs on the
-      // main thread across the whole family.
+      // main thread across the whole family. devices/common keeps it at 0 for
+      // every target anyway — see the note there.
       numImageWorkers: 0,
       // Which makes the per-frame decode cap matter here for the same reason it
       // does on Tizen, and makes the hard ceiling worth enforcing: the family

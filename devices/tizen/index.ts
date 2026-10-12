@@ -16,7 +16,6 @@ export const config: DeviceConfig = mergeConfig<DeviceConfig>(common, <Partial<D
   },
   lightning: {
     rendererOptions: {
-      numImageWorkers: 0,
       // Sized from the set's actual RAM (see rendererBudget): the package
       // installs from Tizen 5.0 up, and one fixed budget would either starve a
       // 2025 set or over-commit a 2019 one. boundsMargin keeps roughly two

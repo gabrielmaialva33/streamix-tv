@@ -40,7 +40,19 @@ export const config = {
     rendererOptions: {
       appHeight: 1080,
       appWidth: 1920,
-      // Disable image workers — older Fire OS WebViews crash with them.
+      // Image decode stays on the main thread, and not only because older
+      // Fire OS WebViews crash with workers.
+      //
+      // The blocking reason is `installImageXhrBridge` (src/platform): every
+      // image URL is rewritten to the catalog's resize endpoint and signed with
+      // the API key by a patched `window.XMLHttpRequest`. A worker has its own
+      // global scope and never sees that patch, so requests leave unrewritten
+      // and unsigned. Measured on a Samsung BE55C-H with workers enabled: 173
+      // nodes with a `src`, 0 textures loaded and 0 failed — every request hung
+      // in the worker, so the whole catalog rendered blank.
+      //
+      // Raising this needs the image pipeline to stop depending on a
+      // main-thread XHR patch first; it is not a device-capability question.
       numImageWorkers: 0,
       // No engine selection here any more. Renderer 2.x ships one pipeline —
       // WebGL with SDF text — so the Canvas2D render/font engines this used to
