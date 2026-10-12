@@ -61,6 +61,18 @@ export interface VirtualKeyboardProps {
 const VirtualKeyboard = (props: VirtualKeyboardProps) => {
   const [mode, setMode] = createSignal<KeyboardMode>("lower");
   const keyRefs: Record<string, ElementNode | undefined> = {};
+  /**
+   * The keyboard's own handle on its Column.
+   *
+   * `props.ref` cannot serve: the JSX compiler wraps a parent's `ref={let}` in a
+   * setter, so inside this component the prop is a *function*, never a node.
+   * Writing `props.ref.selected` landed on that function and did nothing, so the
+   * Column's selected row never followed the key that focusAt had focused — and
+   * the next arrow press resolved from a stale row. Visible as arrows jumping to
+   * the wrong key after every field change on Login and after returning from the
+   * suggestions on Search.
+   */
+  let columnRef: ElementNode | undefined;
 
   createEffect(() => {
     const resetKey = props.resetKey;
@@ -116,9 +128,10 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
     const target = key ? keyRefs[key] : undefined;
 
     if (!target) return false;
-    if (props.ref) props.ref.selected = rowIndex;
-    if (props.ref?.children?.[rowIndex]) {
-      props.ref.children[rowIndex]!.selected = keyIndex;
+    if (columnRef) {
+      columnRef.selected = rowIndex;
+      const row = columnRef.children?.[rowIndex];
+      if (row) row.selected = keyIndex;
     }
     target.setFocus();
     return true;
@@ -127,14 +140,19 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
   function focusHome() {
     requestAnimationFrame(() => {
       if (!focusAt(props.homeRow ?? 0, 0)) {
-        props.ref?.setFocus();
+        columnRef?.setFocus();
       }
     });
   }
 
   return (
     <Column
-      ref={props.ref}
+      ref={node => {
+        columnRef = node;
+        // Still honour the parent's ref, in either form the compiler hands us.
+        const forward = props.ref as unknown;
+        if (typeof forward === "function") (forward as (n: ElementNode) => void)(node);
+      }}
       width={860}
       gap={10}
       scroll="none"
@@ -160,7 +178,12 @@ const VirtualKeyboard = (props: VirtualKeyboardProps) => {
                     }}
                     width={width}
                     style={KEY_STYLE}
-                    color={isSubmit ? theme.primary : theme.surface}
+                    // Solid red is the focus signal on this grid, so the submit
+                    // key cannot also own it: two identical red rectangles meant
+                    // the viewer could not tell which one the remote was on.
+                    // Outline marks it as primary without stealing the signal.
+                    color={theme.surface}
+                    border={isSubmit ? { color: theme.primary, width: 2 } : undefined}
                     onEnter={() => {
                       handle(key);
                       return true;
