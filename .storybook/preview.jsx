@@ -1,7 +1,5 @@
 import { Config, createRenderer, loadFonts } from "@solidtv/solid";
-import { CanvasTextRenderer } from "@solidtv/renderer/canvas";
 import { Inspector } from "@solidtv/renderer/inspector";
-import { SdfTextRenderer, WebGlCoreRenderer } from "@solidtv/renderer/webgl";
 import fonts from "../src/fonts";
 import { useFocusManager } from "@solidtv/solid/primitives";
 import { createSignal, Show } from "solid-js";
@@ -12,8 +10,8 @@ Config.rendererOptions = {
   deviceLogicalPixelRatio: 2 / 3,
   inspector: Inspector,
   devicePhysicalPixelRatio: 1,
-  fontEngines: [SdfTextRenderer, CanvasTextRenderer],
-  renderEngine: WebGlCoreRenderer,
+  // Renderer 2.x ships a single WebGL/SDF pipeline, so there are no
+  // renderEngine / fontEngines to choose here any more.
 };
 
 Config.fontSettings.fontFamily = "NotoSans";

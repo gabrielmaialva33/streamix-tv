@@ -1,16 +1,9 @@
-import { SdfTextRenderer, WebGlCoreRenderer } from "@solidtv/renderer/webgl";
-import { CanvasCoreRenderer, CanvasTextRenderer } from "@solidtv/renderer/canvas";
 import { Inspector } from "@solidtv/renderer/inspector";
 import { DeviceCommon } from "./device";
 import { detectDeviceProfile, rendererBudget } from "./capabilities";
 
 const profile = detectDeviceProfile();
 const budget = rendererBudget(profile);
-
-// Fall back to the Canvas2D rendering pipeline when WebGL is unavailable
-// (1st-gen Fire TV Stick after a Fire OS update sometimes loses GL).
-const renderEngine = profile.hasWebGL ? WebGlCoreRenderer : CanvasCoreRenderer;
-const fontEngines = profile.hasWebGL ? [SdfTextRenderer, CanvasTextRenderer] : [CanvasTextRenderer];
 
 function logicalPixelRatio(): number {
   if (typeof window === "undefined") return 1;
@@ -49,9 +42,14 @@ export const config = {
       appWidth: 1920,
       // Disable image workers — older Fire OS WebViews crash with them.
       numImageWorkers: 0,
-      // SDF first when WebGL is available; Canvas-only on legacy/no-GL fallback.
-      fontEngines,
-      renderEngine,
+      // No engine selection here any more. Renderer 2.x ships one pipeline —
+      // WebGL with SDF text — so the Canvas2D render/font engines this used to
+      // choose between on a GL-less device are gone, and so is the in-process
+      // fallback they provided. `@solidtv/solid` offers a DOM renderer in their
+      // place, but it is a build-time alternative behind the
+      // `SOLIDTV_DOM_RENDERING` global (compiled out, `Config.domRendererEnabled`
+      // false by default), not something this config can switch to at runtime.
+      // `profile.hasWebGL` therefore no longer changes anything here.
       inspector: import.meta.env.DEV ? Inspector : undefined,
       // 720p = 0.666667, 1080p = 1, 1440p = 1.5, 2160p = 2.
       // Fit the fixed 1920x1080 logical stage inside whatever viewport the set
