@@ -39,7 +39,33 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
+/**
+ * A request that never settles is worse than one that fails: the viewer gets a
+ * spinner with no Back, and on Tizen the layout that owns the exit dialog is not
+ * even mounted yet during auth. Sockets left hanging after the set wakes from
+ * standby are the usual cause.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Entries are only ever evicted by prefix or by TTL *on read*, so without a cap
+ * this grows for the whole session: every catalogue page, every infinite-scroll
+ * offset, every search term and every EPG window keeps its full JSON payload.
+ * A TV stays on for hours, so this is the app's largest avoidable heap user.
+ */
+const CACHE_MAX_ENTRIES = 300;
+
 const cache = new Map<string, CacheEntry<unknown>>();
+
+/** Oldest-first eviction; Map preserves insertion order, which is enough here. */
+function rememberInCache(key: string, entry: CacheEntry<unknown>): void {
+  if (cache.size >= CACHE_MAX_ENTRIES && !cache.has(key)) {
+    const oldest = cache.keys().next();
+    if (!oldest.done) cache.delete(oldest.value);
+  }
+  cache.delete(key);
+  cache.set(key, entry);
+}
 const inFlight = new Map<string, Promise<unknown>>();
 let pendingPrefetchTimer: ReturnType<typeof setTimeout> | undefined;
 const PREFETCH_SETTLE_DELAY_MS = 450;
@@ -175,6 +201,8 @@ async function sendRequest(
       method,
       headers,
       data: body,
+      connectTimeout: REQUEST_TIMEOUT_MS,
+      readTimeout: REQUEST_TIMEOUT_MS,
     });
 
     return {
@@ -189,7 +217,16 @@ async function sendRequest(
   const init: RequestInit = { method, headers };
   if (body !== undefined) init.body = JSON.stringify(body);
 
-  const response = await fetch(url, init);
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  if (controller) init.signal = controller.signal;
+  const timeout = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } finally {
+    if (timeout !== null) clearTimeout(timeout);
+  }
   const contentType = response.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
   const payload =
@@ -254,7 +291,7 @@ async function request<T>(url: string, opts: RequestOpts = {}): Promise<T> {
       return response.payload as T;
     })
     .then(data => {
-      if (!noCache && method === "GET") cache.set(cacheKey, { data, timestamp: Date.now() });
+      if (!noCache && method === "GET") rememberInCache(cacheKey, { data, timestamp: Date.now() });
       inFlight.delete(cacheKey);
       return data;
     })
