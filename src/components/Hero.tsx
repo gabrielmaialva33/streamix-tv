@@ -309,7 +309,12 @@ const Hero = (props: HeroProps) => {
             }}
             onDown={props.onDownRequest}
           >
-            <Text style={HeroButtonTextStyle}>Assistir</Text>
+            {/* A series destination is a detail page, not the player. Promising
+                "Assistir" and delivering more navigation breaks the label's
+                contract, so the word follows the destination. */}
+            <Text style={HeroButtonTextStyle}>
+              {props.item?.type === "series" ? "Ver episódios" : "Assistir"}
+            </Text>
           </View>
 
           <View
