@@ -67,11 +67,15 @@ const Profile = () => {
 
       {/* Avatar + identity */}
       <Row x={60} y={170} width={1580} height={180} gap={32} scroll="none" skipFocus>
+        {/* Neutral, not primary: red is the focus signal here, and an avatar
+            that is permanently red competes with the one control on the page
+            for the eye. */}
         <View
           width={160}
           height={160}
           borderRadius={80}
-          color={theme.primary}
+          color={theme.surfaceLight}
+          border={{ color: theme.border, width: 2 }}
           display="flex"
           justifyContent="center"
           alignItems="center"
@@ -97,7 +101,7 @@ const Profile = () => {
           >
             {authState.user()?.email || ""}
           </Text>
-          <Text y={authState.user()?.name ? 84 : 36} fontSize={16} color={theme.textMuted}>
+          <Text y={authState.user()?.name ? 84 : 36} fontSize={18} color={theme.textMuted}>
             {`v${__APP_VERSION__}`}
           </Text>
         </View>
@@ -105,7 +109,7 @@ const Profile = () => {
 
       {/* Actions */}
       <View x={60} y={420} width={1580} skipFocus>
-        <Text fontSize={16} color={theme.textMuted} width={1580}>
+        <Text fontSize={18} color={theme.textMuted} width={1580}>
           Sessão
         </Text>
       </View>

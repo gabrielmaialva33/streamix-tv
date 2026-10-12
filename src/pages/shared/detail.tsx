@@ -132,7 +132,7 @@ export const DetailOverview = (props: DetailOverviewProps) => {
               <Row x={30} y={16} width={1560} height={60} gap={36} scroll="none" skipFocus>
                 <Show when={cast()}>
                   <View width={762} height={60} skipFocus>
-                    <Text fontSize={15} color={theme.textMuted}>
+                    <Text fontSize={17} color={theme.textMuted}>
                       Elenco
                     </Text>
                     <Text
@@ -149,7 +149,7 @@ export const DetailOverview = (props: DetailOverviewProps) => {
                 </Show>
                 <Show when={director()}>
                   <View width={762} height={60} skipFocus>
-                    <Text fontSize={15} color={theme.textMuted}>
+                    <Text fontSize={17} color={theme.textMuted}>
                       Direção
                     </Text>
                     <Text
@@ -169,7 +169,7 @@ export const DetailOverview = (props: DetailOverviewProps) => {
           >
             <View x={1090} y={20} width={500} height={108} skipFocus>
               <Show when={cast()}>
-                <Text fontSize={15} color={theme.textMuted}>
+                <Text fontSize={17} color={theme.textMuted}>
                   Elenco
                 </Text>
                 <Text y={22} width={500} fontSize={18} color={theme.textPrimary} maxLines={1} contain="width">
@@ -177,7 +177,7 @@ export const DetailOverview = (props: DetailOverviewProps) => {
                 </Text>
               </Show>
               <Show when={director()}>
-                <Text y={cast() ? 60 : 0} fontSize={15} color={theme.textMuted}>
+                <Text y={cast() ? 60 : 0} fontSize={17} color={theme.textMuted}>
                   Direção
                 </Text>
                 <Text
@@ -298,7 +298,7 @@ const DetailHero = (props: DetailHeroProps) => {
           alignItems="center"
           skipFocus
         >
-          <Text fontSize={15} fontWeight={700} color={0xffffffff}>
+          <Text fontSize={17} fontWeight={700} color={0xffffffff}>
             {props.badge}
           </Text>
         </View>
