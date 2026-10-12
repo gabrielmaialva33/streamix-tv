@@ -50,11 +50,19 @@ export class TizenDevice extends DeviceCommon {
    */
   static registerKeys() {
     try {
-      const offered = new Set<string>(
-        (tizen.tvinputdevice.getSupportedKeys() ?? []).map((key: { name: string }) => key.name),
-      );
-      const wanted = TIZEN_KEYS_TO_REGISTER.filter(key => offered.has(key));
-      const unavailable = TIZEN_KEYS_TO_REGISTER.filter(key => !offered.has(key));
+      // Older firmware predates getSupportedKeys. Asking for everything is the
+      // right fallback there: the per-key catch below already absorbs a refusal,
+      // and registering nothing would cost the app its media keys.
+      const canFilter = typeof tizen.tvinputdevice.getSupportedKeys === "function";
+      const offered = canFilter
+        ? new Set<string>(
+            (tizen.tvinputdevice.getSupportedKeys() ?? []).map((key: { name: string }) => key.name),
+          )
+        : null;
+      const wanted = offered
+        ? TIZEN_KEYS_TO_REGISTER.filter(key => offered.has(key))
+        : TIZEN_KEYS_TO_REGISTER;
+      const unavailable = offered ? TIZEN_KEYS_TO_REGISTER.filter(key => !offered.has(key)) : [];
 
       for (const key of wanted) {
         try {
