@@ -21,7 +21,6 @@
     "tizen:package": "node scripts/platform.mjs package tizen",
     "tizen:install": "node scripts/platform.mjs install tizen",
     "tizen:run": "node scripts/platform.mjs run tizen",
-    "tizen:kill": "node scripts/platform.mjs kill tizen",
     "tizen:uninstall": "node scripts/platform.mjs uninstall tizen",
     "tizen:install:emu": "node scripts/platform.mjs install tizen emu",
     "tizen:run:emu": "node scripts/platform.mjs run tizen emu",

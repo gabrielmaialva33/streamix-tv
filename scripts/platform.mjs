@@ -51,7 +51,11 @@ const targets = {
     // the device instead. Works on the emulator; retail firmware closes the sdb
     // shell channel, so there it answers "closed" and the app has to be exited
     // from the remote.
-    killCommand: ["sdb", ["-s", tizenSerial, "shell", "wrt-launcher", "-k", tizenAppId], root],
+    // No kill command on purpose. The Tizen CLI has no `kill` subcommand (it
+    // offers install/run/uninstall and nothing that stops a running app), and
+    // the usual fallback — `sdb shell wrt-launcher -k` — is unavailable too:
+    // sdb's shell channel answers "closed" on retail firmware *and* on the TV
+    // emulator. Stop the app from the remote, or use tizen:uninstall.
     uninstallCommand: ["tizen", ["uninstall", "-p", tizenAppId, "-s", tizenSerial], root],
   },
   webos: {
