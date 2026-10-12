@@ -18,6 +18,7 @@ import { Card, VirtualKeyboard } from "@/components";
 import api, { type Channel, type Movie, type Series, type SuggestItem } from "@/lib/api";
 import { chunkIntoRows } from "@/lib/contentMeta";
 import { pickPoster, proxyImageUrl } from "@/lib/imageUrl";
+import { recentSearches } from "@/lib/storage";
 import { theme } from "@/styles";
 
 const LEFT_PANEL_X = 20;
@@ -48,6 +49,10 @@ const SUGGESTION_PANEL_HEIGHT =
 const DISCOVER_COUNT = 3;
 const DISCOVER_CARD_WIDTH = 224;
 const DISCOVER_CARD_HEIGHT = 336;
+// Below the trending row (title + 336 poster + caption), inside the safe area.
+const RECENT_TITLE_Y = SIDE_PANEL_CONTENT_Y + DISCOVER_CARD_HEIGHT + 96;
+const RECENT_ROW_HEIGHT = 60;
+const RECENT_VISIBLE = 4;
 const DISCOVER_CARD_GAP = 16;
 
 // Stable identity so <Index> instantiates the slot views exactly once.
@@ -122,6 +127,8 @@ const Search = () => {
   let searchInput: ElementNode | undefined;
   let suggestionsColumn: ElementNode | undefined;
   let discoverRow: ElementNode | undefined;
+  let recentColumn: ElementNode | undefined;
+  const [recent, setRecent] = createSignal(recentSearches.getAll());
   let resultsColumn: ElementNode | undefined;
   const [keyboardFocusRequest, setKeyboardFocusRequest] = createSignal(0);
   const [focusedSuggestionSlot, setFocusedSuggestionSlot] = createSignal(-1);
@@ -171,6 +178,10 @@ const Search = () => {
 
   const submitSearch = () => {
     const shouldRetry = searchTriggered() && Boolean(results.error);
+    if (query().trim().length >= 2) {
+      recentSearches.remember(query());
+      setRecent(recentSearches.getAll());
+    }
     startTransition(() => {
       if (query().trim().length >= 2) {
         setSearchTriggered(true);
@@ -514,6 +525,11 @@ const Search = () => {
                 if ((discoverRow?.selected ?? 0) > 0) return false;
                 return focusKeyboardHome();
               }}
+              onDown={() => {
+                if (recent().length === 0 || !recentColumn) return false;
+                recentColumn.setFocus();
+                return true;
+              }}
             >
               <For each={discoverItems()}>
                 {movie => (
@@ -536,6 +552,66 @@ const Search = () => {
                 )}
               </For>
             </Row>
+
+            {/* Recent queries fill the half of the idle panel that used to sit
+                empty, and turn a repeated search from twenty-odd presses on a
+                D-pad keyboard into three. */}
+            <Show when={showDiscover() && recent().length > 0}>
+              <View x={RIGHT_PANEL_X} y={RECENT_TITLE_Y} width={RIGHT_PANEL_WIDTH} height={40} skipFocus>
+                <Text fontSize={20} fontWeight={700} color={theme.textPrimary}>
+                  Buscas recentes
+                </Text>
+              </View>
+              <Column
+                ref={recentColumn}
+                x={RIGHT_PANEL_X}
+                y={RECENT_TITLE_Y + 44}
+                width={RIGHT_PANEL_WIDTH}
+                height={RECENT_ROW_HEIGHT * RECENT_VISIBLE}
+                gap={8}
+                scroll="none"
+                onUp={() => {
+                  if ((recentColumn?.selected ?? 0) > 0) return false;
+                  discoverRow?.setFocus();
+                  return true;
+                }}
+                onLeft={focusKeyboardHome}
+              >
+                <For each={recent().slice(0, RECENT_VISIBLE)}>
+                  {term => (
+                    <View
+                      width={RIGHT_PANEL_WIDTH}
+                      height={RECENT_ROW_HEIGHT - 8}
+                      borderRadius={10}
+                      color={theme.surface}
+                      border={{ color: theme.border, width: 1 }}
+                      $focus={{ color: theme.surfaceHover, border: { color: theme.primary, width: 3 } }}
+                      onEnter={() => {
+                        startTransition(() => {
+                          setQuery(term);
+                          setSearchTriggered(true);
+                        });
+                        recentSearches.remember(term);
+                        setRecent(recentSearches.getAll());
+                        return true;
+                      }}
+                    >
+                      <Text
+                        x={20}
+                        y={14}
+                        width={RIGHT_PANEL_WIDTH - 40}
+                        fontSize={20}
+                        color={theme.textPrimary}
+                        contain="width"
+                        maxLines={1}
+                      >
+                        {term}
+                      </Text>
+                    </View>
+                  )}
+                </For>
+              </Column>
+            </Show>
           </>
         );
       })()}
