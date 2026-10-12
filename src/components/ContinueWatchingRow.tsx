@@ -55,10 +55,23 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
     }
   };
 
-  const formatTime = (seconds: number) => {
+  /**
+   * What is left, or what kind of thing this is when "left" has no meaning.
+   *
+   * A live channel has no end, so "0m restantes" under HBO 2 read as if the
+   * channel had finished. A record with no usable duration — a remote history
+   * entry whose duration_seconds came back null — produced a negative remainder
+   * ("-2m restantes"). Both now say something true instead.
+   */
+  const remainingLabel = (current: HistoryItem) => {
+    if (current.type === "channel") return "Ao vivo";
+    const left = current.duration - current.currentTime;
+    if (!Number.isFinite(left) || current.duration <= 0) return "Continuar de onde parou";
+    const seconds = Math.max(0, left);
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     if (h > 0) return `${h}h ${m}m restantes`;
+    if (m < 1) return "Quase no fim";
     return `${m}m restantes`;
   };
 
@@ -166,8 +179,17 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                 </Show>
 
                 {/* Time remaining */}
-                <Text y={item().type === "series" ? 74 : 54} fontSize={16} color={theme.textMuted}>
-                  {formatTime(item().duration - item().currentTime)}
+                {/* Bounded to the 180px info column: "Continuar de onde parou" ran
+                    past the card's right edge without it. */}
+                <Text
+                  y={item().type === "series" ? 74 : 54}
+                  width={180}
+                  fontSize={16}
+                  color={theme.textMuted}
+                  contain="width"
+                  maxLines={2}
+                >
+                  {remainingLabel(item())}
                 </Text>
               </View>
 
