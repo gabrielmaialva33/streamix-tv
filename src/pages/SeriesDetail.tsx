@@ -10,6 +10,8 @@ import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { focusElement } from "@/shared/focus";
 import { displayTitle } from "@/lib/displayTitle";
+import SourcePicker from "@/features/sources/SourcePicker";
+import { fetchPlaybackSources, hasSourceChoice } from "@/features/sources/playbackSources";
 import { theme } from "@/styles";
 import DetailHero, {
   DetailPoster,
@@ -110,6 +112,30 @@ const SeriesDetail = () => {
   function focusActions() {
     setPageOffset(0);
     return focusElement(actionRow);
+  }
+
+  // Which provider's copy of the show to watch — the choice the web app makes
+  // at the series level. A backend without the route answers 404, which hides
+  // the section and leaves the page exactly as it was.
+  const [sources] = createResource(
+    () => params.id,
+    id => fetchPlaybackSources("series", id),
+  );
+  const sourceChoice = () => {
+    const result = sources();
+    return result && hasSourceChoice(result, params.id) && result.status === "ready" ? result.sources : null;
+  };
+  /** The copy on screen is listed, but its provider is down. */
+  const currentCopyDown = () =>
+    sourceChoice()?.some(
+      source => String(source.id) === params.id && source.providerStatus === "unhealthy",
+    ) ?? false;
+  let sourceRow: ElementNode | undefined;
+
+  function focusSources() {
+    if (!sourceChoice() || !sourceRow) return false;
+    setPageOffset(0);
+    return focusElement(sourceRow);
   }
 
   function focusRelated() {
@@ -228,7 +254,7 @@ const SeriesDetail = () => {
                     scroll="none"
                     autofocus
                     onFocus={() => setPageOffset(0)}
-                    onDown={focusRelated}
+                    onDown={() => focusSources() || focusRelated()}
                   >
                     <Show when={inProgress()}>
                       <View
@@ -301,8 +327,44 @@ const SeriesDetail = () => {
                       }}
                     />
                   </Row>
+
+                  <Show when={currentCopyDown()}>
+                    <Text
+                      x={30}
+                      y={256}
+                      width={1300}
+                      fontSize={17}
+                      color={theme.warning}
+                      contain="width"
+                      maxLines={1}
+                    >
+                      Este provedor está fora do ar · escolha outra fonte abaixo
+                    </Text>
+                  </Show>
                 </View>
               </View>
+
+              <Show when={sourceChoice()}>
+                {list => (
+                  <SourcePicker
+                    ref={node => {
+                      sourceRow = node;
+                      onCleanup(() => {
+                        if (sourceRow === node) sourceRow = undefined;
+                      });
+                    }}
+                    sources={list()}
+                    onUp={focusActions}
+                    onDown={() => focusRelated() || true}
+                    // Another provider's copy is another catalogue entry with its
+                    // own seasons, so it opens as its own page; the copy already
+                    // on screen just goes back to its actions.
+                    onPick={source =>
+                      String(source.id) === params.id ? focusActions() : navigate(`/series/${source.id}`)
+                    }
+                  />
+                )}
+              </Show>
 
               <DetailOverview
                 plot={currentSeries().plot}

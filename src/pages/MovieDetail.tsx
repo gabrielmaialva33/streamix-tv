@@ -10,6 +10,8 @@ import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
 import { focusElement } from "@/shared/focus";
 import { displayTitle } from "@/lib/displayTitle";
+import SourcePicker from "@/features/sources/SourcePicker";
+import { fallbackSource, fetchPlaybackSources, hasSourceChoice } from "@/features/sources/playbackSources";
 import { theme } from "@/styles";
 import DetailHero, {
   DetailPoster,
@@ -125,6 +127,32 @@ const MovieDetail = () => {
   function focusActions() {
     setPageOffset(0);
     return focusElement(actionRow);
+  }
+
+  // Independent of the movie fetch: a backend without the route answers 404,
+  // which hides the section and leaves the page exactly as it was.
+  const [sources] = createResource(
+    () => params.id,
+    id => fetchPlaybackSources("movie", id),
+  );
+  const sourceChoice = () => {
+    const result = sources();
+    return result && hasSourceChoice(result, params.id) && result.status === "ready" ? result.sources : null;
+  };
+  let sourceRow: ElementNode | undefined;
+
+  /** Set when the copy on screen is down and Play starts another copy instead. */
+  const playInstead = () => (resumePosition() ? null : fallbackSource(sources(), params.id));
+
+  function focusSources() {
+    if (!sourceChoice() || !sourceRow) return false;
+    setPageOffset(0);
+    return focusElement(sourceRow);
+  }
+
+  /** Down from the actions lands on the sources when there is a choice. */
+  function leaveActionsDown() {
+    return focusSources() || focusRelated();
   }
 
   function focusRelated() {
@@ -257,21 +285,21 @@ const MovieDetail = () => {
                       });
                     }}
                     x={30}
-                    y={196}
+                    y={184}
                     width={1332}
                     height={58}
                     gap={20}
                     scroll="none"
                     autofocus
                     onFocus={() => setPageOffset(0)}
-                    onDown={focusRelated}
+                    onDown={leaveActionsDown}
                   >
                     <View
                       width={resumePosition() ? 280 : 180}
                       height={56}
                       style={PRIMARY_BUTTON_STYLE}
                       onEnter={() => {
-                        navigate(`/player/movie/${currentMovie().id}`);
+                        navigate(`/player/movie/${playInstead()?.id ?? currentMovie().id}`);
                         return true;
                       }}
                     >
@@ -286,19 +314,6 @@ const MovieDetail = () => {
                         {resumePosition() ? "Continuar" : "Assistir"}
                       </Text>
                     </View>
-                    <Show when={resumeRemaining()}>
-                      <Text
-                        y={64}
-                        x={0}
-                        width={280}
-                        fontSize={17}
-                        color={theme.textMuted}
-                        contain="width"
-                        maxLines={1}
-                      >
-                        {resumeRemaining() ?? ""}
-                      </Text>
-                    </Show>
                     <Show when={resumePosition()}>
                       <View
                         width={180}
@@ -342,8 +357,57 @@ const MovieDetail = () => {
                       }}
                     />
                   </Row>
+
+                  {/* Outside the action Row on purpose: as a child of that flex
+                      row it became a row item, sat between "Continuar" and "Do
+                      início", and pushed every button after it to the right. */}
+                  <Show when={resumeRemaining()}>
+                    <Text
+                      x={30}
+                      y={250}
+                      width={280}
+                      fontSize={17}
+                      color={theme.textMuted}
+                      contain="width"
+                      maxLines={1}
+                    >
+                      {resumeRemaining() ?? ""}
+                    </Text>
+                  </Show>
+                  <Show when={playInstead()}>
+                    {fallback => (
+                      <Text
+                        x={30}
+                        y={250}
+                        width={1300}
+                        fontSize={17}
+                        color={theme.warning}
+                        contain="width"
+                        maxLines={1}
+                      >
+                        {`Este provedor está fora do ar · Assistir toca pelo ${fallback().providerName}`}
+                      </Text>
+                    )}
+                  </Show>
                 </View>
               </View>
+
+              <Show when={sourceChoice()}>
+                {list => (
+                  <SourcePicker
+                    ref={node => {
+                      sourceRow = node;
+                      onCleanup(() => {
+                        if (sourceRow === node) sourceRow = undefined;
+                      });
+                    }}
+                    sources={list()}
+                    onUp={focusActions}
+                    onDown={() => focusRelated() || true}
+                    onPick={source => navigate(`/player/movie/${source.id}`)}
+                  />
+                )}
+              </Show>
 
               <DetailOverview
                 plot={currentMovie().plot}
