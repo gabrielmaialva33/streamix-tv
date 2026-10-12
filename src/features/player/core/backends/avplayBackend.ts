@@ -57,6 +57,8 @@ interface AVPlayHandle {
    */
   setSelectTrack?(type: "AUDIO" | "TEXT", index: number): void;
   getTotalTrackInfo?(): AVPlayTrackInfo[];
+  /** `true` hides subtitles; there is no "select no track" for TEXT. */
+  setSilentSubtitle?(silent: boolean): void;
   restoreAsync?(
     url?: string,
     resumeTime?: number,
@@ -489,6 +491,25 @@ export function listAVPlayTracks(): NativeTrack[] | null {
       },
     ];
   });
+}
+
+/**
+ * Show or hide subtitles.
+ *
+ * AVPlay has no "no track" value for TEXT — `setSelectTrack` only ever picks
+ * one — so turning them off is its own call. Verified on a BE55C-H.
+ */
+export function setAVPlaySubtitlesVisible(visible: boolean): boolean {
+  const avplay = getAVPlay();
+  if (!avplay?.setSilentSubtitle) return false;
+
+  try {
+    avplay.setSilentSubtitle(!visible);
+    return true;
+  } catch (error) {
+    logger.warn("AVPlay refused the subtitle visibility change", { visible, error });
+    return false;
+  }
 }
 
 export function selectAVPlayTrack(kind: "audio" | "subtitle", index: number): boolean {

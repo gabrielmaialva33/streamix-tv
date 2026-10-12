@@ -11,6 +11,7 @@ import {
   restoreAVPlay,
   listAVPlayTracks,
   selectAVPlayTrack,
+  setAVPlaySubtitlesVisible,
   seekAVPlay,
   seekToAVPlay,
   suspendAVPlay,
@@ -18,6 +19,7 @@ import {
 import {
   destroyHTML5Backend,
   initHTML5Backend,
+  setHTML5SubtitlesVisible,
   loadHTML5,
   pauseHTML5,
   playHTML5,
@@ -143,6 +145,18 @@ function selectTrack(kind: "audio" | "subtitle", index: number): boolean {
   return false;
 }
 
+/**
+ * Turning subtitles off is not a track selection on every backend: AVPlay has a
+ * dedicated switch because its `setSelectTrack` can only ever pick a track,
+ * while hls.js spells it as track -1. Returning false keeps the UI honest when
+ * neither applies.
+ */
+function setSubtitlesVisible(visible: boolean): boolean {
+  if (currentBackend === "avplay") return setAVPlaySubtitlesVisible(visible);
+  if (currentBackend === "html5") return setHTML5SubtitlesVisible(visible);
+  return false;
+}
+
 function suspend() {
   if (currentBackend !== "avplay") {
     return false;
@@ -197,6 +211,7 @@ export const PlayerManager = {
   seekTo,
   selectTrack,
   listNativeTracks,
+  setSubtitlesVisible,
   suspend,
   restore,
   getCurrentTime,

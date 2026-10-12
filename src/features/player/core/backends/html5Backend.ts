@@ -327,6 +327,22 @@ export function selectHTML5Track(kind: "audio" | "subtitle", index: number): boo
   }
 }
 
+/**
+ * hls.js spells "no subtitle" as track -1, so hiding is a selection rather than
+ * a separate switch the way it is on AVPlay.
+ */
+export function setHTML5SubtitlesVisible(visible: boolean): boolean {
+  if (!hlsInstance) return false;
+
+  try {
+    if (!visible) hlsInstance.subtitleTrack = -1;
+    return true;
+  } catch (error) {
+    logger.warn("hls.js refused the subtitle visibility change", { visible, error });
+    return false;
+  }
+}
+
 export function destroyHTML5Backend() {
   if (hlsRecoveryTimer) {
     clearTimeout(hlsRecoveryTimer);
