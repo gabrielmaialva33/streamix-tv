@@ -5,6 +5,7 @@ import { isDebugOverlayEnabled } from "@/debug/overlayState";
 import { getAppRenderer } from "./lightning";
 import AppShell from "./AppShell";
 import AppRoutes from "./routes";
+import { markBootPhase, reportBootTiming } from "@/shared/bootTiming";
 import { createLogger } from "@/shared/logging/logger";
 import { focusRuntimeWindow, isTizenRuntime } from "@/platform/runtime";
 import { installImageXhrBridge } from "@/platform/nativeImageXhr";
@@ -13,6 +14,10 @@ import { installCapacitorBackButton } from "@/platform/capacitorBackButton";
 const logger = createLogger("AppBootstrap");
 
 export async function bootstrapApp() {
+  // First mark: everything before it is the platform fetching, parsing and
+  // executing the bundle, which no app code can observe from the inside.
+  markBootPhase("script");
+
   if (isDebugOverlayEnabled) {
     const { installDebugCapture } = await import("@/components/DebugOverlay");
     installDebugCapture();
@@ -30,7 +35,11 @@ export async function bootstrapApp() {
     logger.warn("Device initialization failed", error);
   }
 
+  markBootPhase("device");
+
   const { render } = getAppRenderer();
+
+  markBootPhase("renderer");
 
   render(() => (
     <FocusStackProvider>
@@ -57,6 +66,7 @@ export async function bootstrapApp() {
   const markReady = () => {
     if (dismissed) return;
     dismissed = true;
+    reportBootTiming();
     dismissSplash();
     // Clear the index.html splash watchdog even when the first painted route
     // isn't Home/Login — those are the only pages that dispatch
