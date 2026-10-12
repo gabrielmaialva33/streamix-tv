@@ -10,6 +10,12 @@ export default defineConfig({
   workers: 2,
   timeout: 30_000,
   expect: { timeout: 5000 },
+  // One retry so an intermittent failure is reported as flaky and keeps its
+  // trace, instead of failing the run and having the artefacts overwritten by
+  // the next (green) one. That is how the "Left returns to the sidebar" flake
+  // on the lg target stayed undiagnosed: by the time anyone looked, the only
+  // evidence had been replaced. A test that fails both attempts still fails.
+  retries: 1,
   reporter: "list",
   use: {
     channel: "chrome",
