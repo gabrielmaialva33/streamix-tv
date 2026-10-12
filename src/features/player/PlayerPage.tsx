@@ -1,6 +1,15 @@
-import { type ElementNode, Text, View } from "@solidtv/solid";
+import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { history } from "@/lib/storage";
 import { proxyImageUrl } from "@/lib/imageUrl";
 import { displayTitle } from "@/lib/displayTitle";
@@ -9,6 +18,7 @@ import { createLogger } from "@/shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
 import api, { ApiError, type Episode, type PlaybackTelemetryEvent } from "@/lib/api";
 import { authState } from "@/features/auth/auth";
+import { fetchPlaybackSources, type PlaybackSource } from "@/features/sources/playbackSources";
 import PlayerManager, { type PlayerCallbacks, type PlayerState } from "./core/playerManager";
 import { createInitialPlayerState } from "./core/playerState";
 import { playbackErrorMessage } from "./playbackError";
@@ -33,6 +43,31 @@ const SEEK_COMMIT_DELAY_MS = 900;
 const SEEK_ACCELERATION_WINDOW_MS = 1400;
 const SEEK_STEPS_SECONDS = [10, 30, 60, 180, 300, 600] as const;
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 5;
+
+/**
+ * The error dialog's buttons, as one style object rather than inline props.
+ *
+ * "Tentar de novo" mounts already focused (autofocus), so its $focus state was
+ * applied before inline color and scale existed. Removing the state then had
+ * nothing to restore: the button lost its fill and kept the focus scale, and
+ * read as gone the moment the viewer moved to "Voltar". A style object is
+ * applied with the node, before any state, like the detail page buttons.
+ */
+const ERROR_BUTTON_STYLE = {
+  width: 280,
+  height: 64,
+  borderRadius: 32,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  color: 0x333344ff,
+  scale: 1,
+  transition: {
+    color: { duration: 150, easing: "ease-out" },
+    scale: { duration: 150, easing: "ease-out" },
+  },
+  $focus: { color: theme.primary, scale: 1.06 },
+} satisfies IntrinsicNodeStyleProps;
 type PlayerControl = "timeline" | "back" | "play" | "forward" | "tracks";
 type PlaybackTelemetrySignal = "start" | "progress" | "pause" | "resume" | "complete" | "error";
 
@@ -86,6 +121,7 @@ const PlayerPage = () => {
   const [nextUpSeconds, setNextUpSeconds] = createSignal(NEXT_EPISODE_COUNTDOWN_SECONDS);
   let nextUpInterval: number | null = null;
   let retryButton: ElementNode | undefined;
+  let otherSourceButton: ElementNode | undefined;
   let backButton: ElementNode | undefined;
 
   let controlsTimeout: number | null = null;
@@ -132,6 +168,57 @@ const PlayerPage = () => {
       return source;
     },
   );
+
+  /**
+   * Other copies of what failed, so the error screen can offer one.
+   *
+   * The same title usually exists under several providers, and when one of
+   * them is down "Tentar de novo" only fails again. Asked for only once
+   * playback has failed — a key, not an object, so the resource does not
+   * refetch on every state tick while the error screen is up. Copies that
+   * already failed in this player session are skipped, so two broken copies
+   * never send the viewer back and forth between each other.
+   */
+  const failedSourceIds = new Set<string>();
+  const failedContent = createMemo(() =>
+    state().error && params.type !== "channel" ? `${params.type}:${params.id}` : null,
+  );
+  const [otherSources] = createResource(failedContent, key => {
+    const [type, id] = key.split(":");
+    failedSourceIds.add(id);
+    return fetchPlaybackSources(type === "movie" ? "movie" : "episode", id);
+  });
+  const otherSource = (): PlaybackSource | null => {
+    const result = state().error ? otherSources() : undefined;
+    if (!result || result.status !== "ready") return null;
+    return (
+      result.sources.find(
+        source => !failedSourceIds.has(String(source.id)) && source.providerStatus !== "unhealthy",
+      ) ?? null
+    );
+  };
+
+  async function playOtherSource(source: PlaybackSource) {
+    const current = state();
+    const position = current.currentTime > 5 ? current.currentTime : (getSavedResumePosition() ?? 0);
+    const query = new URLSearchParams();
+    // Same title, but its history lives under the other copy's id, so the
+    // position travels in the URL.
+    if (position >= RESUME_MIN_SECONDS) query.set("from", String(Math.floor(position)));
+    if (params.type === "series") {
+      // The other copy belongs to another provider's entry of the series; its
+      // own series_id keeps auto-next on the copy that actually plays.
+      const episode = await api.getEpisode(String(source.id)).catch(() => null);
+      if (episode?.series_id) query.set("series", String(episode.series_id));
+    }
+    if (destroyed) return;
+    cancelNextUp();
+    saveHistory();
+    setState(previous => ({ ...previous, error: null, buffering: true, ready: false }));
+    const suffix = query.toString();
+    // Same route, new param: like auto-next, the page does not remount.
+    navigate(`/player/${params.type}/${source.id}${suffix ? `?${suffix}` : ""}`, { replace: true });
+  }
 
   // Probed server-side, independent of the stream resource: a failure here must
   // never delay or block playback, so the picker simply stays hidden.
@@ -426,6 +513,12 @@ const PlayerPage = () => {
     // Explicit "watch from the beginning" request from a detail page.
     if (searchParams.restart) {
       return null;
+    }
+
+    // Carried over from a copy that failed: see playOtherSource.
+    const carried = Number(searchParams.from);
+    if (Number.isFinite(carried) && carried >= RESUME_MIN_SECONDS) {
+      return carried;
     }
 
     const saved = history.getProgress(
@@ -1178,16 +1271,10 @@ const PlayerPage = () => {
 
             {/* Buttons — same focus pattern as components/Hero.tsx:
                 display:flex + gap, refs + setFocus() on onLeft/onRight. */}
-            <View x={(1000 - 580) / 2} y={392} display="flex" gap={20}>
+            <View x={(1000 - (otherSource() ? 880 : 580)) / 2} y={392} display="flex" gap={20}>
               <View
                 ref={retryButton}
-                width={280}
-                height={64}
-                borderRadius={32}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                color={0x333344ff}
+                style={ERROR_BUTTON_STYLE}
                 forwardStates
                 autofocus
                 onEnter={() => {
@@ -1195,42 +1282,56 @@ const PlayerPage = () => {
                   return true;
                 }}
                 onRight={() => {
-                  backButton?.setFocus();
+                  (otherSourceButton ?? backButton)?.setFocus();
                   return true;
                 }}
-                transition={{
-                  color: { duration: 150, easing: "ease-out" },
-                  scale: { duration: 150, easing: "ease-out" },
-                }}
-                $focus={{ color: theme.primary, scale: 1.06 }}
               >
                 <Text fontSize={22} fontWeight={700} color={0xffffffff}>
                   Tentar de novo
                 </Text>
               </View>
+              <Show when={otherSource()}>
+                {source => (
+                  <View
+                    ref={node => {
+                      otherSourceButton = node;
+                      onCleanup(() => {
+                        if (otherSourceButton === node) otherSourceButton = undefined;
+                      });
+                    }}
+                    style={ERROR_BUTTON_STYLE}
+                    forwardStates
+                    onEnter={() => {
+                      void playOtherSource(source());
+                      return true;
+                    }}
+                    onLeft={() => {
+                      retryButton?.setFocus();
+                      return true;
+                    }}
+                    onRight={() => {
+                      backButton?.setFocus();
+                      return true;
+                    }}
+                  >
+                    <Text fontSize={22} fontWeight={700} color={0xffffffff}>
+                      Outra fonte
+                    </Text>
+                  </View>
+                )}
+              </Show>
               <View
                 ref={backButton}
-                width={280}
-                height={64}
-                borderRadius={32}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                color={0x333344ff}
+                style={ERROR_BUTTON_STYLE}
                 forwardStates
                 onEnter={() => {
                   handleClose();
                   return true;
                 }}
                 onLeft={() => {
-                  retryButton?.setFocus();
+                  (otherSourceButton ?? retryButton)?.setFocus();
                   return true;
                 }}
-                transition={{
-                  color: { duration: 150, easing: "ease-out" },
-                  scale: { duration: 150, easing: "ease-out" },
-                }}
-                $focus={{ color: theme.primary, scale: 1.06 }}
               >
                 <Text fontSize={22} fontWeight={700} color={0xffffffff}>
                   Voltar
@@ -1248,7 +1349,11 @@ const PlayerPage = () => {
               contain="width"
               maxLines={1}
             >
-              Esquerda/direita para escolher · OK confirma · Voltar sai
+              {otherSource()
+                ? `Outra fonte toca pelo ${otherSource()?.providerName}${
+                    otherSource()?.badges.length ? ` (${otherSource()?.badges.join(" · ")})` : ""
+                  } · Voltar sai`
+                : "Esquerda/direita para escolher · OK confirma · Voltar sai"}
             </Text>
           </View>
         </View>
