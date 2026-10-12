@@ -306,3 +306,34 @@ describe("mergeNativeTracks", () => {
     expect(merged[0].label).toBe("Português");
   });
 });
+
+describe("mergeNativeTracks quando o probe chega atrasado", () => {
+  // O probe pode responder depois de o player já ter sido adotado: ele faz
+  // polling de um 202 por até ~25s, enquanto o AVPlay fica pronto em segundos.
+  // Mesclar de novo com os rótulos tardios tem de preservar os índices do
+  // player — reaplicar os do container é o que levanta
+  // PLAYER_ERROR_INVALID_PARAMETER numa troca de faixa.
+  const native: NativeTrack[] = [
+    { index: 1, kind: "audio", language: "por", channels: 2 },
+    { index: 2, kind: "subtitle", language: null, channels: null },
+  ];
+
+  it("mantém os índices do player e ganha os rótulos que chegaram depois", () => {
+    const semRotulo = mergeNativeTracks(native, []);
+    expect(semRotulo.map(t => t.label)).toEqual(["Português · 2.0", "Faixa 2"]);
+
+    const comRotulo = mergeNativeTracks(native, [
+      { index: 1, kind: "audio", label: "Português · 2.0 (dublado)", language: "por", isDefault: true },
+      { index: 9, kind: "subtitle", label: "Português", language: "por", isDefault: false },
+    ]);
+    expect(comRotulo.map(t => t.index)).toEqual([1, 2]);
+    expect(comRotulo[0].label).toBe("Português · 2.0 (dublado)");
+  });
+
+  it("é idempotente: mesclar duas vezes com o mesmo probe dá o mesmo resultado", () => {
+    const probe = [
+      { index: 1, kind: "audio" as const, label: "Português · 2.0", language: "por", isDefault: true },
+    ];
+    expect(mergeNativeTracks(native, probe)).toEqual(mergeNativeTracks(native, probe));
+  });
+});

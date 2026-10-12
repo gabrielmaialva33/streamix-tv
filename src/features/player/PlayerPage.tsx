@@ -2,6 +2,7 @@ import { type ElementNode, Text, View } from "@solidtv/solid";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { history } from "@/lib/storage";
+import { proxyImageUrl } from "@/lib/imageUrl";
 import { theme } from "@/styles";
 import { createLogger } from "@/shared/logging/logger";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "@/shared/layout";
@@ -93,6 +94,18 @@ const PlayerPage = () => {
   let syncMessageTimeout: number | null = null;
   let destroyed = false;
   let loadedUrl: string | null = null;
+  /**
+   * Which content the current playback state actually belongs to.
+   *
+   * The route is /player/:type/:id and an episode change does *not* remount the
+   * page, so `params.id` flips the moment the next episode is navigated while
+   * `state()` still holds the previous one's position — and `load()` does not
+   * reset currentTime/duration. Writing history from that pair stamps the
+   * previous episode's progress onto the next episode's record: let E1 finish,
+   * auto-advance, and E2 is marked ~100% watched (and synced as completed)
+   * before a single frame of it is shown.
+   */
+  let playbackOwnerId: string | null = null;
   let telemetryStarted = false;
   let lastTelemetryPosition = -1;
   let playbackRequestedAt = 0;
@@ -127,15 +140,26 @@ const PlayerPage = () => {
       setTracks([]);
       setProbedTracks([]);
       setActiveAudioTrack(null);
+      setActiveSubtitleTrack(null);
       nativeTracksAdopted = false;
       const result = await fetchMediaTracks(type, id);
       if (result.status === "ready") {
         setProbedTracks(result.tracks);
-        // Stands alone on the html5 backend, which has no tracks of its own to
-        // report; on Tizen it is superseded as soon as AVPlay is ready.
-        setTracks(result.tracks);
-        // Whatever the container marks default is what already started playing.
-        setActiveAudioTrack(defaultTrackIndex(result.tracks, "audio"));
+        // The two sources race, and either can land first: the player reaches
+        // READY in a few seconds while this probe polls a 202 for up to ~25s on
+        // a cold file. So whoever arrives second merges instead of replacing —
+        // overwriting here would put container indices back into a picker the
+        // player already indexed its own way, which is what raises
+        // PLAYER_ERROR_INVALID_PARAMETER on a track switch.
+        if (nativeTracksAdopted) {
+          adoptNativeTracks(result.tracks);
+        } else {
+          // Stands alone on the html5 backend, which has no tracks of its own
+          // to report; on Tizen it is superseded as soon as AVPlay is ready.
+          setTracks(result.tracks);
+          // Whatever the container marks default is what already started playing.
+          setActiveAudioTrack(defaultTrackIndex(result.tracks, "audio"));
+        }
       }
       return result.status;
     },
@@ -248,6 +272,12 @@ const PlayerPage = () => {
   function saveHistory() {
     const { currentTime, duration } = state();
     if (duration <= 0) {
+      return;
+    }
+    // Mid-switch the route already points at the next episode while the state
+    // still describes the previous one. Saving then would credit the wrong
+    // record, so skip until the new stream is the one actually loaded.
+    if (playbackOwnerId !== params.id) {
       return;
     }
 
@@ -456,6 +486,11 @@ const PlayerPage = () => {
         handleSeek(1);
         return true;
       case "tracks":
+        if (!canPickTracks()) {
+          showSyncMessage("Procurando faixas de áudio e legenda…");
+          resetControlsTimeout();
+          return true;
+        }
         setTrackCursor(
           Math.max(
             0,
@@ -487,6 +522,7 @@ const PlayerPage = () => {
       .then(source => {
         if (destroyed) return;
         loadedUrl = source.streamUrl;
+        playbackOwnerId = params.id;
         setTitle(source.title);
         setPosterUrl(source.posterUrl);
         playbackRequestedAt = Date.now();
@@ -605,8 +641,7 @@ const PlayerPage = () => {
   const canPickTracks = () => hasSelectableTracks(tracks());
 
   /** Left-to-right order of the control row, minus anything not offered. */
-  const controlOrder = (): PlayerControl[] =>
-    canPickTracks() ? ["back", "play", "forward", "tracks"] : ["back", "play", "forward"];
+  const controlOrder = (): PlayerControl[] => ["back", "play", "forward", "tracks"];
 
   function stepControl(direction: -1 | 1) {
     const order = controlOrder();
@@ -626,13 +661,13 @@ const PlayerPage = () => {
    * stream — and `nativeTracksAdopted` keeps repeated ready transitions
    * (a seek, a buffering round trip) from rebuilding it.
    */
-  function adoptNativeTracks() {
-    if (nativeTracksAdopted) return;
+  function adoptNativeTracks(lateLabels?: MediaTrack[]) {
+    if (nativeTracksAdopted && !lateLabels) return;
     const native = PlayerManager.listNativeTracks();
     if (!native || native.length === 0) return;
 
     nativeTracksAdopted = true;
-    const merged = mergeNativeTracks(native, probedTracks());
+    const merged = mergeNativeTracks(native, lateLabels ?? probedTracks());
     setTracks(merged);
     setActiveAudioTrack(defaultTrackIndex(merged, "audio"));
     logger.debug("Adopted the player's own track list", {
@@ -699,20 +734,35 @@ const PlayerPage = () => {
     return activeSubtitleTrack() === null;
   }
 
+  /**
+   * The row list can shrink under an open picker: the player's own table
+   * replaces the probe's as soon as it is ready, and it omits codecs the set
+   * cannot decode. Clamping first matters because rejecting an out-of-range
+   * move would leave a cursor that is already past the end unable to move in
+   * either direction — Up, Down and OK all dead, with only Back working.
+   */
+  function pickerCursor(rows: PickerRow[]): number {
+    return Math.min(Math.max(trackCursor(), 0), rows.length - 1);
+  }
+
   function moveTrackCursor(direction: -1 | 1) {
     const rows = pickerRows();
     if (rows.length === 0) return true;
-    const next = trackCursor() + direction;
-    if (next < 0 || next >= rows.length) return true;
-    setTrackCursor(next);
+    const current = pickerCursor(rows);
+    const next = current + direction;
+    setTrackCursor(next < 0 || next >= rows.length ? current : next);
     return true;
   }
 
   function applySubtitleTrack(track: MediaTrack) {
     // Order matters: a set with subtitles silenced ignores the selection until
-    // they are audible again.
+    // they are audible again. So visibility goes first — and comes back off if
+    // the selection is refused, or the viewer is left watching whatever
+    // subtitle the container defaults to while the picker still says "off".
+    const wasVisible = activeSubtitleTrack() !== null;
     PlayerManager.setSubtitlesVisible(true);
     if (!PlayerManager.selectTrack("subtitle", track.index)) {
+      if (!wasVisible) PlayerManager.setSubtitlesVisible(false);
       showSyncMessage("Esta TV não permite trocar a legenda deste vídeo");
       return;
     }
@@ -730,7 +780,8 @@ const PlayerPage = () => {
   }
 
   function confirmTrackChoice() {
-    const chosen = pickerRows()[trackCursor()];
+    const rows = pickerRows();
+    const chosen = rows[pickerCursor(rows)];
     if (chosen?.row === "audio") applyAudioTrack(chosen.track);
     else if (chosen?.row === "subtitle") applySubtitleTrack(chosen.track);
     else if (chosen?.row === "subtitle-off") disableSubtitles();
@@ -896,6 +947,7 @@ const PlayerPage = () => {
     }
 
     loadedUrl = source.streamUrl;
+    playbackOwnerId = params.id;
     telemetryStarted = false;
     lastTelemetryPosition = -1;
     playbackRequestedAt = Date.now();
@@ -1030,16 +1082,39 @@ const PlayerPage = () => {
       onAny={resetControlsTimeout}
       autofocus
     >
-      <Show when={state().buffering && !state().error}>
-        <View
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Text fontSize={36} color={0xffffffff}>
-            Carregando...
+      {/* Opening a title used to be 1-4s of black with two words in the middle:
+          no confirmation that OK registered, and no sign that the right title
+          was coming. The poster is already resolved and held in a signal for the
+          history record, so showing it costs nothing and answers both.
+
+          Only while the stream has never been ready — a mid-playback rebuffer
+          must not blank the frozen frame the viewer is looking at. */}
+      <Show when={state().buffering && !state().error && !state().ready}>
+        <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={theme.background}>
+          <Show when={posterUrl()}>
+            <View
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              src={proxyImageUrl(posterUrl() ?? "", 1920)}
+              alpha={0.35}
+            />
+          </Show>
+          <View width={SCREEN_WIDTH} height={SCREEN_HEIGHT} color={0x05060bb8} />
+
+          <Text
+            x={60}
+            y={SCREEN_HEIGHT / 2 - 60}
+            width={1800}
+            fontSize={44}
+            fontWeight={700}
+            color={0xffffffff}
+            contain="width"
+            maxLines={2}
+          >
+            {title()}
+          </Text>
+          <Text x={60} y={SCREEN_HEIGHT / 2 + 40} fontSize={24} color={0xc6c6d6ff}>
+            Preparando o vídeo…
           </Text>
         </View>
       </Show>
@@ -1423,27 +1498,42 @@ const PlayerPage = () => {
             />
           </View>
 
-          <Show when={canPickTracks()}>
-            <View
-              x={308}
-              y={202}
-              width={56}
-              height={56}
-              color={controlColor("tracks", 0x0f1018cc)}
-              border={controlBorder("tracks")}
-              borderRadius={28}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <Text fontSize={20} fontWeight={700} color={controlIconColor("tracks")}>
-                CC
-              </Text>
-            </View>
-          </Show>
+          {/* The slot is permanent even while the probe is still running: it can
+              take ~25s on a cold file, and a control that appears halfway
+              through a film is one the viewer has already given up looking for.
+              Dimmed until there is something to choose; pressing it meanwhile
+              says so rather than doing nothing. */}
+          <View
+            x={308}
+            y={202}
+            width={56}
+            height={56}
+            color={controlColor("tracks", 0x0f1018cc)}
+            border={controlBorder("tracks")}
+            borderRadius={28}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            alpha={canPickTracks() ? 1 : 0.4}
+          >
+            <Text fontSize={20} fontWeight={700} color={controlIconColor("tracks")}>
+              CC
+            </Text>
+          </View>
 
-          <Text x={canPickTracks() ? 396 : 320} y={218} fontSize={18} color={0xc6c6d6ff}>
+          <Text x={396} y={218} fontSize={18} color={0xc6c6d6ff}>
             {remainingTime()}
+          </Text>
+
+          {/* The player's two most useful moves had no affordance at all: Up
+              opens the timeline for scrubbing, and holding left/right ramps the
+              jump from 10s to 10 minutes. Both were discoverable only by
+              accident. The hint rides with the control bar, so it costs nothing
+              once the bar hides. */}
+          <Text x={60} y={286} width={1100} fontSize={17} color={0x9a9aa8ff} contain="width" maxLines={1}>
+            {selectedControl() === "timeline"
+              ? "◀ ▶ move · OK confirma · Baixo volta aos botões"
+              : "Cima abre a linha do tempo · ◀ ▶ avança e volta · OK pausa"}
           </Text>
         </View>
       </Show>
