@@ -30,8 +30,10 @@ function buildMeta(show?: Series) {
     show.year ? String(show.year) : null,
     show.rating ? `${show.rating.toFixed(1)} IMDb` : null,
     show.genre || null,
-    show.season_count ? `${show.season_count} temporadas` : null,
-    show.episode_count ? `${show.episode_count} episódios` : null,
+    show.season_count ? `${show.season_count} ${show.season_count === 1 ? "temporada" : "temporadas"}` : null,
+    show.episode_count
+      ? `${show.episode_count} ${show.episode_count === 1 ? "episódio" : "episódios"}`
+      : null,
   ].filter(Boolean) as string[];
 }
 
