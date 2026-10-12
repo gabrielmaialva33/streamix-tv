@@ -132,7 +132,7 @@ const FavoriteButton = (props: FavoriteButtonProps) => {
         contain="width"
         maxLines={1}
       >
-        {isFavorite() ? "✓ Na minha lista" : "+ Minha lista"}
+        {isFavorite() ? "Na minha lista" : "+ Minha lista"}
       </Text>
     </View>
   );

@@ -103,7 +103,7 @@ const Favorites = () => {
           Minha lista
         </Text>
         <Text y={62} fontSize={18} color={theme.textSecondary}>
-          {`Salvo na sua conta${authState.user()?.name ? ` • ${authState.user()?.name}` : ""}`}
+          {`Salvo na sua conta${authState.user()?.name ? ` · ${authState.user()?.name}` : ""}`}
         </Text>
         {/* The account pill repeated the subtitle, and both it and the count
             lived under the provider banner's footprint (x≥1180, y 20-68), so
@@ -168,7 +168,7 @@ const Favorites = () => {
           skipFocus
         >
           <Text fontSize={48} color={theme.surfaceLight}>
-            ★
+            +
           </Text>
           <Text fontSize={28} color={theme.textSecondary}>
             Sua lista está vazia
@@ -227,7 +227,7 @@ const Favorites = () => {
       {/* Help text */}
       <View x={20} y={1000} skipFocus>
         <Text fontSize={14} color={theme.textMuted}>
-          OK Abrir detalhes ou reprodução • Seus favoritos acompanham a conta
+          OK Abrir detalhes ou reprodução · Seus favoritos acompanham a conta
         </Text>
       </View>
     </Column>

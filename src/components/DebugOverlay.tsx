@@ -188,7 +188,7 @@ const DebugOverlay = () => {
       padding={20}
     >
       <Text x={20} y={12} fontSize={20} color={0xffff00ff}>
-        {`[DEBUG]  press 0 to close  —  ${entries().length} lines`}
+        {`[DEBUG]  press 0 to close  ·  ${entries().length} lines`}
       </Text>
       <View x={20} y={48} width={1880} height={740} clipping>
         <For each={visibleEntries()}>

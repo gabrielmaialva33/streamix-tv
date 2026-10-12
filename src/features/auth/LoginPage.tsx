@@ -324,7 +324,7 @@ const LoginPage = () => {
         </Text>
 
         <Text y={180} fontSize={16} color={theme.textSecondary} contain="width" width={900} maxLines={2}>
-          Use o teclado à direita. OK avança pro próximo campo — no último, envia.
+          Use o teclado à direita. OK avança pro próximo campo e, no último, envia.
         </Text>
 
         <Show when={mode() === "register"}>

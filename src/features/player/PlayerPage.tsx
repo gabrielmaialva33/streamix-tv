@@ -488,7 +488,7 @@ const PlayerPage = () => {
         return true;
       case "tracks":
         if (!canPickTracks()) {
-          showSyncMessage("Procurando faixas de áudio e legenda…");
+          showSyncMessage("Procurando faixas de áudio e legenda...");
           resetControlsTimeout();
           return true;
         }
@@ -1115,7 +1115,7 @@ const PlayerPage = () => {
             {displayTitle(title())}
           </Text>
           <Text x={60} y={SCREEN_HEIGHT / 2 + 40} fontSize={24} color={0xc6c6d6ff}>
-            Preparando o vídeo…
+            Preparando o vídeo...
           </Text>
         </View>
       </Show>
@@ -1533,8 +1533,8 @@ const PlayerPage = () => {
               once the bar hides. */}
           <Text x={60} y={286} width={1100} fontSize={17} color={0x9a9aa8ff} contain="width" maxLines={1}>
             {selectedControl() === "timeline"
-              ? "◀ ▶ move · OK confirma · Baixo volta aos botões"
-              : "Cima abre a linha do tempo · ◀ ▶ avança e volta · OK pausa"}
+              ? "Esquerda e direita movem · OK confirma · Baixo volta aos botões"
+              : "Cima abre a linha do tempo · Esquerda e direita voltam e avançam · OK pausa"}
           </Text>
         </View>
       </Show>

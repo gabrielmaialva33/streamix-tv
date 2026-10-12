@@ -320,7 +320,7 @@ const Guide = () => {
                   >
                     <Text x={18} y={30} fontSize={15} color={theme.textMuted}>
                       {epg.loading
-                        ? "Carregando programação… · OK para assistir ao vivo"
+                        ? "Carregando programação... · OK para assistir ao vivo"
                         : epg.error
                           ? "Programação indisponível agora · OK para assistir ao vivo"
                           : "Sem programação disponível · OK para assistir ao vivo"}
@@ -420,7 +420,7 @@ const Guide = () => {
           </Text>
         </View>
         <Text fontSize={14} color={theme.textMuted}>
-          Navegue pela grade • OK assistir
+          Navegue pela grade · OK assistir
         </Text>
       </View>
     </Column>

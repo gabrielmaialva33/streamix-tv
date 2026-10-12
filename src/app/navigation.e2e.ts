@@ -61,7 +61,7 @@ for (const hasPrograms of [false, true]) {
       });
       try {
         await remote.open("/guide");
-        await remote.textVisible("Carregando programação… · OK para assistir ao vivo");
+        await remote.textVisible("Carregando programação... · OK para assistir ao vivo");
         await remote.press("ArrowLeft");
         await remote.focusIn("sidebar");
         await remote.press("ArrowRight");

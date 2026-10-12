@@ -4,11 +4,11 @@
 import type { Episode, RecommendationItem, Season, SimilarContentItem } from "./api";
 import { pickPoster } from "./imageUrl";
 
-/** "2021 • 7.5 IMDb" — joins year and rating when present. */
+/** "2021 · 7.5 IMDb" — joins year and rating when present. */
 export function ratingCaption(item: { year?: number | null; rating?: number | null }): string {
   return [item.year ? String(item.year) : null, item.rating ? `${item.rating.toFixed(1)} IMDb` : null]
     .filter(Boolean)
-    .join(" • ");
+    .join(" · ");
 }
 
 export type RelatedItem = SimilarContentItem | RecommendationItem;

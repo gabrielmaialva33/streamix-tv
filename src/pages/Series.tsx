@@ -5,7 +5,7 @@ import CatalogGridPage from "./shared/CatalogGridPage";
 function seriesCaption(show: SeriesType) {
   const base = ratingCaption(show);
   if (!show.season_count) return base;
-  return [base, `${show.season_count} temp.`].filter(Boolean).join(" • ");
+  return [base, `${show.season_count} temp.`].filter(Boolean).join(" · ");
 }
 
 const Series = () => (

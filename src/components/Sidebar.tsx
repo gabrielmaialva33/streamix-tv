@@ -839,7 +839,7 @@ const Sidebar = (props: SidebarProps) => {
                 when={!categories.loading}
                 fallback={
                   <Text x={20} y={340} width={300} fontSize={17} color={theme.textMuted}>
-                    Carregando categorias…
+                    Carregando categorias...
                   </Text>
                 }
               >
