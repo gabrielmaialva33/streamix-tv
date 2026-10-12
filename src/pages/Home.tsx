@@ -7,6 +7,7 @@ import api, { type FeaturedItem, type HomeResponse } from "@/lib/api";
 import { ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { pickPoster } from "@/lib/imageUrl";
 import { onNavReset } from "@/shared/navReset";
+import { SAFE_AREA_Y } from "@/shared/layout";
 import { theme } from "@/styles";
 
 const Home = () => {
@@ -122,8 +123,18 @@ const Home = () => {
           />
         }
       >
-        <Column width={1700} height={1080} gap={28} scroll="auto" forwardFocus={0}>
+        {/* Short of the full 1080 on purpose: the scrolling column used to run
+            captions to within ~20px of the bottom edge, inside the 5% that
+            overscan can eat on a TV. SAFE_AREA_Y keeps the last readable line
+            off the bezel. */}
+        <Column width={1700} height={1080 - SAFE_AREA_Y} gap={28} scroll="auto" forwardFocus={0}>
           <Hero ref={hero} item={currentFeatured()} onPlay={handlePlayFeatured} onInfo={handleInfoFeatured} />
+          {/* Directly under the hero on purpose: resuming last night's episode is
+              the most repeated task on a TV, and from the bottom of the column
+              it cost six Downs through catalogue the viewer did not ask for.
+              The row hides itself when there is no history (skipFocus), so it
+              costs nothing on a fresh install. */}
+          <ContinueWatchingRow limit={10} />
           <Show when={recommendedMovies()?.recommendations?.length}>
             <ContentRow
               title="Para você"
@@ -223,8 +234,6 @@ const Home = () => {
               )}
             />
           </Show>
-
-          <ContinueWatchingRow limit={10} />
         </Column>
       </Show>
     </View>
