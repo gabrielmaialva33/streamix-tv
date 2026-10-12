@@ -6,7 +6,8 @@ declare const tizen: any;
 
 const logger = createLogger("TizenDevice");
 
-// Register the remote keys required for in-app navigation and playback control.
+// Keys this app wants to receive. Which of them a set actually offers varies by
+// model, so this is a wish list, filtered against the platform below.
 const TIZEN_KEYS_TO_REGISTER = [
   "Back",
   "MediaPlay",
@@ -35,16 +36,35 @@ export class TizenDevice extends DeviceCommon {
     });
   }
 
+  /**
+   * Claim the remote keys this app handles, asking only for the ones the set
+   * actually offers.
+   *
+   * `getSupportedKeys()` is the platform's own list of *registerable* keys, and
+   * it is both model-specific and narrower than the remote: a 2023 BE55C-H
+   * (Tizen 9.0) reports 46 entries and none of them is "Back". That is not a
+   * missing capability — Return is a default key, delivered as
+   * `XF86Back` / 10009 without registration — so asking for it threw a
+   * WebAPIException on every single boot. Filtering first keeps the log honest
+   * and the wish list portable across models.
+   */
   static registerKeys() {
     try {
-      TIZEN_KEYS_TO_REGISTER.forEach(key => {
+      const offered = new Set<string>(
+        (tizen.tvinputdevice.getSupportedKeys() ?? []).map((key: { name: string }) => key.name),
+      );
+      const wanted = TIZEN_KEYS_TO_REGISTER.filter(key => offered.has(key));
+      const unavailable = TIZEN_KEYS_TO_REGISTER.filter(key => !offered.has(key));
+
+      for (const key of wanted) {
         try {
           tizen.tvinputdevice.registerKey(key);
         } catch (e) {
           logger.warn(`Failed to register key: ${key}`, e);
         }
-      });
-      logger.debug("Tizen keys registered successfully");
+      }
+
+      logger.debug("Tizen keys registered", { registered: wanted.length, unavailable });
     } catch (e) {
       logger.error("Failed to register Tizen keys", e);
     }
