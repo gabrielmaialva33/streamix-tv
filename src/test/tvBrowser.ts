@@ -59,15 +59,22 @@ export class TvRemote {
         return unhandled;
       });
     }
+    // The `key` matters as much as the code: the focus manager resolves
+    // `keyMapEntries[event.key]` *before* `[event.keyCode]`, and it ships
+    // defaults for several names. A name it already claims would hijack the
+    // press — which is exactly how Back came to be dead on Fire TV, where the
+    // remote sends "Escape".
+    //
+    // "XF86Back" is what a real Samsung remote sends, measured on a 2023
+    // BE55C-H running Tizen 9.0. webOS is still a guess, so it keeps the
+    // deliberately unmapped placeholder.
     await this.page.evaluate(
-      keyCode => {
+      ({ key, keyCode }: { key: string; keyCode: number }) => {
         for (const type of ["keydown", "keyup"]) {
-          document.dispatchEvent(
-            new KeyboardEvent(type, { key: "Unidentified", keyCode, bubbles: true, cancelable: true }),
-          );
+          document.dispatchEvent(new KeyboardEvent(type, { key, keyCode, bubbles: true, cancelable: true }));
         }
       },
-      this.target === "tizen" ? 10009 : 461,
+      this.target === "tizen" ? { key: "XF86Back", keyCode: 10009 } : { key: "Unidentified", keyCode: 461 },
     );
   }
 
