@@ -14,6 +14,7 @@ import { findNextEpisode, type PlayerType, resolvePlayerSource } from "./stream"
 import {
   defaultTrackIndex,
   fetchMediaTracks,
+  mergeNativeTracks,
   hasSelectableTracks,
   type MediaTrack,
   splitByKind,
@@ -68,6 +69,11 @@ const PlayerPage = () => {
   const [syncMessage, setSyncMessage] = createSignal<string | null>(null);
   const [selectedControl, setSelectedControl] = createSignal<PlayerControl>("play");
   const [tracks, setTracks] = createSignal<MediaTrack[]>([]);
+  // Kept beside the list the picker shows, because once the player reports its
+  // own tracks the two are merged — the player owns the indices, the probe the
+  // labels. See mergeNativeTracks.
+  const [probedTracks, setProbedTracks] = createSignal<MediaTrack[]>([]);
+  let nativeTracksAdopted = false;
   const [trackPickerOpen, setTrackPickerOpen] = createSignal(false);
   const [trackCursor, setTrackCursor] = createSignal(0);
   const [activeAudioTrack, setActiveAudioTrack] = createSignal<number | null>(null);
@@ -116,9 +122,14 @@ const PlayerPage = () => {
     () => ({ type: params.type, id: params.id }),
     async ({ type, id }) => {
       setTracks([]);
+      setProbedTracks([]);
       setActiveAudioTrack(null);
+      nativeTracksAdopted = false;
       const result = await fetchMediaTracks(type, id);
       if (result.status === "ready") {
+        setProbedTracks(result.tracks);
+        // Stands alone on the html5 backend, which has no tracks of its own to
+        // report; on Tizen it is superseded as soon as AVPlay is ready.
         setTracks(result.tracks);
         // Whatever the container marks default is what already started playing.
         setActiveAudioTrack(defaultTrackIndex(result.tracks, "audio"));
@@ -582,6 +593,31 @@ const PlayerPage = () => {
     if (next) setSelectedControl(next);
   }
 
+  /**
+   * Replace the probed list with what the player actually has, once it is ready
+   * to be asked.
+   *
+   * It cannot be asked earlier: `getTotalTrackInfo()` only answers from READY
+   * onwards, while the probe is an independent HTTP call that may land first.
+   * Doing it once per load is enough — the track table does not change mid
+   * stream — and `nativeTracksAdopted` keeps repeated ready transitions
+   * (a seek, a buffering round trip) from rebuilding it.
+   */
+  function adoptNativeTracks() {
+    if (nativeTracksAdopted) return;
+    const native = PlayerManager.listNativeTracks();
+    if (!native || native.length === 0) return;
+
+    nativeTracksAdopted = true;
+    const merged = mergeNativeTracks(native, probedTracks());
+    setTracks(merged);
+    setActiveAudioTrack(defaultTrackIndex(merged, "audio"));
+    logger.debug("Adopted the player's own track list", {
+      native: native.length,
+      probed: probedTracks().length,
+    });
+  }
+
   function applyAudioTrack(track: MediaTrack) {
     // The backend cannot switch tracks for us — selection is a player call, and
     // on a progressive MKV in a Chromium WebView there is no API at all. Report
@@ -742,6 +778,7 @@ const PlayerPage = () => {
       onStateChange: nextState => {
         if (!destroyed) {
           setState(nextState);
+          if (nextState.ready) adoptNativeTracks();
           if (!telemetryStarted && nextState.ready && nextState.playing && !nextState.error) {
             telemetryStarted = true;
             sendTelemetry("start");
