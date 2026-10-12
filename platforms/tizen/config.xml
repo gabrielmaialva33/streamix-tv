@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://streamix.app/tv"
-        version="1.0.026" viewmodes="maximized">
+        version="1.0.027" viewmodes="maximized">
     <!-- required_version is the minimum platform the package installs on; devel.api.version
          below stays at 6.0 as the API level the app codes against. Samsung launches the app
          on older platforms and simply no-ops APIs they lack, so the two differ on purpose.
