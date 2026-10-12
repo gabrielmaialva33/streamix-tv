@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   HISTORY: "streamix_history",
   PREFERENCES: "streamix_preferences",
   AUTH_SESSION: "streamix_auth_session",
+  RECENT_SEARCHES: "streamix_recent_searches",
 } as const;
 
 // Types
@@ -108,6 +109,33 @@ export const favorites = {
 };
 
 // Watch History
+const RECENT_SEARCH_LIMIT = 8;
+
+/**
+ * The last few things the viewer searched for.
+ *
+ * Typing on a D-pad keyboard costs roughly one press per character plus the
+ * travel between keys, so searching the same title twice used to cost the same
+ * twenty-odd presses as the first time. Recent queries turn the repeat into
+ * three.
+ */
+export const recentSearches = {
+  getAll(): string[] {
+    return safeGetItem<string[]>(STORAGE_KEYS.RECENT_SEARCHES, []);
+  },
+
+  remember(query: string): void {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    const existing = this.getAll().filter(item => item.toLowerCase() !== trimmed.toLowerCase());
+    safeSetItem(STORAGE_KEYS.RECENT_SEARCHES, [trimmed, ...existing].slice(0, RECENT_SEARCH_LIMIT));
+  },
+
+  clear(): void {
+    safeSetItem(STORAGE_KEYS.RECENT_SEARCHES, []);
+  },
+};
+
 export const history = {
   getAll(): HistoryItem[] {
     return safeGetItem<HistoryItem[]>(STORAGE_KEYS.HISTORY, []);
