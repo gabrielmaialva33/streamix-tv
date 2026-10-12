@@ -8,7 +8,8 @@ vi.mock("@/lib/api", async () => {
   return { ...actual, default: { getGindexTracks } };
 });
 
-import { fetchMediaTracks, hasSelectableTracks, splitByKind } from "./tracks";
+import { fetchMediaTracks, hasSelectableTracks, mergeNativeTracks, splitByKind } from "./tracks";
+import type { NativeTrack } from "./tracks";
 
 beforeEach(() => {
   getGindexTracks.mockReset();
@@ -220,5 +221,88 @@ describe("hasSelectableTracks", () => {
       audio: [audio(1), audio(3)],
       subtitle: [subtitle(2)],
     });
+  });
+});
+
+describe("mergeNativeTracks", () => {
+  // The track table a 2023 Samsung BE55C-H (Tizen 9.0) reports for a file whose
+  // ffprobe listing has two audio streams: AVPlay omits the DTS one it cannot
+  // decode, and its subtitle indices collide with the probe's audio numbering.
+  const nativeFromTV: NativeTrack[] = [
+    { index: 1, kind: "audio", language: "por", channels: 2 },
+    { index: 2, kind: "subtitle", language: null, channels: null },
+    { index: 3, kind: "subtitle", language: null, channels: null },
+  ];
+
+  const probedFromServer = [
+    { index: 1, kind: "audio" as const, label: "Português · 2.0", language: "por", isDefault: true },
+    { index: 2, kind: "audio" as const, label: "Inglês · 5.1", language: "eng", isDefault: false },
+    { index: 3, kind: "subtitle" as const, label: "Português", language: "por", isDefault: false },
+  ];
+
+  it("offers only the tracks the player can actually play", () => {
+    // "Inglês · 5.1" is real in the container and absent from AVPlay, so
+    // offering it is offering a track that cannot be selected.
+    const merged = mergeNativeTracks(nativeFromTV, probedFromServer);
+    expect(merged.map(t => t.label)).not.toContain("Inglês · 5.1");
+    expect(merged).toHaveLength(3);
+  });
+
+  it("keeps the player's indices, not the probe's", () => {
+    // Selecting by the probe's index raised PLAYER_ERROR_INVALID_PARAMETER on
+    // real hardware, because its audio index 2 is AVPlay's subtitle index 2.
+    const merged = mergeNativeTracks(nativeFromTV, probedFromServer);
+    expect(merged.map(t => ({ index: t.index, kind: t.kind }))).toEqual([
+      { index: 1, kind: "audio" },
+      { index: 2, kind: "subtitle" },
+      { index: 3, kind: "subtitle" },
+    ]);
+  });
+
+  it("borrows the probe's label when both describe the same track", () => {
+    const merged = mergeNativeTracks(nativeFromTV, probedFromServer);
+    expect(merged[0].label).toBe("Português · 2.0");
+  });
+
+  it("names a track the player describes but the probe does not", () => {
+    // AVPlay reports an empty track_lang for these, so there is nothing to
+    // match on and nothing better than a position.
+    const merged = mergeNativeTracks(nativeFromTV, probedFromServer);
+    expect(merged[1].label).toBe("Faixa 2");
+    expect(merged[2].label).toBe("Faixa 3");
+  });
+
+  it("labels from the player's own fields when the probe said nothing at all", () => {
+    const merged = mergeNativeTracks([{ index: 1, kind: "audio", language: "eng", channels: 6 }], []);
+    expect(merged[0].label).toBe("Inglês · 5.1");
+  });
+
+  it("treats the first track as the one already playing", () => {
+    // AVPlay does not mark a default; what it lists first is what is audible.
+    const merged = mergeNativeTracks(nativeFromTV, probedFromServer);
+    expect(merged.filter(t => t.isDefault).map(t => t.index)).toEqual([1]);
+  });
+
+  it("gives two tracks of one language distinct labels", () => {
+    const merged = mergeNativeTracks(
+      [
+        { index: 1, kind: "audio", language: "por", channels: 2 },
+        { index: 2, kind: "audio", language: "por", channels: 6 },
+      ],
+      [
+        { index: 1, kind: "audio", label: "Português · 2.0", language: "por", isDefault: true },
+        { index: 2, kind: "audio", label: "Português · 5.1", language: "por", isDefault: false },
+      ],
+    );
+    expect(merged.map(t => t.label)).toEqual(["Português · 2.0", "Português · 5.1"]);
+  });
+
+  it("never matches across kinds", () => {
+    // A subtitle in Portuguese must not borrow the audio track's label.
+    const merged = mergeNativeTracks(
+      [{ index: 2, kind: "subtitle", language: "por", channels: null }],
+      [{ index: 1, kind: "audio", label: "Português · 2.0", language: "por", isDefault: true }],
+    );
+    expect(merged[0].label).toBe("Português");
   });
 });
