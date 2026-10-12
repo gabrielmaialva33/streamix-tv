@@ -49,11 +49,16 @@ const CardImageStyle = {
 // Title style - transitions to white on focus
 const CardTitleStyle = {
   // 18 is Android TV's default body size for 10-foot reading; the subtitle
-  // below stays at 14, which is the guideline's "details subtext" size.
+  // below stays at 16, the floor for anything meant to be read from a sofa.
+  //
+  // Two lines because one truncated most of the catalogue: at six columns the
+  // card was 240px and titles like "100 Coisas para Fazer Ant…" told the viewer
+  // nothing. Wrapping is cheaper than a wider card and keeps six columns on the
+  // table if the density is ever wanted back.
   fontSize: 18,
   color: theme.textSecondary,
   contain: "width",
-  maxLines: 1,
+  maxLines: 2,
   $focus: {
     color: theme.textPrimary,
   },
@@ -61,7 +66,7 @@ const CardTitleStyle = {
 
 // Subtitle style
 const SubtitleStyle = {
-  fontSize: 14,
+  fontSize: 16,
   color: theme.textMuted,
   contain: "width",
   maxLines: 1,
@@ -83,7 +88,10 @@ export interface CardProps extends NodeProps {
 const Card = (props: CardProps) => {
   const width = props.width || 240;
   const height = props.height || 360;
-  const infoHeight = props.subtitle ? 56 : 44;
+  // Constant, not conditional. The subtitle only exists when the item carries a
+  // rating, so a conditional height left the caption baselines ragged across a
+  // row — which reads as breakage rather than as missing data.
+  const infoHeight = 86;
   const placeholderInitial = () => (props.title.trim().charAt(0).toUpperCase() || "?").slice(0, 1);
 
   // Track image errors only

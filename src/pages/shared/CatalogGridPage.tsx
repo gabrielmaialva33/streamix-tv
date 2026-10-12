@@ -21,7 +21,10 @@ const GRID_VIEWPORT_HEIGHT = 1080 - HEADER_HEIGHT;
 const GRID_INSET_X = 40;
 const GRID_INSET_Y = 36;
 const GRID_GAP = 12;
-const ROW_HEIGHT = 416;
+// 360 poster + 86 caption. The caption grew to fit two title lines at a
+// constant height; widening the card instead was the other option and does not
+// fit — two rows have 924px of viewport, so a taller poster would cost a row.
+const ROW_HEIGHT = 446;
 const PAGE_INSET = 20;
 const PAGE_WIDTH = CATALOG_CONTENT_WIDTH;
 const INNER_WIDTH = PAGE_WIDTH - PAGE_INSET * 2;
@@ -206,6 +209,7 @@ function CatalogGridPage<T extends CatalogItem>(props: CatalogGridPageProps<T>) 
               <View width={240} height={ROW_HEIGHT}>
                 <SkeletonLoader width={240} height={360} />
                 <SkeletonLoader width={180} height={20} y={370} borderRadius={4} />
+                <SkeletonLoader width={120} height={16} y={398} borderRadius={4} />
               </View>
             )}
           </For>
