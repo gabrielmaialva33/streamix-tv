@@ -5,7 +5,7 @@ import { detectDeviceProfile, rendererBudget } from "./capabilities";
 const profile = detectDeviceProfile();
 const budget = rendererBudget(profile);
 
-function logicalPixelRatio(): number {
+export function logicalPixelRatio(): number {
   if (typeof window === "undefined") return 1;
   const byHeight = window.innerHeight / 1080;
   const byWidth = window.innerWidth / 1920;
