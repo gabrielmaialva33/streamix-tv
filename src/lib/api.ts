@@ -1091,6 +1091,22 @@ export const api = {
     return response.data;
   },
 
+  /**
+   * Every catalogue entry the same title can be played from, across providers.
+   * See src/features/sources. A backend without the route answers 404, which
+   * the caller treats as "no choice to offer".
+   */
+  getPlaybackSources: async (
+    type: "movie" | "episode" | "series",
+    id: string | number,
+  ): Promise<unknown[]> => {
+    const segment = type === "movie" ? "movies" : type === "episode" ? "episodes" : "series";
+    const response = await request<DataEnvelope<unknown[]>>(`${CATALOG_URL}/${segment}/${id}/sources`, {
+      ttl: SHORT_TTL,
+    });
+    return Array.isArray(response?.data) ? response.data : [];
+  },
+
   // ----- Series -----
   getSeries: async (params: CatalogListParams = {}): Promise<PaginatedResponse<Series>> => {
     const response = await request<CatalogPageEnvelope<Series>>(
