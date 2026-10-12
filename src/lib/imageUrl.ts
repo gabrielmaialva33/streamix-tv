@@ -23,10 +23,29 @@ function snapToLadder(width: number): Ladder {
   return 1920;
 }
 
+/**
+ * Idempotent on purpose: a URL that is already a resize request gets its width
+ * swapped rather than wrapped again.
+ *
+ * Wrapping twice produces `?url=<encoded resize url with its own %26w%3D240>&w=120`,
+ * which hands the resize endpoint a proxy URL as if it were an origin. Every
+ * such image renders blank. It is easy to hit because stored records keep the
+ * URL they were displayed with — history items saved from a card already carry
+ * a proxied poster, and "Continue assistindo" then proxied it a second time, so
+ * the row that exists to be recognised at a glance showed no artwork at all.
+ */
 export function proxyImageUrl(url: string | undefined | null, maxWidth = 480): string | undefined {
   if (!url) return undefined;
 
   const snapped = snapToLadder(maxWidth);
+
+  if (url.startsWith(RESIZE_ENDPOINT)) {
+    const [base, query = ""] = url.split("?", 2);
+    const params = new URLSearchParams(query);
+    params.set("w", String(snapped));
+    return `${base}?${params.toString()}`;
+  }
+
   return `${RESIZE_ENDPOINT}?url=${encodeURIComponent(url)}&w=${snapped}`;
 }
 
