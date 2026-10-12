@@ -32,6 +32,11 @@ export type DeviceProfile = {
   tizenVersion: number | null;
   hasWebGL: boolean;
   hasWebGL2: boolean;
+  /** Logical cores, or null where the WebView does not report them. */
+  cores: number | null;
+  /** Both are needed before off-thread image decode is worth anything. */
+  hasWorkers: boolean;
+  hasCreateImageBitmap: boolean;
 };
 
 let cached: DeviceProfile | null = null;
@@ -64,7 +69,20 @@ export function detectDeviceProfile(): DeviceProfile {
     }
   }
 
-  cached = { isFireTV, isLegacyFireTV, isTizen, tizenVersion, deviceMemoryGB, hasWebGL, hasWebGL2 };
+  const nav = typeof navigator === "undefined" ? undefined : navigator;
+  const reportedCores = nav?.hardwareConcurrency;
+  cached = {
+    isFireTV,
+    isLegacyFireTV,
+    isTizen,
+    tizenVersion,
+    deviceMemoryGB,
+    hasWebGL,
+    hasWebGL2,
+    cores: typeof reportedCores === "number" && reportedCores > 0 ? reportedCores : null,
+    hasWorkers: typeof Worker === "function",
+    hasCreateImageBitmap: typeof createImageBitmap === "function",
+  };
   return cached;
 }
 
@@ -162,4 +180,28 @@ export function rendererBudget(profile = detectDeviceProfile()): RendererBudget 
 export function hasPointerInput(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return ["(any-pointer: fine)", "(any-pointer: coarse)"].some(query => window.matchMedia(query).matches);
+}
+
+/**
+ * How many image-decode workers to run.
+ *
+ * Every device config used to hard-code 0, and the only reason on record is
+ * that older Fire OS WebViews crash with them. That reason is real but narrow:
+ * it was applied to Tizen and webOS too, so a 2023 Samsung on Chromium 120 with
+ * four cores decodes every poster on the render thread — and the renderer says
+ * so on each boot ("Image worker count is 0 ... Image loading will be slower").
+ * A poster grid is most of this UI, so that is the wrong default for it.
+ *
+ * Two is deliberate rather than `cores - 1`: the render loop and the decode
+ * threads compete for the same four cores on a TV, and the win here comes from
+ * getting decode *off* the render thread, not from decoding many at once.
+ *
+ * Kept at 0 without `createImageBitmap`, since the worker then hands back data
+ * the renderer has to re-decode on the main thread anyway, and on anything
+ * reporting fewer than four cores, where the contention costs more than it buys.
+ */
+export function imageWorkerCount(profile = detectDeviceProfile()): number {
+  if (!profile.hasWorkers || !profile.hasCreateImageBitmap) return 0;
+  if (profile.cores === null || profile.cores < 4) return 0;
+  return 2;
 }
