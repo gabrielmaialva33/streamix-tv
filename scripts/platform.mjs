@@ -46,7 +46,12 @@ const targets = {
     runCommand: ["tizen", ["run", "-p", tizenAppId, "-s", tizenSerial], root],
     installEmuCommand: ["tizen", ["install", "-n", "Streamix.wgt", "-t", tizenEmulator], "dist/tizen"],
     runEmuCommand: ["tizen", ["run", "-p", tizenAppId, "-t", tizenEmulator], root],
-    killCommand: ["tizen", ["kill", "-p", tizenAppId, "-s", tizenSerial], root],
+    // The Tizen CLI has no `kill` subcommand — it offers install/run/uninstall
+    // and nothing to stop a running app — so this goes through the launcher on
+    // the device instead. Works on the emulator; retail firmware closes the sdb
+    // shell channel, so there it answers "closed" and the app has to be exited
+    // from the remote.
+    killCommand: ["sdb", ["-s", tizenSerial, "shell", "wrt-launcher", "-k", tizenAppId], root],
     uninstallCommand: ["tizen", ["uninstall", "-p", tizenAppId, "-s", tizenSerial], root],
   },
   webos: {
