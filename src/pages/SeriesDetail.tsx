@@ -2,7 +2,6 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Series } from "@/lib/api";
 import { isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
@@ -41,7 +40,6 @@ const RELATED_SECTION_TOP = 570;
 const SeriesDetail = () => {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
-  const exitToSidebar = useSidebarExit();
 
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
@@ -91,8 +89,19 @@ const SeriesDetail = () => {
     return true;
   }
 
+  /**
+   * While the detail is still loading there is nothing focusable yet, and
+   * bouncing to the sidebar here was worse than doing nothing: the highlight
+   * jumped to "Início" for the length of the fetch and was then yanked back by
+   * the action row's autofocus. A viewer who pressed OK in that window landed on
+   * the Home screen and lost the title they had just opened.
+   *
+   * Returning false focuses this page root instead — invisible, inert, and
+   * replaced the moment the real content mounts. Left still reaches the sidebar
+   * because MainLayout handles it one level up.
+   */
   function focusPage() {
-    return focusElement(actionRow) || focusElement(errorPanel) || exitToSidebar() || true;
+    return focusElement(actionRow) || focusElement(errorPanel) || false;
   }
 
   function focusActions() {

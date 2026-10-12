@@ -1,7 +1,6 @@
 import { type ElementNode, type IntrinsicNodeStyleProps, Text, View } from "@solidtv/solid";
 import { Row, VirtualGrid } from "@solidtv/solid/primitives";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useSidebarExit } from "@/app/layoutFocus";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { LoadError, SkeletonLoader } from "@/components";
 import api, { type Episode, type Season } from "@/lib/api";
@@ -49,7 +48,6 @@ const ITEMS_PER_ROW = 3;
 const SeriesEpisodes = () => {
   const params = useParams<{ id: string; season?: string }>();
   const navigate = useNavigate();
-  const exitToSidebar = useSidebarExit();
 
   const [series, { refetch }] = createResource(
     () => params.id,
@@ -102,14 +100,10 @@ const SeriesEpisodes = () => {
     return true;
   }
 
+  /** See MovieDetail.focusPage: bouncing to the sidebar mid-load stole focus
+   *  from the page the viewer had just opened, and gave it back a moment later. */
   function focusPage() {
-    return (
-      focusElement(seasonsRow) ||
-      focusElement(episodesGrid) ||
-      focusElement(errorPanel) ||
-      exitToSidebar() ||
-      true
-    );
+    return focusElement(seasonsRow) || focusElement(episodesGrid) || focusElement(errorPanel) || false;
   }
 
   return (

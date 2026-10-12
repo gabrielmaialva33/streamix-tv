@@ -2,10 +2,9 @@ import { ElementNode, Text, View } from "@solidtv/solid";
 import { Column, Row } from "@solidtv/solid/primitives";
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { useNavigate, useParams } from "@solidjs/router";
-import { useSidebarExit } from "@/app/layoutFocus";
 import { Card, ContentRow, FavoriteButton, LoadError, SkeletonLoader } from "@/components";
 import api, { type Movie } from "@/lib/api";
-import { formatPlaybackTime, isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
+import { isResumable, ratingCaption, relatedPoster } from "@/lib/contentMeta";
 import { history } from "@/lib/storage";
 import { pickBackdrop, pickPoster } from "@/lib/imageUrl";
 import { CONTENT_WIDTH } from "@/shared/layout";
@@ -41,7 +40,6 @@ const RELATED_SECTION_TOP = 570;
 const MovieDetail = () => {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const exitToSidebar = useSidebarExit();
 
   let actionRow: ElementNode | undefined;
   let relatedRow: ElementNode | undefined;
@@ -81,6 +79,24 @@ const MovieDetail = () => {
     return saved && isResumable(saved) ? saved.currentTime : null;
   };
 
+  /**
+   * How much is left, as a sentence rather than a timestamp.
+   *
+   * The button used to read "Continuar de 6:38", which in a two-hour film reads
+   * as six hours thirty-eight to most people — the viewer could not tell
+   * whether they had watched a minute or most of it. What is left answers the
+   * question they are actually asking.
+   */
+  const resumeRemaining = () => {
+    const saved = history.getProgress(params.id, "movie");
+    if (!saved || !isResumable(saved)) return null;
+    const left = Math.max(0, Math.round(saved.duration - saved.currentTime));
+    if (!Number.isFinite(left) || left <= 0) return null;
+    const hours = Math.floor(left / 3600);
+    const minutes = Math.round((left % 3600) / 60);
+    return hours > 0 ? `Faltam ${hours}h ${minutes}min` : `Faltam ${minutes}min`;
+  };
+
   function handleBack() {
     if (window.history.length > 1) {
       navigate(-1);
@@ -90,8 +106,19 @@ const MovieDetail = () => {
     return true;
   }
 
+  /**
+   * While the detail is still loading there is nothing focusable yet, and
+   * bouncing to the sidebar here was worse than doing nothing: the highlight
+   * jumped to "Início" for the length of the fetch and was then yanked back by
+   * the action row's autofocus. A viewer who pressed OK in that window landed on
+   * the Home screen and lost the title they had just opened.
+   *
+   * Returning false focuses this page root instead — invisible, inert, and
+   * replaced the moment the real content mounts. Left still reaches the sidebar
+   * because MainLayout handles it one level up.
+   */
   function focusPage() {
-    return focusElement(actionRow) || focusElement(errorPanel) || exitToSidebar() || true;
+    return focusElement(actionRow) || focusElement(errorPanel) || false;
   }
 
   function focusActions() {
@@ -255,11 +282,22 @@ const MovieDetail = () => {
                         textAlign="center"
                         contain="width"
                       >
-                        {resumePosition()
-                          ? `Continuar de ${formatPlaybackTime(resumePosition() ?? 0)}`
-                          : "Assistir"}
+                        {resumePosition() ? "Continuar" : "Assistir"}
                       </Text>
                     </View>
+                    <Show when={resumeRemaining()}>
+                      <Text
+                        y={64}
+                        x={0}
+                        width={280}
+                        fontSize={17}
+                        color={theme.textMuted}
+                        contain="width"
+                        maxLines={1}
+                      >
+                        {resumeRemaining() ?? ""}
+                      </Text>
+                    </Show>
                     <Show when={resumePosition()}>
                       <View
                         width={180}
