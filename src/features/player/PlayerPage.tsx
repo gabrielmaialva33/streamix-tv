@@ -77,6 +77,9 @@ const PlayerPage = () => {
   const [trackPickerOpen, setTrackPickerOpen] = createSignal(false);
   const [trackCursor, setTrackCursor] = createSignal(0);
   const [activeAudioTrack, setActiveAudioTrack] = createSignal<number | null>(null);
+  // null means subtitles are off, which is a state the viewer can choose and
+  // not merely the absence of one.
+  const [activeSubtitleTrack, setActiveSubtitleTrack] = createSignal<number | null>(null);
   const [nextUp, setNextUp] = createSignal<Episode | null>(null);
   const [nextUpSeconds, setNextUpSeconds] = createSignal(NEXT_EPISODE_COUNTDOWN_SECONDS);
   let nextUpInterval: number | null = null;
@@ -456,7 +459,7 @@ const PlayerPage = () => {
         setTrackCursor(
           Math.max(
             0,
-            audioTracks().findIndex(t => t.index === activeAudioTrack()),
+            pickerRows().findIndex(row => row.row === "audio" && row.track.index === activeAudioTrack()),
           ),
         );
         setTrackPickerOpen(true);
@@ -579,6 +582,26 @@ const PlayerPage = () => {
   }
 
   const audioTracks = () => splitByKind(tracks()).audio;
+  const subtitleTracks = () => splitByKind(tracks()).subtitle;
+
+  /**
+   * The picker as one flat list the cursor walks, because a remote's Up/Down is
+   * the only axis free while the transport controls own Left/Right. Audio first,
+   * then "off" ahead of the subtitle tracks — off is the state most viewers
+   * want back, so it should not sit at the bottom of a long list.
+   */
+  type PickerRow =
+    { row: "audio"; track: MediaTrack } | { row: "subtitle"; track: MediaTrack } | { row: "subtitle-off" };
+
+  const pickerRows = (): PickerRow[] => {
+    const rows: PickerRow[] = audioTracks().map(track => ({ row: "audio" as const, track }));
+    const subtitles = subtitleTracks();
+    if (subtitles.length > 0) {
+      rows.push({ row: "subtitle-off" });
+      rows.push(...subtitles.map(track => ({ row: "subtitle" as const, track })));
+    }
+    return rows;
+  };
   const canPickTracks = () => hasSelectableTracks(tracks());
 
   /** Left-to-right order of the control row, minus anything not offered. */
@@ -636,18 +659,81 @@ const PlayerPage = () => {
     return true;
   }
 
+  const ROW_STEP = 64;
+  const HEADER_STEP = 48;
+
+  /**
+   * Where every row and header sits, computed once per render so the markup
+   * stays a flat list while reading as two labelled sections. The cursor
+   * indexes `rows`, so its numbering never has to know about headers.
+   */
+  const pickerLayout = () => {
+    const headers: Array<{ label: string; y: number }> = [];
+    const rows: Array<{ row: PickerRow; y: number }> = [];
+    let y = 28;
+
+    headers.push({ label: "Faixa de áudio", y });
+    y += HEADER_STEP;
+
+    for (const row of pickerRows()) {
+      if (row.row === "subtitle-off") {
+        y += 8;
+        headers.push({ label: "Legenda", y });
+        y += HEADER_STEP;
+      }
+      rows.push({ row, y });
+      y += ROW_STEP;
+    }
+
+    return { headers, rows, height: y + 44 };
+  };
+
+  function rowLabel(row: PickerRow): string {
+    if (row.row === "subtitle-off") return "Desligada";
+    return row.track.label;
+  }
+
+  function isCurrentRow(row: PickerRow): boolean {
+    if (row.row === "audio") return activeAudioTrack() === row.track.index;
+    if (row.row === "subtitle") return activeSubtitleTrack() === row.track.index;
+    return activeSubtitleTrack() === null;
+  }
+
   function moveTrackCursor(direction: -1 | 1) {
-    const list = audioTracks();
-    if (list.length === 0) return true;
+    const rows = pickerRows();
+    if (rows.length === 0) return true;
     const next = trackCursor() + direction;
-    if (next < 0 || next >= list.length) return true;
+    if (next < 0 || next >= rows.length) return true;
     setTrackCursor(next);
     return true;
   }
 
+  function applySubtitleTrack(track: MediaTrack) {
+    // Order matters: a set with subtitles silenced ignores the selection until
+    // they are audible again.
+    PlayerManager.setSubtitlesVisible(true);
+    if (!PlayerManager.selectTrack("subtitle", track.index)) {
+      showSyncMessage("Esta TV não permite trocar a legenda deste vídeo");
+      return;
+    }
+    setActiveSubtitleTrack(track.index);
+    showSyncMessage(`Legenda: ${track.label}`);
+  }
+
+  function disableSubtitles() {
+    if (!PlayerManager.setSubtitlesVisible(false)) {
+      showSyncMessage("Esta TV não permite desligar a legenda deste vídeo");
+      return;
+    }
+    setActiveSubtitleTrack(null);
+    showSyncMessage("Legenda desligada");
+  }
+
   function confirmTrackChoice() {
-    const chosen = audioTracks()[trackCursor()];
-    if (chosen) applyAudioTrack(chosen);
+    const chosen = pickerRows()[trackCursor()];
+    if (chosen?.row === "audio") applyAudioTrack(chosen.track);
+    else if (chosen?.row === "subtitle") applySubtitleTrack(chosen.track);
+    else if (chosen?.row === "subtitle-off") disableSubtitles();
     return closeTrackPicker();
   }
 
@@ -1368,23 +1454,27 @@ const PlayerPage = () => {
         <View x={0} y={0} width={1920} height={1080} color={0x000000b8} zIndex={400} />
         <View
           x={660}
-          y={280}
+          y={Math.max(80, (1080 - pickerLayout().height) / 2)}
           width={600}
-          height={Math.min(520, 116 + audioTracks().length * 64)}
+          height={pickerLayout().height}
           color={theme.panel}
           borderRadius={20}
           border={{ color: theme.panelBorder, width: 2 }}
           zIndex={401}
         >
-          <Text x={32} y={28} fontSize={26} fontWeight={700} color={theme.textPrimary}>
-            Faixa de áudio
-          </Text>
+          <For each={pickerLayout().headers}>
+            {header => (
+              <Text x={32} y={header.y} fontSize={26} fontWeight={700} color={theme.textPrimary}>
+                {header.label}
+              </Text>
+            )}
+          </For>
 
-          <For each={audioTracks()}>
-            {(track, index) => (
+          <For each={pickerLayout().rows}>
+            {(entry, index) => (
               <View
                 x={24}
-                y={76 + index() * 64}
+                y={entry.y}
                 width={552}
                 height={56}
                 borderRadius={12}
@@ -1395,9 +1485,9 @@ const PlayerPage = () => {
                 }}
               >
                 <Text x={20} y={16} fontSize={20} color={theme.textPrimary} contain="width" width={440}>
-                  {track.label}
+                  {rowLabel(entry.row)}
                 </Text>
-                <Show when={activeAudioTrack() === track.index}>
+                <Show when={isCurrentRow(entry.row)}>
                   <Text x={484} y={16} fontSize={20} color={theme.primary}>
                     ATUAL
                   </Text>
@@ -1406,12 +1496,7 @@ const PlayerPage = () => {
             )}
           </For>
 
-          <Text
-            x={32}
-            y={Math.min(520, 116 + audioTracks().length * 64) - 40}
-            fontSize={16}
-            color={theme.textMuted}
-          >
+          <Text x={32} y={pickerLayout().height - 40} fontSize={16} color={theme.textMuted}>
             Cima/baixo escolhe · OK aplica · Voltar fecha
           </Text>
         </View>
