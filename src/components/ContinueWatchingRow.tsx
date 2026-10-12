@@ -1,4 +1,4 @@
-import { type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@solidtv/solid";
+import { type ElementNode, type IntrinsicNodeStyleProps, type NodeProps, Text, View } from "@solidtv/solid";
 import { LazyRow } from "@solidtv/solid/primitives";
 import { createSignal, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -62,8 +62,25 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
     return `${m}m restantes`;
   };
 
+  // Without this the wrapper takes the focus itself and the cards below are
+  // unreachable: Down and Right both die on it, which strands the viewer on the
+  // one row whose whole purpose is resuming what they were watching. A ref
+  // rather than a child index because the empty-state <Show> above makes the
+  // LazyRow's position in the child list depend on whether there is history.
+  let row: ElementNode | undefined;
+
   return (
-    <View {...props} width={1700} height={280} skipFocus={items().length === 0}>
+    <View
+      {...props}
+      width={1700}
+      height={280}
+      skipFocus={items().length === 0}
+      forwardFocus={() => {
+        if (!row) return false;
+        row.setFocus();
+        return true;
+      }}
+    >
       <Text x={20} fontSize={32} fontWeight={700} color={0xffffffff}>
         Continue Assistindo
       </Text>
@@ -90,6 +107,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
 
       <Show when={items().length > 0}>
         <LazyRow
+          ref={row}
           x={20}
           y={50}
           width={1660}
@@ -137,7 +155,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                 <Show when={item().type === "series" && item().episodeTitle}>
                   <Text
                     y={45}
-                    fontSize={13}
+                    fontSize={16}
                     color={theme.textSecondary}
                     contain="width"
                     width={180}
@@ -148,7 +166,7 @@ const ContinueWatchingRow = (props: ContinueWatchingRowProps) => {
                 </Show>
 
                 {/* Time remaining */}
-                <Text y={item().type === "series" ? 70 : 50} fontSize={12} color={theme.textMuted}>
+                <Text y={item().type === "series" ? 74 : 54} fontSize={16} color={theme.textMuted}>
                   {formatTime(item().duration - item().currentTime)}
                 </Text>
               </View>
