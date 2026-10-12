@@ -86,23 +86,42 @@ const NavigationColumnStyle = {
   x: 20,
 } satisfies IntrinsicNodeStyleProps;
 
+// Focus here follows the same contract as a poster card (Card.tsx): a filled
+// background, a 3px primary border and a small scale. The sidebar is the most
+// travelled control in the app and used to signal focus with a 1px border
+// change alone — at 3m that reads as no change at all, so the viewer could not
+// tell whether the remote was driving the sidebar or the content.
+//
+// The fill is the part that carries: a hairline border survives neither the
+// distance nor a lit room, while a change of surface does.
 const NavButtonStyle = {
   zIndex: 201,
   height: 52,
   borderRadius: 8,
   color: theme.surfaceMuted,
   border: { color: theme.borderSubtle, width: 1 },
+  transition: {
+    scale: { duration: 150, easing: "ease-out" },
+  },
+  scale: 1,
   $focus: {
-    border: { color: theme.borderLight, width: 1 },
+    color: theme.surfaceHover,
+    border: { color: theme.primary, width: 3 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
 const NavButtonActiveStyle = {
   ...NavButtonStyle,
-  color: theme.surfaceMuted,
+  // Selected and focused must stay distinguishable, so "selected" keeps its own
+  // tinted surface and the red marker rail, and only focus adds the heavy
+  // border and the scale.
+  color: theme.surfaceActive,
   border: { color: theme.border, width: 1 },
   $focus: {
-    border: { color: theme.primary, width: 1 },
+    color: theme.surfaceHover,
+    border: { color: theme.primary, width: 3 },
+    scale: 1.03,
   },
 } satisfies IntrinsicNodeStyleProps;
 
@@ -271,7 +290,7 @@ function RailOption(props: RailOptionProps) {
           y={22}
           width={58}
           height={24}
-          fontSize={14}
+          fontSize={18}
           color={theme.textMuted}
           contain="width"
           maxLines={1}
@@ -369,7 +388,8 @@ const Sidebar = (props: SidebarProps) => {
   const currentProviderName = () => currentProvider()?.name ?? "Todos os provedores";
   const healthForProvider = (providerId?: number) => {
     if (providerId === undefined) return combinedProviderHealthStatus(props.health);
-    return props.health?.providers.find(provider => provider.id === providerId)?.status;
+    // `?.` on health alone is not enough: a 200 can arrive without `providers`.
+    return props.health?.providers?.find(provider => provider.id === providerId)?.status;
   };
   const currentProviderStatus = () => healthForProvider(selectedProvider());
   const currentProviderStatusLabel = () => {
@@ -701,7 +721,7 @@ const Sidebar = (props: SidebarProps) => {
                 onFocus={() => scheduleNavigationPreload("/favorites")}
                 isActive={isActive("/favorites")}
               >
-                Favoritos
+                Minha lista
               </NavButton>
               <Show when={authState.user()}>
                 <View style={DividerStyle} skipFocus />
