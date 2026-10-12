@@ -33,8 +33,10 @@ describe("provider health notice", () => {
         ]),
       ),
     ).toEqual({
+      // Counts, not backend product names, and the reassurance leads: the
+      // banner is one line wide and truncation used to eat the second half.
       status: "degraded",
-      message: "Streamix Global está indisponível; outros provedores continuam disponíveis.",
+      message: "Parte do catálogo está fora do ar (1 de 2 fontes). O resto funciona normalmente.",
     });
   });
 

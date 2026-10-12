@@ -10,7 +10,7 @@ export function combinedProviderHealthStatus(
   health?: ProviderHealthResponse | null,
 ): ProviderHealthStatus | undefined {
   if (!health) return undefined;
-  const active = health.providers.filter(provider => provider.is_active);
+  const active = (health.providers ?? []).filter(provider => provider.is_active);
   const hasHealthy = active.some(provider => provider.status === "healthy");
   const hasProblem = active.some(
     provider => provider.status === "degraded" || provider.status === "unhealthy",

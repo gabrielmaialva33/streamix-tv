@@ -1,5 +1,5 @@
 import { Text, View } from "@solidtv/solid";
-import { Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { type ProviderHealthResponse, type ProviderHealthStatus } from "@/lib/api";
 import { SCREEN_WIDTH } from "@/shared/layout";
 import { theme } from "@/styles";
@@ -11,29 +11,35 @@ interface ProviderHealthNotice {
   message: string;
 }
 
-function affectedProviderLabel(providers: ProviderHealthResponse["providers"]): string {
-  const names = providers.map(provider => provider.name);
-  if (names.length <= 2) return names.join(" e ");
-  return `${names.slice(0, 2).join(", ")} e mais ${names.length - 2}`;
+/**
+ * Counts, not names. "Streamix Fallback" and "Embedplay" are backend
+ * identifiers; to the viewer they are words that have never appeared anywhere
+ * else in the app, and reading two unknown names fail reads as "the app is
+ * broken" even when the catalogue is working.
+ */
+function affectedCount(count: number, total: number): string {
+  return total > 0 ? `${count} de ${total} fontes` : `${count} fontes`;
 }
 
 export function providerHealthNotice(health?: ProviderHealthResponse | null): ProviderHealthNotice | null {
-  if (!health) return null;
+  // A 200 with a missing `providers` array is a real shape this endpoint has
+  // returned; without this the filter below throws inside a reactive getter.
+  if (!health || !Array.isArray(health.providers)) return null;
 
   const unhealthy = health.providers.filter(provider => provider.status === "unhealthy");
   const degraded = health.providers.filter(provider => provider.status === "degraded");
   const hasHealthyProvider = health.providers.some(provider => provider.status === "healthy");
 
   if (unhealthy.length > 0 && hasHealthyProvider) {
-    const label = affectedProviderLabel(unhealthy);
-    const verb = unhealthy.length === 1 ? "está indisponível" : "estão indisponíveis";
+    // The reassuring half goes first: truncation used to cut it off, so all the
+    // viewer ever read was the alarm.
     return {
       status: "degraded",
-      message: `${label} ${verb}; outros provedores continuam disponíveis.`,
+      message: `Parte do catálogo está fora do ar (${affectedCount(unhealthy.length, health.providers.length)}). O resto funciona normalmente.`,
     };
   }
 
-  if (unhealthy.length > 0 || health.overall.status === "unhealthy") {
+  if (unhealthy.length > 0 || health.overall?.status === "unhealthy") {
     return {
       status: "unhealthy",
       message: "Nenhum provedor de conteúdo está disponível no momento.",
@@ -41,12 +47,13 @@ export function providerHealthNotice(health?: ProviderHealthResponse | null): Pr
   }
 
   if (degraded.length > 0) {
-    const label = affectedProviderLabel(degraded);
-    const verb = degraded.length === 1 ? "está instável" : "estão instáveis";
-    return { status: "degraded", message: `${label} ${verb}; alguns itens podem falhar.` };
+    return {
+      status: "degraded",
+      message: `Parte do catálogo está instável (${affectedCount(degraded.length, health.providers.length)}). Alguns títulos podem falhar.`,
+    };
   }
 
-  if (health.overall.status === "degraded") {
+  if (health.overall?.status === "degraded") {
     return {
       status: "degraded",
       message: "Alguns provedores estão instáveis; parte do catálogo pode falhar.",
@@ -69,35 +76,48 @@ const ProviderHealthBanner = (props: ProviderHealthBannerProps) => {
     return current;
   };
 
+  // Informative, not actionable: there is nothing the viewer can do about a
+  // provider being down, so it announces itself and leaves. As a permanent
+  // fixture it read as a standing alarm on every screen, and it sat on top of
+  // real UI — in Favoritos it covered the account pill and the item count
+  // outright.
+  const [dismissed, setDismissed] = createSignal(false);
+  createEffect(() => {
+    if (!notice()) return;
+    setDismissed(false);
+    const timer = setTimeout(() => setDismissed(true), 9000);
+    onCleanup(() => clearTimeout(timer));
+  });
+
   return (
-    <Show when={notice()}>
-      {current => (
-        <View
-          x={SCREEN_WIDTH - BANNER_WIDTH - 20}
-          y={20}
-          width={BANNER_WIDTH}
-          height={48}
-          color={current().status === "unhealthy" ? 0x5c161bf2 : 0x54420df2}
-          borderRadius={10}
-          border={{ color: current().status === "unhealthy" ? theme.primaryLight : theme.warning, width: 2 }}
-          zIndex={900}
-          skipFocus
+    <Show when={notice() && !dismissed()}>
+      <View
+        x={SCREEN_WIDTH - BANNER_WIDTH - 20}
+        y={20}
+        width={BANNER_WIDTH}
+        height={76}
+        color={notice()?.status === "unhealthy" ? 0x5c161bf2 : 0x54420df2}
+        borderRadius={10}
+        border={{ color: notice()?.status === "unhealthy" ? theme.primaryLight : theme.warning, width: 2 }}
+        zIndex={900}
+        skipFocus
+      >
+        {/* Two lines: an error message truncated mid-sentence loses exactly
+              the half that tells the viewer they can keep watching. */}
+        <Text
+          x={20}
+          y={14}
+          width={BANNER_WIDTH - 40}
+          fontSize={18}
+          fontWeight={700}
+          color={theme.textPrimary}
+          contain="width"
+          maxLines={2}
+          textAlign="center"
         >
-          <Text
-            x={20}
-            y={13}
-            width={BANNER_WIDTH - 40}
-            fontSize={18}
-            fontWeight={700}
-            color={theme.textPrimary}
-            contain="width"
-            maxLines={1}
-            textAlign="center"
-          >
-            {current().message}
-          </Text>
-        </View>
-      )}
+          {notice()?.message ?? ""}
+        </Text>
+      </View>
     </Show>
   );
 };
