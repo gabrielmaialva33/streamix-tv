@@ -11,6 +11,18 @@ interface HTML5BackendDeps {
 
 let videoElement: HTMLVideoElement | null = null;
 let hlsInstance: { destroy(): void; audioTrack?: number; subtitleTrack?: number } | null = null;
+/**
+ * Which load owns the backend right now.
+ *
+ * `loadHTML5` awaits twice — a HEAD probe (plus a ranged GET when the HEAD
+ * fails) and the hls.js chunk import — and the viewer can leave or pick another
+ * title in that window. Without a generation stamp the stale continuation wins:
+ * it writes `videoElement.src` on the element a *newer* load already created,
+ * so title A plays inside title B's page, under B's title and B's history. It
+ * also overwrites `hlsInstance` without destroying the old one, leaving a
+ * second loader pulling fragments into the same element.
+ */
+let loadGeneration = 0;
 // Self-healing for fatal hls.js errors (IPTV streams hiccup a lot): retry
 // with exponential backoff before surfacing the error modal. Counter resets
 // once a fragment buffers again (stream is healthy).
@@ -169,6 +181,17 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
     throw new Error("HTML5 backend is not initialized");
   }
 
+  const generation = ++loadGeneration;
+  /** True once a newer load started, or the backend was torn down. */
+  const superseded = () => generation !== loadGeneration || !videoElement;
+
+  // Whatever was playing is being replaced; drop it before building the next
+  // one so two loaders never share the element.
+  if (hlsInstance) {
+    hlsInstance.destroy();
+    hlsInstance = null;
+  }
+
   // Fresh playback session: allow the next error event through the throttle.
   lastErrorAt = 0;
   hlsRecoveryAttempts = 0;
@@ -179,6 +202,7 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
 
   try {
     const probe = await probeSource(url);
+    if (superseded()) return;
 
     if (probe.errorCode) {
       const message = REFUSAL_MESSAGES[probe.errorCode] ?? GENERIC_REFUSAL;
@@ -198,6 +222,7 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
 
     if (shouldUseHls(url, probe.contentType)) {
       const Hls = (await import("hls.js/light")).default;
+      if (superseded()) return;
       if (!Hls.isSupported()) {
         // Last-ditch: try native HLS (Safari / iOS WebView).
         if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
@@ -268,8 +293,13 @@ export async function loadHTML5(url: string, deps: HTML5BackendDeps) {
         deps.updateState({ error: message, buffering: false });
         deps.callbacks.onError?.(message);
       });
+      if (superseded()) {
+        hls.destroy();
+        return;
+      }
       hlsInstance = hls;
     } else {
+      if (superseded()) return;
       videoElement.src = url;
     }
 
@@ -344,6 +374,10 @@ export function setHTML5SubtitlesVisible(visible: boolean): boolean {
 }
 
 export function destroyHTML5Backend() {
+  // Any load still awaiting its probe or chunk import is now stale; bumping the
+  // generation makes it return instead of writing to a torn-down element.
+  loadGeneration += 1;
+
   if (hlsRecoveryTimer) {
     clearTimeout(hlsRecoveryTimer);
     hlsRecoveryTimer = null;
